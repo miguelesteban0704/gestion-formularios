@@ -1,0 +1,49 @@
+/* Bloque "Nocturne" del showroom. Solo documentación de la receta aplicada:
+ * el cromo vive en ui/crystal.css y los tokens en index.css. */
+
+.noc-card {
+  border-radius: 1.125rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--glass-chroma) 30%, rgba(15, 23, 42, 0.08));
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--glass-chroma) 7%, #ffffff),
+    color-mix(in srgb, var(--glass-chroma) 12%, #f6f9fd));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--glass-chroma) 32%, #ffffff);
+}
+
+.dark .noc-card {
+  border-color: color-mix(in srgb, var(--glass-chroma) 26%, rgba(255, 255, 255, 0.08));
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--glass-chroma) 11%, #1a1f2b),
+    color-mix(in srgb, var(--glass-chroma) 6%, #0d111a));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--glass-chroma) 24%, transparent);
+}
+
+.noc-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--glass-chroma);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--glass-chroma) 20%, transparent);
+}
+
+.noc-code {
+  display: block;
+  margin-top: 0.65rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.5rem;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.65rem;
+  line-height: 1.5;
+  word-break: break-word;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+.dark .noc-code {
+  color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.08);
+}

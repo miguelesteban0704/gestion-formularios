@@ -1,0 +1,132 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   PrismVolumeChart — "Volumen de respuestas" por formulario.
+   Mismo lenguaje visual que PrismAreaChart: área con rampa índigo→cian→
+   dorado + línea acumulada dorada con glow + tooltip de vidrio dual.
+   Clases `.pvc-`. Sin mix-blend-mode ni backdrop-filter anidados.
+   Única animación continua: el halo del nodo activo (1 elemento).
+   ═══════════════════════════════════════════════════════════════════════ */
+.pvc-root {
+  position: relative;
+  isolation: isolate;
+}
+.pvc-glow {
+  position: absolute;
+  inset: 6px 2px 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    70% 52% at 50% 0%,
+    rgba(34, 211, 238, 0.07),
+    transparent 66%
+  );
+}
+.pvc-root .recharts-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+/* Tipografía de ejes: ultrafina, retroiluminada */
+.pvc-root .recharts-cartesian-axis-tick text {
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  text-shadow: 0 0 8px rgba(120, 200, 255, 0.22);
+}
+.pvc-light .recharts-cartesian-axis-tick text {
+  text-shadow: 0 0 6px rgba(8, 47, 73, 0.12);
+}
+
+/* ── Nodo neón activo: halo pulsante (1 elemento animado) ── */
+.pvc-node-halo {
+  animation: pvc-node 2.2s ease-in-out infinite;
+  transform-origin: center;
+}
+@keyframes pvc-node {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.35); }
+}
+
+/* ── Tooltip de vidrio dual (diarias + acumuladas) ── */
+.pvc-tip {
+  min-width: 150px;
+  padding: 11px 14px 10px;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(34, 211, 238, 0.1), rgba(255, 184, 77, 0.06) 140%),
+    rgba(9, 15, 27, 0.92);
+  border: 1px solid rgba(103, 232, 249, 0.32);
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.06),
+    0 22px 44px -16px rgba(0, 0, 0, 0.9),
+    0 0 34px -8px rgba(34, 211, 238, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.pvc-tip::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.9), rgba(255, 197, 88, 0.9), transparent);
+}
+.pvc-tip-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #a8eef8;
+}
+.pvc-tip-tag i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #67e8f9;
+  box-shadow: 0 0 8px #22d3ee;
+}
+.pvc-tip-rows {
+  margin-top: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.pvc-tip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.pvc-tip-row em {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8fa3bd;
+}
+.pvc-tip-row em i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.pvc-tip-row b {
+  font-family: "Space Grotesk", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  text-shadow: 0 0 12px rgba(255, 197, 88, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pvc-root *,
+  .pvc-root *::before,
+  .pvc-root *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

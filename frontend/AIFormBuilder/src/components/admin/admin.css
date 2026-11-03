@@ -1,0 +1,1975 @@
+/* Este archivo vive dentro del pipeline de Tailwind (lo importa `index.css`),
+   así que sus utilidades `adm-*`/`premium-*` se compilan en la entry principal.
+   Los .jsx también lo importan como módulo CSS para el árbol del brand-audit. */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ADMIN · lenguaje visual del sitio
+   ───────────────────────────────────────────────────────────────────────
+   El panel NO tiene sistema propio: cada utilidad `adm-*` delega en el
+   mismo sistema de tarjetas que usa la portada de invitados
+   (`card-surface`, `CardSurface`, `card-icon`, `card-pill`, tokens
+   `--card-*`). Así el panel se ve como el sitio y no como otra app.
+
+   El acento del panel es el mismo `--card-accent` del sitio (brand por
+   defecto). Quien quiera otro tono lo cambia con `style` en un panel
+   concreto, igual que hace NavCard con sus hexes.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Lienzo del panel ───────────────────────────────────────────────────
+   Mismo fondo que el resto del sitio. Los focos suaves del acento dan
+   profundidad sin inventar un color nuevo. */
+@utility adm-canvas {
+  background-color: var(--app-bg);
+  background-image:
+    radial-gradient(90% 60% at 8% -6%, color-mix(in srgb, var(--card-accent) 7%, transparent), transparent 60%),
+    radial-gradient(70% 50% at 100% 0%, color-mix(in srgb, var(--card-accent) 5%, transparent), transparent 62%);
+}
+
+.dark .adm-canvas {
+  background-image:
+    radial-gradient(90% 60% at 8% -6%, color-mix(in srgb, var(--card-accent) 11%, transparent), transparent 60%),
+    radial-gradient(70% 50% at 100% 0%, color-mix(in srgb, var(--card-accent) 7%, transparent), transparent 62%),
+    var(--app-bg);
+}
+
+/* ── Panel ──────────────────────────────────────────────────────────────
+   Alias a `card-surface`: mismo borde, mismo fondo, mismas sombras, mismo
+   hover que las tarjetas del sitio. `CardSurface` añade mesh+grano+filo
+   por separado (en el componente). */
+@utility adm-panel {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--card-radius);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 10%, var(--border));
+  background-color: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  transition:
+    transform var(--transition-slow) var(--ease-premium),
+    box-shadow var(--transition-slow) var(--ease-premium),
+    border-color var(--transition-fast) ease;
+}
+
+@utility adm-panel-hover {
+  &:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--card-accent) 30%, var(--border));
+    background-color: var(--card-bg-hover);
+    box-shadow: var(--card-glow), var(--card-shadow-hover);
+  }
+}
+
+/* ── Pastilla ───────────────────────────────────────────────────────────
+   Mismo patrón que `Badge` de Feedback.jsx: rounded-full, tinte suave,
+   texto compuesto con el color sobre `--fg`. */
+@utility adm-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 22%, transparent);
+  background-color: color-mix(in srgb, var(--card-accent) 10%, transparent);
+  color: color-mix(in srgb, var(--card-accent) 76%, var(--fg));
+  padding: 0.3rem 0.65rem;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+@utility adm-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 9999px;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);
+}
+
+/* ── Campo de texto ─────────────────────────────────────────────────────
+   Mismo aspecto que `Input` de Input.jsx: rounded-xl, border-default,
+   bg-surface-2/60, focus con anillo brand. */
+@utility adm-field {
+  width: 100%;
+  min-height: 2.875rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background-color: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  color: var(--fg);
+  font-size: 0.875rem;
+  padding: 0 0.875rem;
+  outline: none;
+  transition:
+    border-color var(--transition-fast) ease,
+    box-shadow var(--transition-fast) ease,
+    background-color var(--transition-fast) ease;
+}
+
+@utility adm-field-hover {
+  &:hover:not(:disabled):not([aria-invalid="true"]) {
+    border-color: color-mix(in srgb, var(--color-brand-300, var(--border)) 100%, transparent);
+  }
+}
+
+@utility adm-field-focus {
+  &:focus-visible {
+    border-color: var(--color-brand-400, var(--color-brand-500));
+    background-color: var(--surface);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand-500) 12%, transparent);
+  }
+}
+
+@utility adm-field-off {
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+@utility adm-field-bad {
+  &[aria-invalid="true"] {
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-danger) 14%, transparent);
+  }
+}
+
+/* ── Campo premium (cristal) ────────────────────────────────────────────
+   Variante glass de `adm-field` para los formularios de alta/edición del
+   panel: caja translúcida con blur, filete de luz interior, hover brand y
+   foco con aura de marca. Misma receta que `adm-live-search-shell`, todo
+   desde tokens (`--glass-*`, `--color-brand-*`) y sin hex de paleta. Los
+   estados error/disabled van integrados (por eso no se combina con
+   `adm-field-focus`/`adm-field-bad`). */
+@utility adm-field-premium {
+  width: 100%;
+  min-height: 2.875rem;
+  border-radius: 14px;
+  /* El reborde SIEMPRE visible: en claro `--border` (no `--glass-border`,
+     que es blanco y sobre la superficie blanca del modal desaparece). */
+  border: 1px solid var(--border);
+  background-color: var(--surface-2);
+  background-image: linear-gradient(180deg, color-mix(in srgb, #ffffff 50%, transparent), transparent 46%);
+  color: var(--fg);
+  font-size: 0.875rem;
+  padding: 0 0.875rem;
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 70%, transparent),
+    0 1px 2px -1px color-mix(in srgb, var(--fg) 8%, transparent);
+  backdrop-filter: blur(14px) saturate(1.5);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  transition:
+    border-color var(--transition-fast) ease,
+    background-color var(--transition-fast) ease,
+    box-shadow var(--transition-slow) var(--ease-premium);
+
+  &::placeholder {
+    color: var(--fg-muted);
+  }
+
+  &:hover:not(:disabled):not([aria-invalid="true"]) {
+    border-color: color-mix(in srgb, var(--color-brand-300, var(--border)) 55%, var(--border));
+  }
+
+  &:focus-visible {
+    border-color: color-mix(in srgb, var(--color-brand-400) 55%, var(--border));
+    background-color: var(--surface);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in srgb, #ffffff 60%, transparent),
+      0 0 0 4px color-mix(in srgb, var(--color-brand-500) 12%, transparent),
+      0 0 28px -6px color-mix(in srgb, var(--color-brand-400) 28%, transparent),
+      0 16px 36px -20px color-mix(in srgb, var(--color-brand-500) 35%, transparent);
+  }
+
+  &[aria-invalid="true"] {
+    border-color: var(--color-danger);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in srgb, #ffffff 55%, transparent),
+      0 0 0 4px color-mix(in srgb, var(--color-danger) 14%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+/* Oscuro: mismo cristal, menos luz. Scoped con :not(...) para que los
+   estados de foco/error/disabled sigan mandando (las reglas del utility
+   tienen menor especificidad que este precedido por .dark). */
+.dark .adm-field-premium:not(:focus-visible):not(:disabled):not([aria-invalid="true"]) {
+  border-color: color-mix(in srgb, var(--border) 78%, var(--glass-chroma, var(--color-brand-400)));
+  background-color: color-mix(in srgb, var(--glass-bg) 82%, transparent);
+  background-image: linear-gradient(180deg, color-mix(in srgb, #ffffff 8%, transparent), transparent 52%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 6%, transparent),
+    0 1px 2px -1px color-mix(in srgb, var(--fg) 12%, transparent),
+    0 14px 32px -20px color-mix(in srgb, var(--fg) 28%, transparent);
+}
+
+.dark .adm-field-premium:hover:not(:focus-visible):not(:disabled):not([aria-invalid="true"]) {
+  border-color: color-mix(in srgb, var(--color-brand-300) 35%, var(--glass-border));
+}
+
+/* Icono líder del campo: reserva el hueco a la izquierda del texto. */
+@utility adm-field-icon {
+  padding-left: 2.5rem;
+}
+
+/* ── Campos premium: piezas nuevas ──────────────────────────────────────
+   El icono del campo pasa a ser una pastilla (chip) con tinte de marca, así
+   que el texto necesita más hueco que con `adm-field-icon`. El icono de
+   estado (check/alerta) a la derecha también reserva su sitio. Todo va en
+   utilidades propias —y no en clases Tailwind— porque `adm-field-premium`
+   fija `padding` y ganaría en la cascada. */
+@utility adm-field-lead {
+  padding-left: 3.5rem;
+}
+
+@utility adm-field-trail {
+  padding-right: 2.5rem;
+}
+
+/* Acción a la derecha del campo (p. ej. el ojo de "ver contraseña"): reserva
+   más hueco que `adm-field-trail` porque el botón mide 2rem y va con margen. */
+@utility adm-field-action {
+  padding-right: 3.25rem;
+}
+
+/* Área de texto premium: respira en vertical y sólo crece hacia abajo. */
+@utility adm-field-area {
+  min-height: 6.5rem;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+/* Mensaje de campo (error o pista) con su icono delante. */
+@utility adm-field-msg {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+/* ── Grupo de opciones (tarjetas radio premium) ────────────────────────
+   Alternativa a un `<select>` cuando las opciones son pocas: cada una es
+   una tarjeta con icono y check. Misma receta de cristal que el campo,
+   elevación sutil al hover y aura de marca al quedar elegida. */
+@utility adm-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background-color: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+  color: var(--fg);
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast) ease,
+    background-color var(--transition-fast) ease,
+    box-shadow var(--transition-slow) var(--ease-premium),
+    transform var(--transition-slow) var(--ease-premium);
+}
+
+@utility adm-option-hover {
+  &:hover:not([aria-checked="true"]) {
+    border-color: color-mix(in srgb, var(--color-brand-300) 50%, var(--border));
+    background-color: var(--surface-2);
+    transform: translateY(-1px);
+  }
+}
+
+@utility adm-option-on {
+  border-color: color-mix(in srgb, var(--color-brand-400) 60%, var(--border));
+  background-color: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 45%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--color-brand-500) 12%, transparent),
+    0 12px 26px -18px color-mix(in srgb, var(--color-brand-500) 50%, transparent);
+}
+
+@utility adm-option-bad {
+  border-color: color-mix(in srgb, var(--color-danger) 55%, var(--border));
+}
+
+/* Etiqueta de campo: una sola voz para todos los formularios del panel. */
+@utility adm-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin-bottom: 0.4375rem;
+}
+
+/* ── Botón de icono (barra de herramientas y acciones de fila) ──────────
+   40px de lado, hover con tinte suave del acento del sitio. El foco
+   visible va con anillo brand para no depender del color del panel. */
+@utility adm-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  background-color: transparent;
+  transition:
+    color var(--transition-fast) ease,
+    background-color var(--transition-fast) ease,
+    border-color var(--transition-fast) ease;
+}
+
+@utility adm-icon-btn-hover {
+  &:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--card-accent) 8%, transparent);
+    border-color: color-mix(in srgb, var(--card-accent) 22%, transparent);
+    color: var(--fg);
+  }
+}
+
+@utility adm-icon-btn-danger {
+  &:hover:not(:disabled) {
+    background-color: color-mix(in srgb, var(--color-danger) 12%, transparent);
+    border-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
+    color: var(--color-danger);
+  }
+}
+
+@utility adm-icon-btn-off {
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+/* ── Tabla ──────────────────────────────────────────────────────────────
+   Tokens del sitio: border-line, surface-2, fg-muted. Sin backdrop-filter
+   propio: el panel de arriba ya lo pone. */
+@utility adm-table-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: color-mix(in srgb, var(--surface-2) 92%, transparent);
+}
+
+@utility adm-th {
+  padding: 0.875rem 1.25rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+
+@utility adm-td {
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  color: var(--fg);
+  vertical-align: middle;
+}
+
+@utility adm-tr {
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--transition-fast) ease;
+}
+
+@utility adm-tr-last {
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+@utility adm-tr-hover {
+  &:hover {
+    background-color: color-mix(in srgb, var(--card-accent) 5%, transparent);
+  }
+}
+
+/* Monoespaciada para slugs, códigos, IPs y acciones (token del sistema). */
+@utility adm-mono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+/* ── Live search bar (premium) ──────────────────────────────────────────
+    Anatomía base del campo de búsqueda premium, compartida por
+    `LiveSearchBar` (campo simple) y `PremiumSearchBar` (con panel): la
+    caja de cristal, icono en badge que se tiñe con la marca al enfocar,
+    filete de acento con glow, aura interior, ring de foco, ripple al
+    limpiar y spinner de carga. Todo sale de tokens (`--glass-*`,
+    `--color-brand-*`) para que el dark mode y el acento funcionen sin
+    clases extra. */
+@utility adm-live-search {
+  position: relative;
+}
+
+@utility adm-live-search-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 3.25rem;
+  padding: 0 0.75rem 0 0.625rem;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(18px) saturate(1.55);
+  -webkit-backdrop-filter: blur(18px) saturate(1.55);
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 55%, transparent),
+    0 1px 2px -1px color-mix(in srgb, var(--fg) 8%, transparent),
+    0 10px 28px -18px color-mix(in srgb, var(--fg) 18%, transparent);
+  transition:
+    border-color var(--transition-fast) ease,
+    box-shadow var(--transition-slow) var(--ease-premium),
+    background-color var(--transition-fast) ease;
+}
+
+/* Aura de marca dentro del shell: invisible por defecto, despierta al
+   hover y se enciende al enfocar. `overflow: hidden` la recorta. */
+@utility adm-live-search-aura {
+  position: absolute;
+  inset: -110% -20% auto;
+  height: 170%;
+  background: radial-gradient(
+    ellipse 55% 55% at 50% 42%,
+    color-mix(in srgb, var(--color-brand-400) 55%, transparent) 0%,
+    transparent 70%
+  );
+  opacity: 0;
+  filter: blur(14px);
+  transform: translateY(-18%);
+  pointer-events: none;
+  transition:
+    opacity var(--transition-slow) var(--ease-premium),
+    transform var(--transition-slow) var(--ease-premium);
+}
+
+.adm-live-search-shell:hover .adm-live-search-aura {
+  opacity: 0.22;
+}
+
+.adm-live-search-shell:focus-within .adm-live-search-aura {
+  opacity: 0.4;
+  transform: translateY(0);
+}
+
+/* Ring exterior de foco: 1px de marca que se dibuja sobre el borde. */
+@utility adm-live-search-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 0%, transparent);
+  pointer-events: none;
+  transition: border-color var(--transition-fast) ease;
+}
+
+.adm-live-search-shell:focus-within .adm-live-search-ring {
+  border-color: color-mix(in srgb, var(--color-brand-500) 55%, transparent);
+}
+
+.dark .adm-live-search-shell {
+  border-color: color-mix(in srgb, var(--glass-chroma, var(--color-brand-400)) 16%, var(--glass-border));
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 6%, transparent),
+    0 1px 2px -1px color-mix(in srgb, var(--fg) 12%, transparent),
+    0 14px 32px -20px color-mix(in srgb, var(--fg) 28%, transparent);
+}
+
+.adm-live-search-shell:hover {
+  border-color: color-mix(in srgb, var(--color-brand-300) 35%, var(--glass-border));
+}
+
+.adm-live-search-shell:focus-within {
+  border-color: color-mix(in srgb, var(--color-brand-400) 55%, var(--glass-border));
+  background-color: color-mix(in srgb, var(--surface) 86%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 62%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--color-brand-500) 12%, transparent),
+    0 0 28px -6px color-mix(in srgb, var(--color-brand-400) 28%, transparent),
+    0 16px 36px -20px color-mix(in srgb, var(--color-brand-500) 35%, transparent);
+}
+
+.dark .adm-live-search-shell:focus-within {
+  background-color: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+
+/* Icono en badge tintado: recoge la mirada y responde al foco. */
+@utility adm-live-search-icon-wrap {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 16%, transparent);
+  background-color: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  color: var(--color-brand-600);
+  transition:
+    border-color var(--transition-fast) ease,
+    background-color var(--transition-fast) ease,
+    transform var(--transition-slow) var(--ease-premium);
+}
+
+.dark .adm-live-search-icon-wrap {
+  color: var(--color-brand-300);
+}
+
+.adm-live-search-shell:focus-within .adm-live-search-icon-wrap {
+  border-color: color-mix(in srgb, var(--color-brand-500) 32%, transparent);
+  background-color: color-mix(in srgb, var(--color-brand-500) 16%, transparent);
+  transform: scale(1.04);
+}
+
+@utility adm-live-search-icon {
+  width: 1.0625rem;
+  height: 1.0625rem;
+}
+
+@utility adm-live-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-size: 0.9375rem;
+  font-weight: 450;
+  letter-spacing: -0.01em;
+  outline: none;
+  padding: 0.875rem 0;
+}
+
+.adm-live-search-input::placeholder {
+  color: color-mix(in srgb, var(--fg-muted) 72%, transparent);
+  font-weight: 400;
+}
+
+/* La X nativa del input `type="search"` se solapa con el botón custom. */
+.adm-live-search-input::-webkit-search-cancel-button {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+@utility adm-live-search-clear {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  color: var(--fg-muted);
+  background-color: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.85);
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    transform 180ms var(--ease-premium),
+    color var(--transition-fast) ease,
+    background-color var(--transition-fast) ease,
+    border-color var(--transition-fast) ease;
+}
+
+.adm-live-search-clear[data-visible="true"] {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.adm-live-search-clear:hover {
+  color: var(--fg);
+  background-color: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand-500) 22%, transparent);
+}
+
+/* Ripple de marca al pulsar X (el botón lo recorta con `overflow: hidden`). */
+@utility adm-live-search-ripple {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-brand-500) 50%, transparent);
+  animation: adm-live-ripple 420ms var(--ease-premium) forwards;
+  pointer-events: none;
+}
+
+@keyframes adm-live-ripple {
+  from {
+    transform: scale(0.35);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(7);
+    opacity: 0;
+  }
+}
+
+/* Línea de acento inferior: crece desde el centro y emite glow al enfocar.
+   Va a `bottom: 0` porque el shell recorta con `overflow: hidden`. */
+@utility adm-live-search-line {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 0;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-brand-400) 35%,
+    var(--color-brand-300) 50%,
+    var(--color-brand-400) 65%,
+    transparent 100%
+  );
+  opacity: 0;
+  transform: scaleX(0.35);
+  transform-origin: center;
+  pointer-events: none;
+  transition:
+    opacity var(--transition-slow) var(--ease-premium),
+    transform 420ms var(--ease-premium),
+    box-shadow 420ms var(--ease-premium);
+}
+
+.adm-live-search-shell:focus-within .adm-live-search-line {
+  opacity: 1;
+  transform: scaleX(1);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--color-brand-400) 55%, transparent);
+}
+
+@utility adm-live-search-pending {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  border: 2px solid color-mix(in srgb, var(--color-brand-500) 28%, transparent);
+  border-top-color: var(--color-brand-500);
+  animation: adm-live-spin 0.7s linear infinite;
+  pointer-events: none;
+}
+
+.dark .adm-live-search-pending {
+  border-color: color-mix(in srgb, var(--color-brand-400) 30%, transparent);
+  border-top-color: var(--color-brand-400);
+}
+
+@keyframes adm-live-spin {
+  to { transform: rotate(360deg); }
+}
+
+  /* ── Premium search bar ────────────────────────────────────────────────
+     Barra de búsqueda premium con aura, filtros colapsables, panel
+     hero y micro-interacciones. Sigue el lenguaje visual del sitio. */
+@utility premium-search {
+  position: relative;
+}
+
+@utility premium-search-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4375rem;
+}
+
+@utility premium-search-label-text {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+@utility premium-search-kbd {
+  display: none;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.18rem 0.4rem;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background-color: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  color: var(--fg-muted);
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Code", Menlo, monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .premium-search-kbd {
+    display: inline-flex;
+  }
+}
+
+@utility premium-search-shell {
+  position: relative;
+  border-radius: 16px;
+  transition: box-shadow var(--transition-slow) var(--ease-premium);
+}
+
+.premium-search-shell--filters-open {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 18%, transparent);
+}
+
+@utility premium-search-aura {
+  position: absolute;
+  inset: -1px;
+  border-radius: 17px;
+  background: radial-gradient(120% 120% at 50% 0%, color-mix(in srgb, var(--color-brand-400) 12%, transparent), transparent 70%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-slow) var(--ease-premium);
+}
+
+.premium-search-shell:focus-within .premium-search-aura {
+  opacity: 1;
+}
+
+@utility premium-search-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(18px) saturate(1.55);
+  -webkit-backdrop-filter: blur(18px) saturate(1.55);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 55%, transparent),
+    0 1px 2px -1px color-mix(in srgb, var(--fg) 8%, transparent),
+    0 12px 32px -20px color-mix(in srgb, var(--fg) 18%, transparent);
+  transition:
+    border-color var(--transition-fast) ease,
+    box-shadow var(--transition-slow) var(--ease-premium),
+    background-color var(--transition-fast) ease;
+}
+
+.dark .premium-search-ring {
+  border-color: color-mix(in srgb, var(--glass-chroma, var(--color-brand-400)) 16%, var(--glass-border));
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 6%, transparent),
+    0 1px 2px -1px color-mix(in srgb, var(--fg) 12%, transparent),
+    0 16px 36px -22px color-mix(in srgb, var(--fg) 28%, transparent);
+}
+
+.premium-search-shell:hover .premium-search-ring {
+  border-color: color-mix(in srgb, var(--color-brand-300) 35%, var(--glass-border));
+}
+
+.premium-search-shell:focus-within .premium-search-ring {
+  border-color: color-mix(in srgb, var(--color-brand-400) 60%, var(--glass-border));
+  background-color: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 62%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--color-brand-500) 12%, transparent),
+    0 0 32px -8px color-mix(in srgb, var(--color-brand-400) 30%, transparent),
+    0 18px 40px -22px color-mix(in srgb, var(--color-brand-500) 36%, transparent);
+}
+
+.dark .premium-search-shell:focus-within .premium-search-ring {
+  background-color: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+@utility premium-search-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0 0.875rem 0 1rem;
+}
+
+@utility premium-search-icon-wrap {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 16%, transparent);
+  background-color: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+}
+
+@utility premium-search-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--color-brand-600);
+  transition: transform var(--transition-slow) var(--ease-premium), color var(--transition-fast) ease;
+}
+
+.dark .premium-search-icon {
+  color: var(--color-brand-300);
+}
+
+.premium-search-shell:focus-within .premium-search-icon {
+  transform: scale(1.06);
+}
+
+@utility premium-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-size: 0.95rem;
+  font-weight: 450;
+  letter-spacing: -0.01em;
+  outline: none;
+  padding: 0.9rem 0;
+}
+
+.premium-search-input::placeholder {
+  color: color-mix(in srgb, var(--fg-muted) 72%, transparent);
+  font-weight: 400;
+}
+
+@utility premium-search-pending {
+  position: absolute;
+  right: 5.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 20%, transparent);
+  background-color: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--color-brand-600);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
+  animation: fade-in 180ms ease both;
+}
+
+.dark .premium-search-pending {
+  color: var(--color-brand-300);
+}
+
+@utility premium-search-pending-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.premium-search-pending-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  animation: premium-pulse 1s ease-in-out infinite;
+}
+
+.premium-search-pending-dots span:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.premium-search-pending-dots span:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+@keyframes premium-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@utility premium-search-filter-btn {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  color: var(--fg-muted);
+  background-color: transparent;
+  cursor: pointer;
+  transition:
+    color var(--transition-fast) ease,
+    background-color var(--transition-fast) ease,
+    border-color var(--transition-fast) ease;
+}
+
+.premium-search-filter-btn:hover,
+.premium-search-filter-btn.active {
+  color: var(--fg);
+  background-color: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand-500) 22%, transparent);
+}
+
+@utility premium-search-filter-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+@utility premium-search-filter-dot {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-brand-500);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface) 90%, transparent);
+}
+
+@utility premium-search-clear {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  color: var(--fg-muted);
+  background-color: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.85);
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    transform 180ms var(--ease-premium),
+    color var(--transition-fast) ease,
+    background-color var(--transition-fast) ease,
+    border-color var(--transition-fast) ease;
+}
+
+.premium-search-clear[data-visible="true"] {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.premium-search-clear:hover {
+  color: var(--fg);
+  background-color: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand-500) 22%, transparent);
+}
+
+@utility premium-search-ripple {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-brand-500) 18%, transparent) 0%, transparent 70%);
+  transform: translate(-50%, -50%) scale(0);
+  animation: premium-ripple 400ms ease-out;
+  pointer-events: none;
+}
+
+@keyframes premium-ripple {
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+
+@utility premium-search-line {
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-brand-400) 35%,
+    var(--color-brand-300) 50%,
+    var(--color-brand-400) 65%,
+    transparent 100%
+  );
+  opacity: 0;
+  transform: scaleX(0.3);
+  transform-origin: center;
+  pointer-events: none;
+  transition:
+    opacity var(--transition-slow) var(--ease-premium),
+    transform 420ms var(--ease-premium),
+    box-shadow 420ms var(--ease-premium);
+}
+
+.premium-search-shell:focus-within .premium-search-line {
+  opacity: 1;
+  transform: scaleX(1);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-brand-400) 55%, transparent);
+}
+
+@utility premium-search-filters {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  padding: 0.9rem 1rem 1rem;
+  gap: 0.9rem;
+  animation: premium-fade-down 220ms var(--ease-premium) both;
+}
+
+@keyframes premium-fade-down {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility premium-search-filters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@utility premium-search-filters-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+@utility premium-search-filters-close {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  color: var(--fg-muted);
+  transition: color var(--transition-fast) ease, background-color var(--transition-fast) ease;
+}
+
+.premium-search-filters-close:hover {
+  color: var(--fg);
+  background-color: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+}
+
+@utility premium-search-filters-body {
+  display: grid;
+  gap: 0.9rem;
+}
+
+@utility premium-search-filter-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+@utility premium-search-filter-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+@utility premium-search-filter-select {
+  width: 100%;
+  min-height: 2.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background-color: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--fg);
+  font-size: 0.875rem;
+  padding: 0 0.8rem;
+  outline: none;
+  transition: border-color var(--transition-fast) ease, box-shadow var(--transition-fast) ease;
+}
+
+.premium-search-filter-select:focus-visible {
+  border-color: var(--color-brand-400);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand-500) 12%, transparent);
+}
+
+@utility premium-search-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@utility premium-search-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background-color: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  transition: all var(--transition-fast) ease;
+}
+
+.premium-search-filter-chip:hover,
+.premium-search-filter-chip.active {
+  color: var(--fg);
+  border-color: color-mix(in srgb, var(--color-brand-500) 28%, transparent);
+  background-color: color-mix(in srgb, var(--color-brand-500) 12%, transparent);
+}
+
+@utility premium-search-filters-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@utility premium-search-filters-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  transition: color var(--transition-fast) ease, background-color var(--transition-fast) ease;
+}
+
+.premium-search-filters-reset:hover {
+  color: var(--fg);
+  background-color: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+}
+
+@utility premium-search-panel {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-400) 18%, var(--glass-border));
+  background-color: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 50%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-brand-500) 8%, transparent),
+    0 26px 60px -26px color-mix(in srgb, var(--fg) 28%, transparent),
+    0 14px 44px -18px color-mix(in srgb, var(--color-brand-500) 28%, transparent);
+  animation: premium-panel-in 280ms var(--ease-premium) both;
+}
+
+.dark .premium-search-panel {
+  background-color: color-mix(in srgb, var(--surface) 94%, transparent);
+  border-color: color-mix(in srgb, var(--glass-chroma, var(--color-brand-400)) 24%, var(--glass-border));
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 5%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-brand-400) 10%, transparent),
+    0 30px 66px -26px color-mix(in srgb, var(--fg) 48%, transparent),
+    0 16px 48px -18px color-mix(in srgb, var(--color-brand-400) 32%, transparent);
+}
+
+.premium-search-panel--filters {
+  animation: none;
+}
+
+@keyframes premium-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@utility premium-search-panel-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+@utility premium-search-panel-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 18%, transparent);
+  background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--color-brand-400) 18%, transparent), color-mix(in srgb, var(--color-brand-500) 10%, transparent));
+  color: var(--color-brand-600);
+}
+
+.dark .premium-search-panel-icon {
+  color: var(--color-brand-300);
+}
+
+@utility premium-search-panel-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+@utility premium-search-panel-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+@utility premium-search-panel-count {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+@utility premium-search-list {
+  display: grid;
+  gap: 0.25rem;
+  max-height: min(22rem, 52vh);
+  overflow-y: auto;
+  padding: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-brand-500) 35%, transparent) transparent;
+}
+
+@utility premium-search-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  text-align: left;
+  color: var(--fg);
+  background: transparent;
+  animation: premium-item-in 280ms var(--ease-premium) both;
+  animation-delay: calc(var(--i, 0) * 26ms);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 180ms var(--ease-premium),
+    box-shadow 140ms ease;
+}
+
+@keyframes premium-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.premium-search-item:hover,
+.premium-search-item[data-active="true"] {
+  background-color: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand-500) 20%, transparent);
+  transform: translateX(3px);
+}
+
+.premium-search-item[data-active="true"] {
+  box-shadow: inset 0 1px 0 0 color-mix(in srgb, #ffffff 42%, transparent);
+}
+
+.dark .premium-search-item:hover,
+.dark .premium-search-item[data-active="true"] {
+  background-color: color-mix(in srgb, var(--color-brand-400) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand-400) 26%, transparent);
+}
+
+@utility premium-search-item-entity {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 18%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-brand-400) 16%, transparent), color-mix(in srgb, var(--color-brand-500) 10%, transparent));
+  color: var(--color-brand-600);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.dark .premium-search-item-entity {
+  color: var(--color-brand-300);
+}
+
+@utility premium-search-item-content {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+@utility premium-search-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+@utility premium-search-item-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+@utility premium-search-item-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  text-align: right;
+}
+
+@utility premium-search-item-stat {
+  display: grid;
+  gap: 0.08rem;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+@utility premium-search-item-stat-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+@utility premium-search-item-stat-label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.625rem;
+}
+
+@utility premium-search-item-chevron {
+  width: 1rem;
+  height: 1rem;
+  color: var(--fg-muted);
+}
+
+@utility premium-search-empty {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 0.4rem;
+  padding: 1.6rem 1rem;
+}
+
+@utility premium-search-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 18%, transparent);
+  background-color: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  color: var(--color-brand-600);
+  margin-bottom: 0.4rem;
+}
+
+.dark .premium-search-empty-icon {
+  color: var(--color-brand-300);
+}
+
+@utility premium-search-empty-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+@utility premium-search-empty-sub {
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-search-panel,
+  .premium-search-item,
+  .premium-search-pending,
+  .premium-search-pending-dots span,
+  .premium-search-filters {
+    animation: none;
+  }
+  .premium-search-shell,
+  .premium-search-line,
+  .premium-search-clear,
+  .premium-search-item,
+  .premium-search-icon,
+  .premium-search-filter-btn {
+    transition: none;
+  }
+}
+
+  /* Tick suave cuando cambia un contador en vivo (resumen / pill). */
+@utility adm-live-tick {
+  animation: adm-live-tick 360ms var(--ease-premium) both;
+}
+
+@keyframes adm-live-tick {
+  0% {
+    opacity: 0.35;
+    transform: translateY(3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-live-search-pending,
+  .adm-live-search-ripple {
+    animation: none;
+  }
+  .adm-live-search-shell,
+  .adm-live-search-aura,
+  .adm-live-search-ripple,
+  .adm-live-search-line,
+  .adm-live-search-clear,
+  .adm-live-search-icon-wrap {
+    transition: none;
+  }
+}
+
+/* ── Premium search bar (B2B ejecutivo + panel de resultados en vivo) ──
+    Estética SaaS B2B limpia: superficie gris fría con trazo fino y sombra
+    suave en reposo, ring de luz + elevación al enfocar, icono minimalista
+    (stroke 1.5) gris apagado, badge de atajo (⌘K/Ctrl K) y × de limpiar.
+    Estados: Default / Hover / Active-Focus / Filled, todos gobernados por
+    los tokens `--search-*` de abajo (equivalen a los estilos de Figma). */
+.premium-search {
+  /* Raíz de posición del panel flotante (el shell recorta con overflow) */
+  position: relative;
+
+  /* ── Design tokens (Figma-ready) ── */
+  /* Superficie */
+  --search-surface: var(--surface-2);
+  --search-surface-hover: var(--surface);
+  --search-border: var(--border);
+  /* Acento activo: deep indigo / royal blue. Token propio, NO atado al
+     acento del sitio: cambiarlo aquí actualiza todo el componente. */
+  --search-accent: #3a56e4;
+  --search-accent-hover: color-mix(in srgb, var(--search-accent) 32%, var(--border));
+  --search-accent-ring: color-mix(in srgb, var(--search-accent) 15%, transparent);
+  --search-accent-tint: color-mix(in srgb, var(--search-accent) 8%, transparent);
+  /* Texto */
+  --search-text: var(--fg);
+  --search-placeholder: color-mix(in srgb, var(--fg-muted) 78%, transparent);
+  --search-icon: var(--fg-muted);
+  /* Badge de atajo */
+  --search-kbd-bg: color-mix(in srgb, var(--fg) 5%, transparent);
+  --search-kbd-border: color-mix(in srgb, var(--fg) 11%, transparent);
+  /* Elevación */
+  --search-shadow-rest: 0 1px 2px -1px color-mix(in srgb, var(--fg) 9%, transparent);
+  --search-shadow-hover: 0 3px 8px -4px color-mix(in srgb, var(--fg) 12%, transparent);
+  --search-shadow-focus:
+    0 0 0 3.5px var(--search-accent-ring),
+    0 6px 18px -8px color-mix(in srgb, var(--search-accent) 45%, transparent);
+}
+
+.dark .premium-search {
+  --search-accent: #8093ff;
+  --search-surface: color-mix(in srgb, var(--surface-2) 72%, transparent);
+}
+
+/* Estado Default: trazo fino, superficie gris fría, sombra suave. */
+.premium-search-shell {
+  min-height: 2.875rem;
+  gap: 0.625rem;
+  padding: 0 0.5625rem 0 0.75rem;
+  border-radius: 12px;
+  background-color: var(--search-surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-color: var(--search-border);
+  box-shadow: var(--search-shadow-rest);
+}
+
+/* Estado Hover: borde acentuado y elevación un punto mayor. */
+.premium-search-shell:hover {
+  background-color: var(--search-surface-hover);
+  border-color: var(--search-accent-hover);
+  box-shadow: var(--search-shadow-hover);
+}
+
+/* Estado Active/Focus: ring de luz de acento + elevación sutil. */
+.premium-search-shell:focus-within {
+  background-color: var(--search-surface-hover);
+  border-color: var(--search-accent);
+  box-shadow: var(--search-shadow-focus);
+}
+
+/* Estado Filled: superficie clara con texto dentro. */
+.premium-search-shell[data-filled="true"] {
+  background-color: var(--search-surface-hover);
+}
+
+/* El dark del shell base (glass + tinte brand) se neutraliza aquí. */
+.dark .premium-search-shell {
+  border-color: var(--border);
+  box-shadow: var(--search-shadow-rest);
+}
+.dark .premium-search-shell:hover {
+  border-color: var(--search-accent-hover);
+}
+.dark .premium-search-shell:focus-within {
+  border-color: var(--search-accent);
+  box-shadow: var(--search-shadow-focus);
+}
+
+/* ── Variante "highlight" del shell: disparador del overlay AppleSpotlight ──
+   Sobre una `card-surface` el borde base (`--border`) se pierde; aquí el
+   trazo lleva tinte de acento para que el campo resalte sin gritar, y el
+   radio sube de 12px a 16px para un contorno más redondeado. El hover y
+   el focus suben la saturación y dejan el acento pleno al enfocar. */
+.premium-search-shell--highlight {
+  border-color: color-mix(in srgb, var(--search-accent) 55%, var(--border));
+  border-width: 1.5px;
+  border-radius: 16px;
+}
+.premium-search-shell--highlight:hover {
+  border-color: color-mix(in srgb, var(--search-accent) 80%, var(--border));
+}
+.premium-search-shell--highlight:focus-within {
+  border-color: var(--search-accent);
+}
+.dark .premium-search-shell--highlight {
+  border-color: color-mix(in srgb, var(--search-accent) 65%, var(--border));
+}
+.dark .premium-search-shell--highlight:hover {
+  border-color: color-mix(in srgb, var(--search-accent) 85%, var(--border));
+}
+
+/* Texto del disparador: tono placeholder suave (gris apagado, como el
+   hint de un input) en vez de texto sólido, y sin el padding vertical
+   del input real para que respire alineado con la lupa. */
+.premium-search-trigger-text {
+  color: var(--search-placeholder);
+  font-size: 0.9375rem;
+  font-weight: 450;
+  letter-spacing: -0.005em;
+  padding: 0;
+}
+
+/* Icono minimalista: sin badge, gris apagado; acento al enfocar.
+   El spinner de carga lo sustituye durante el fetch (va en el JSX). */
+.premium-search-shell .adm-live-search-icon-wrap {
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 0;
+  background-color: transparent;
+  color: var(--search-icon);
+  transition: color var(--transition-fast) ease;
+}
+
+.premium-search-shell:focus-within .adm-live-search-icon-wrap {
+  border: 0;
+  background-color: transparent;
+  color: var(--search-accent);
+  transform: none;
+}
+
+.premium-search-shell .adm-live-search-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Tipografía del input: legible y elegante. */
+.premium-search-shell .adm-live-search-input {
+  font-size: 0.9375rem;
+  font-weight: 450;
+  letter-spacing: -0.005em;
+  padding: 0.75rem 0;
+  color: var(--search-text);
+}
+
+.premium-search-shell .adm-live-search-input::placeholder {
+  color: var(--search-placeholder);
+}
+
+/* Minimalismo: fuera aura, ring de marca y filete (manda el focus ring). */
+.premium-search-shell .adm-live-search-aura,
+.premium-search-shell .adm-live-search-ring,
+.premium-search-shell .adm-live-search-line {
+  display: none;
+}
+
+/* Spinner de carga (sustituye al icono mientras hay fetch). */
+.premium-search-shell .adm-live-search-pending {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-width: 1.5px;
+  border-color: color-mix(in srgb, var(--search-accent) 28%, transparent);
+  border-top-color: var(--search-accent);
+}
+
+/* Hover del × de limpiar: tinte de acento. */
+.premium-search-shell .adm-live-search-clear:hover {
+  background-color: var(--search-accent-tint);
+  border-color: color-mix(in srgb, var(--search-accent) 24%, transparent);
+  color: var(--fg);
+}
+
+/* Badge de atajo a la derecha (⌘ K en mac / Ctrl K en el resto).
+   Se atenúa al enfocar o cuando hay texto (entra el × de limpiar). */
+@utility premium-search-kbd {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--search-kbd-border);
+  background-color: var(--search-kbd-bg);
+  color: var(--fg-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.premium-search-shell:focus-within .premium-search-kbd,
+.premium-search-kbd[data-hidden="true"] {
+  opacity: 0;
+  transform: translateY(1px);
+  pointer-events: none;
+}
+
+/* Panel glass flotante con hero de resultados. */
+@utility premium-search-panel {
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--search-accent) 16%, var(--border));
+  background-color: color-mix(in srgb, var(--surface) 93%, transparent);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 50%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--search-accent) 7%, transparent),
+    0 24px 56px -24px color-mix(in srgb, var(--fg) 22%, transparent),
+    0 12px 40px -18px color-mix(in srgb, var(--search-accent) 22%, transparent);
+  animation: premium-panel-in 280ms var(--ease-premium) both;
+}
+
+.dark .premium-search-panel {
+  background-color: color-mix(in srgb, var(--surface) 95%, transparent);
+  border-color: color-mix(in srgb, var(--search-accent) 24%, var(--border));
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 5%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--search-accent) 12%, transparent),
+    0 28px 60px -24px color-mix(in srgb, var(--fg) 45%, transparent),
+    0 14px 44px -18px color-mix(in srgb, var(--search-accent) 26%, transparent);
+}
+
+@keyframes premium-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Hero: icono de marca + contador destacado. */
+@utility premium-search-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+@utility premium-search-hero-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--search-accent) 16%, transparent);
+  background-color: color-mix(in srgb, var(--search-accent) 10%, transparent);
+  color: var(--search-accent);
+}
+
+.dark .premium-search-hero-icon {
+  color: var(--search-accent);
+}
+
+@utility premium-search-hero-meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+@utility premium-search-hero-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+@utility premium-search-hero-count {
+  align-self: flex-start;
+  padding: 0.12rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--search-accent) 22%, transparent);
+  background-color: color-mix(in srgb, var(--search-accent) 10%, transparent);
+  color: color-mix(in srgb, var(--search-accent) 85%, var(--fg));
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dark .premium-search-hero-count {
+  color: color-mix(in srgb, var(--search-accent) 85%, var(--fg));
+}
+
+@utility premium-search-list {
+  max-height: min(20rem, 48vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.4rem;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--search-accent) 35%, transparent) transparent;
+}
+
+@utility premium-search-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.65rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  text-align: left;
+  color: var(--fg);
+  cursor: pointer;
+  background: transparent;
+  animation: premium-item-in 260ms var(--ease-premium) both;
+  animation-delay: calc(var(--i, 0) * 26ms);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 180ms var(--ease-premium);
+}
+
+@keyframes premium-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.premium-search-item:hover,
+.premium-search-item[data-active="true"] {
+  background-color: color-mix(in srgb, var(--search-accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--search-accent) 18%, transparent);
+  transform: translateX(2px);
+}
+
+.premium-search-item[data-active="true"] {
+  background-color: color-mix(in srgb, var(--search-accent) 12%, transparent);
+  box-shadow: inset 0 1px 0 0 color-mix(in srgb, #ffffff 40%, transparent);
+}
+
+.dark .premium-search-item:hover,
+.dark .premium-search-item[data-active="true"] {
+  background-color: color-mix(in srgb, var(--search-accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--search-accent) 26%, transparent);
+}
+
+@utility premium-search-item-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--search-accent) 16%, transparent);
+  background-color: color-mix(in srgb, var(--search-accent) 10%, transparent);
+  color: var(--search-accent);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.dark .premium-search-item-avatar {
+  color: var(--search-accent);
+}
+
+@utility premium-search-item-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+@utility premium-search-item-title {
+  overflow: hidden;
+  color: var(--fg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@utility premium-search-item-sub {
+  margin-top: 0.12rem;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@utility premium-search-item-stats {
+  display: flex;
+  flex: none;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+@utility premium-search-item-stat {
+  text-align: right;
+  color: var(--fg-muted);
+}
+
+@utility premium-search-item-stat-value {
+  display: block;
+  color: var(--fg);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility premium-search-item-stat-label {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@utility premium-search-item-chevron {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  color: var(--fg-muted);
+}
+
+@utility premium-search-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+@utility premium-search-empty-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  background-color: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  color: var(--fg-muted);
+}
+
+@utility premium-search-empty-title {
+  margin-top: 0.7rem;
+  color: var(--fg);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+@utility premium-search-empty-sub {
+  margin-top: 0.25rem;
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-search-panel,
+  .premium-search-item {
+    animation: none;
+  }
+  .premium-search-item,
+  .premium-search-kbd {
+    transition: none;
+  }
+}
+
+/* ── Hairline superior de tarjeta ───────────────────────────────────────
+    Mismo brillo de 1px que NavCard y StatCard: separa la superficie del
+    fondo cuando la sombra no llega. */
+@utility adm-hairline {
+  border-top: 1px solid color-mix(in srgb, var(--card-accent) 16%, var(--border));
+}
+
+/* Entrada escalonada. Usa `--i` como índice y `prefers-reduced-motion` la
+   apaga entera. */
+@keyframes adm-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@utility adm-rise {
+  animation: adm-rise var(--transition-slow) var(--ease-premium) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-rise {
+    animation: none;
+  }
+  .adm-panel,
+  .adm-panel-hover {
+    transition: none;
+  }
+  .adm-panel-hover:hover {
+    transform: none;
+  }
+}
+
+

@@ -1,0 +1,102 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   PrismColumnBars — barras verticales premium "días concurridos".
+   Mismo lenguaje que PrismAreaChart: degradado cian→teal con pico dorado,
+   ejes Space Grotesk retroiluminados y tooltip de vidrio.
+   Clases `.pcb-`. Sin mix-blend-mode ni backdrop-filter anidados.
+   ═══════════════════════════════════════════════════════════════════════ */
+.pcb-root {
+  position: relative;
+  isolation: isolate;
+}
+.pcb-glow {
+  position: absolute;
+  inset: 6px 2px 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    70% 52% at 50% 0%,
+    rgba(34, 211, 238, 0.07),
+    transparent 66%
+  );
+}
+.pcb-root .recharts-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+.pcb-root .recharts-cartesian-axis-tick text {
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  text-shadow: 0 0 8px rgba(120, 200, 255, 0.22);
+}
+.pcb-light .recharts-cartesian-axis-tick text {
+  text-shadow: 0 0 6px rgba(8, 47, 73, 0.12);
+}
+
+/* ── Tooltip de vidrio ── */
+.pcb-tip {
+  min-width: 122px;
+  padding: 11px 14px 10px;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(34, 211, 238, 0.1), rgba(255, 184, 77, 0.06) 140%),
+    rgba(9, 15, 27, 0.92);
+  border: 1px solid rgba(103, 232, 249, 0.32);
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.06),
+    0 22px 44px -16px rgba(0, 0, 0, 0.9),
+    0 0 34px -8px rgba(34, 211, 238, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.pcb-tip::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(103, 232, 249, 0.9), rgba(255, 197, 88, 0.9), transparent);
+}
+.pcb-tip-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #a8eef8;
+}
+.pcb-tip-tag i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #67e8f9;
+  box-shadow: 0 0 8px #22d3ee;
+}
+.pcb-tip-val {
+  margin-top: 5px;
+  font-family: "Space Grotesk", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-shadow: 0 0 22px rgba(255, 197, 88, 0.5);
+}
+.pcb-tip-lab {
+  margin-top: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #8fa3bd;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pcb-root *,
+  .pcb-root *::before,
+  .pcb-root *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

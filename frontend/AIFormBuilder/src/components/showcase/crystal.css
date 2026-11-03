@@ -1,0 +1,141 @@
+/*
+ * Visión Aurora Glass — vidrio esmerilado con aura de color.
+ * Showcase de concepto: notificaciones + modales de confirmación.
+ */
+
+/* ─── Escenario: metal cepillado oscuro + micro-malla ─────────────────── */
+.cr-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-modal-lg);
+  padding: 2.75rem clamp(1.25rem, 4vw, 3rem);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background:
+    radial-gradient(1100px 520px at 18% -12%, rgba(125, 165, 210, 0.12), transparent 62%),
+    radial-gradient(900px 480px at 108% 112%, rgba(0, 0, 0, 0.6), transparent 62%),
+    repeating-linear-gradient(118deg, #171b21 0px, #1c212a 2px, #14181e 4px, #191d24 6px),
+    #13171d;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 -20px 48px -30px rgba(0, 0, 0, 0.8),
+    0 28px 72px -28px rgba(0, 0, 0, 0.65),
+    var(--shadow-card);
+}
+
+/* Micro-malla sutil (cuadrícula) */
+.cr-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+  -webkit-mask-image: radial-gradient(130% 110% at 50% 0%, black 30%, transparent 78%);
+  mask-image: radial-gradient(130% 110% at 50% 0%, black 30%, transparent 78%);
+}
+
+/* Reflejo de luz superior (brillo en el borde del escenario) */
+.cr-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 22%);
+}
+
+.cr-stage > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Cards de vidrio (fondo neutro lo pone ../ui/crystal.css) ───────── */
+.cr-card {
+  border-radius: 1.25rem;
+  transition: transform 0.45s var(--ease-spring), box-shadow 0.45s var(--ease-premium);
+}
+
+.cr-card:hover {
+  transform: translateY(-3px);
+}
+
+/* Tintes de vidrio por tipo — esmerilado con aura de color */
+.cr-tone-emerald {
+  background:
+    radial-gradient(130% 110% at 0% -12%, rgba(16, 185, 129, 0.16), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.93), rgba(250, 252, 255, 0.84));
+  border-color: rgba(16, 185, 129, 0.38);
+}
+.cr-tone-ruby {
+  background:
+    radial-gradient(130% 110% at 0% -12%, rgba(244, 63, 94, 0.14), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.93), rgba(250, 252, 255, 0.84));
+  border-color: rgba(244, 63, 94, 0.34);
+}
+.cr-tone-sapphire {
+  background:
+    radial-gradient(130% 110% at 0% -12%, rgba(79, 125, 232, 0.15), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.93), rgba(250, 252, 255, 0.84));
+  border-color: rgba(79, 125, 232, 0.34);
+}
+.cr-tone-amber {
+  background:
+    radial-gradient(130% 110% at 0% -12%, rgba(245, 158, 11, 0.15), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.93), rgba(250, 252, 255, 0.84));
+  border-color: rgba(245, 158, 11, 0.36);
+}
+
+.dark .cr-tone-emerald {
+  background:
+    radial-gradient(130% 110% at 0% -12%, rgba(16, 185, 129, 0.26), transparent 55%),
+    linear-gradient(180deg, rgba(27, 31, 43, 0.94), rgba(16, 19, 28, 0.88));
+  border-color: rgba(16, 185, 129, 0.42);
+}
+.dark .cr-tone-ruby {
+  background:
+    radial-gradient(130% 110% at 0% -12%, rgba(244, 63, 94, 0.24), transparent 55%),
+    linear-gradient(180deg, rgba(27, 31, 43, 0.94), rgba(16, 19, 28, 0.88));
+  border-color: rgba(244, 63, 94, 0.4);
+}
+.dark .cr-tone-sapphire {
+  background:
+    radial-gradient(130% 110% at 0% -12%, rgba(79, 125, 232, 0.24), transparent 55%),
+    linear-gradient(180deg, rgba(27, 31, 43, 0.94), rgba(16, 19, 28, 0.88));
+  border-color: rgba(79, 125, 232, 0.4);
+}
+.dark .cr-tone-amber {
+  background:
+    radial-gradient(130% 110% at 0% -12%, rgba(245, 158, 11, 0.24), transparent 55%),
+    linear-gradient(180deg, rgba(27, 31, 43, 0.94), rgba(16, 19, 28, 0.88));
+  border-color: rgba(245, 158, 11, 0.42);
+}
+
+/* Paneles de modal: vidrio con luz de acento superior */
+.cr-modal {
+  background:
+    radial-gradient(130% 100% at 50% -14%, rgba(79, 125, 232, 0.14), transparent 56%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(251, 253, 255, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 32px 72px -28px rgba(15, 23, 42, 0.35),
+    0 12px 28px -14px rgba(15, 23, 42, 0.15);
+}
+
+.dark .cr-modal {
+  background:
+    radial-gradient(130% 100% at 50% -14%, rgba(99, 102, 241, 0.2), transparent 56%),
+    linear-gradient(180deg, rgba(28, 33, 46, 0.94), rgba(17, 20, 29, 0.88));
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 36px 80px -28px rgba(0, 0, 0, 0.7),
+    0 12px 30px -14px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+}
+
+/* Orbes, botones y carcasa de modal viven en ../ui/crystal.css (reutilizables) */

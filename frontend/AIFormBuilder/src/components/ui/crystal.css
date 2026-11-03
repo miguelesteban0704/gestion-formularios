@@ -1,0 +1,610 @@
+/**
+ * Aurora Glass · NOCTURNE — primitivos UI compartidos del sistema de
+ * interacción (modal · toast · splash · drawer · botones · chips).
+ *
+ * La receta es una sola y se repite en todas las superficies:
+ *   1. croma real en la BASE (mezcla con el color de acento, no un blanco roto)
+ *   2. contorno del color del acento
+ *   3. un filo de luz de 2px arriba (.cr-hairline), que es la firma visual
+ *   4. sombra teñida con el acento, no gris neutro
+ *
+ * El acento lo inyecta cada componente:
+ *   --modal-aura (modal) · --toast-tint (toast) · --chip-tint (chip)
+ *   --card-tint (tarjeta)  · --tooltip-tint (tooltip) · --cr-orb (orbe)
+ *   --btn-tint (botón de cristal)
+ * Sin tinte propio, el cristal cae en el croma de marca (--glass-chroma), que
+ * es --color-brand-*: la escala que lib/accent.js reescribe en vivo.
+ * API estable: se inyecta por style inline, nunca por clases duplicadas.
+ */
+
+/* ─── Filo de luz: la firma de Nocturne ───────────────────────────────
+   2px de acento que se apaga hacia los extremos. Sobre el canto
+   superior del cristal aporta el "brillo" que antes daba un reflejo
+   blanco genérico. Es decorativo: aria-hidden en el consumidor.      */
+.cr-hairline {
+  position: absolute;
+  top: 0;
+  left: 1.4rem;
+  right: 1.4rem;
+  height: 2px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    transparent,
+    var(--cr-accent, var(--glass-chroma)) 32%,
+    var(--cr-accent, var(--glass-chroma)) 68%,
+    transparent);
+  box-shadow: 0 0 14px -2px var(--cr-accent, var(--glass-chroma));
+}
+
+/* ─── Icono premium: chip plano CIRCULAR con tinte y filo (sin look de esfera) ─
+   Antes era una esfera de cristal (radial gradients + inset highlights) que
+   simulaba volumen 3D. Ahora es un chip plano: relleno con el croma del tono,
+   borde sutil, un filo de luz arriba y un resplandor suave alrededor. El color
+   lo inyecta el consumidor por `--cr-orb` (marca o semántico según el caso).
+   Es un CÍRCULO perfecto (radio 50%); el radio fijo a los lados hace que el
+   anillo de 4/6px y el glow queden concéntricos con el icono. */
+.cr-orb {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--cr-orb, var(--glass-chroma)) 55%, rgba(255, 255, 255, 0.35));
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--cr-orb, var(--glass-chroma)) 88%, white),
+    var(--cr-orb, var(--glass-chroma)) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 10px 20px -12px color-mix(in srgb, var(--cr-orb, var(--glass-chroma)) 70%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--cr-orb, var(--glass-chroma)) 14%, transparent);
+}
+
+.cr-orb-sm {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+}
+
+.cr-orb-lg {
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 14px 28px -14px color-mix(in srgb, var(--cr-orb, var(--glass-chroma)) 72%, transparent),
+    0 0 0 6px color-mix(in srgb, var(--cr-orb, var(--glass-chroma)) 13%, transparent);
+}
+
+/* ─── Cristal esmerilado neutro (tarjeta genérica) ───────────────────── */
+.cr-card {
+  position: relative;
+  border-radius: 1.125rem;
+  border: 1px solid color-mix(in srgb, var(--card-tint, var(--glass-chroma)) 32%, rgba(255, 255, 255, 0.9));
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--card-tint, var(--glass-chroma)) 8%, rgba(255, 255, 255, 0.94)),
+    color-mix(in srgb, var(--card-tint, var(--glass-chroma)) 14%, rgba(250, 252, 255, 0.86)));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--card-tint, var(--glass-chroma)) 35%, #ffffff),
+    inset 0 -22px 40px -28px rgba(15, 23, 42, 0.07),
+    0 22px 48px -22px color-mix(in srgb, var(--card-tint, var(--glass-chroma)) 26%, rgba(15, 23, 42, 0.28));
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  transition: transform 0.45s var(--ease-spring), box-shadow 0.45s var(--ease-premium);
+}
+
+.dark .cr-card {
+  border-color: color-mix(in srgb, var(--card-tint, var(--glass-chroma)) 30%, rgba(255, 255, 255, 0.08));
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--card-tint, var(--glass-chroma)) 13%, rgba(26, 30, 42, 0.93)),
+    color-mix(in srgb, var(--card-tint, var(--glass-chroma)) 8%, rgba(15, 18, 26, 0.86)));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--card-tint, var(--glass-chroma)) 30%, transparent),
+    inset 0 -24px 44px -30px rgba(0, 0, 0, 0.55),
+    0 24px 52px -22px rgba(0, 0, 0, 0.6);
+}
+
+.cr-card:hover {
+  transform: translateY(-2px);
+}
+
+/* ─── Toast: cristal tintado por tipo ─────────────────────────────────
+   El tipo inyecta --toast-tint (y --cr-orb para el orbe).
+
+   En claro el fondo de la app ronda #fbfcfe: un cristal casi blanco sobre
+   ese fondo se apoya solo en el blur y la sombra (contraste medido 1.00,
+   o sea ninguno). Por eso el tinte va también en la BASE del cristal, no
+   solo en el halo superior: el toast se lee como pieza de su tipo en vez
+   de como un rectángulo blanco, y el contraste sube a 1.11 (claro) / 1.33
+   (oscuro). Nocturne sube ese croma: 18% arriba, 26% abajo, para que la
+   pieza se lean de un vistazo y no compita con el texto.                  */
+.cr-toast {
+  position: relative;
+  color: var(--fg);
+  border-radius: var(--radius-toast);
+  border: 1px solid color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 46%, rgba(203, 213, 225, 0.9));
+  background:
+    radial-gradient(120% 90% at 0% -16%, color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 26%, transparent), transparent 58%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 18%, #ffffff),
+      color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 26%, #eef3fb));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 45%, #ffffff),
+    0 22px 46px -18px color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 42%, rgba(8, 14, 26, 0.5)),
+    0 6px 18px -10px rgba(8, 14, 26, 0.2);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+}
+
+.dark .cr-toast {
+  color: var(--fg);
+  border-color: color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 40%, transparent);
+  background:
+    radial-gradient(120% 90% at 0% -16%, color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 28%, transparent), transparent 58%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 20%, #101927),
+      color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 16%, #0d1420));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 40%, transparent),
+    0 24px 50px -18px rgba(0, 0, 0, 0.72),
+    0 0 38px -14px color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 55%, transparent);
+}
+
+/* Barra de progreso del toast — gradiente del tint hacia transparente */
+.cr-toast-progress {
+  border-radius: 9999px;
+  background: linear-gradient(90deg,
+    var(--toast-tint, var(--glass-chroma)),
+    color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 22%, transparent));
+}
+
+/* ─── Tooltip: cristal flotante que sigue al acento ──────────────────────
+   El tooltip era la ÚNICA pieza flotante del sistema que no era de cristal:
+   iba con `bg-[var(--fg)] text-[var(--surface)]`, un cuadro negro o blanco
+   invertido que no se parecía a ninguna otra superficie y que además tapaba
+   el color que el usuario eligió en Apariencia — el acento se notaba en
+   botones, tarjetas, modales, toasts y drawers, y de pronto no en el tooltip.
+
+   Aquí se le aplica la MISMA receta que a `.cr-toast` (croma real en la base,
+   contorno del acento, filo de luz de 2px y sombra teñida con el acento, no
+   gris neutro), en miniatura. El tinte sale de `--tooltip-tint` y cae en
+   `--glass-chroma`, que es `--color-brand-500` en claro y `--color-brand-400`
+   en oscuro: exactamente la escala que `lib/accent.js` reescribe en vivo. Por
+   eso el tooltip sigue al acento sin que nadie vuelva a tocar este archivo.
+
+   NO lleva `position`: el consumidor la pone (el portal la fija, la tarjeta de
+   métricas la absoluta). Declararla aquí pelearía con la utilidad de Tailwind
+   y, en un sistema donde el orden de las capas no está escrito en ninguna
+   parte, eso es una caja negra. Lo único que hace falta es que el elemento
+   esté posicionado, para que la flecha use a la caja como contenedor.
+
+   `--cr-accent` se reinyecta aquí para que `.cr-hairline` tome el tinte del
+   tooltip sin que el consumidor tenga que acordarse de pasárselo. */
+.cr-tooltip {
+  --cr-accent: var(--tooltip-tint, var(--glass-chroma));
+
+  color: var(--fg);
+  border-radius: var(--radius-tooltip);
+  border: 1px solid
+    color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 42%, rgba(203, 213, 225, 0.9));
+  background:
+    radial-gradient(120% 110% at 0% -24%, color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 26%, transparent), transparent 62%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 15%, #ffffff),
+      color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 21%, #eef3fb));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 42%, #ffffff),
+    0 14px 34px -14px color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 48%, rgba(8, 14, 26, 0.5)),
+    0 4px 12px -8px rgba(8, 14, 26, 0.18);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}
+
+.dark .cr-tooltip {
+  border-color: color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 38%, transparent);
+  background:
+    radial-gradient(120% 110% at 0% -24%, color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 28%, transparent), transparent 62%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 17%, #101927),
+      color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 12%, #0d1420));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 36%, transparent),
+    0 16px 38px -16px rgba(0, 0, 0, 0.72),
+    0 0 30px -14px color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 55%, transparent);
+}
+
+/* El filo de luz del tooltip es más corto que el de un modal y va a 1px: a
+   2px sobre 30px de alto se leía como un borde, no como un brillo. */
+.cr-tooltip .cr-hairline {
+  left: 0.75rem;
+  right: 0.75rem;
+  height: 1px;
+}
+
+/* La flecha. Va con `z-index: -1` a propósito: el tooltip tiene
+   `backdrop-filter`, que crea contexto de apilamiento, así que la flecha se
+   pinta encima del fondo de la caja pero debajo del texto. Con eso la mitad
+   interior de la flecha queda tapada por el propio tooltip y su filete de 1px
+   no cruza la caja por delante — que es lo que pasaba al pintarla encima.
+
+   El relleno es el punto MEDIO del degradado de la caja (18% de tinte, entre el
+   15% de arriba y el 21% de abajo) y no un color propio. Con un extremo del
+   degradado, la mitad de la flecha que asoma se ve de un color y la que queda
+   tapada de otro: una costura a lo largo de todo el borde. En el punto medio las
+   dos mitades son indistinguibles y la junta solo se ve en el filete. */
+.cr-tooltip-arrow {
+  position: absolute;
+  z-index: -1;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 18%, #f9fbfe);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 42%, rgba(203, 213, 225, 0.9));
+}
+
+.dark .cr-tooltip-arrow {
+  background: color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 14%, #0e1521);
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 38%, transparent);
+}
+
+/* El separador interior de un tooltip con lista (tarjeta de métricas). Va con
+   el mismo tinte que el resto, no con `--border`: un `--border` gris al lado de
+   un cristal teñido se nota como una costura que no pertenece. */
+.cr-tooltip-rule {
+  border-top: 1px solid
+    color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 22%, transparent);
+}
+
+.dark .cr-tooltip-rule {
+  border-top-color: color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 20%, transparent);
+}
+
+/* Tonos heredados — variantes de cristal tintado (estilo .cr-toast)      */
+.cr-tone-green-solid { --toast-tint: var(--color-success); --cr-orb: var(--color-success); --card-tint: var(--color-success); }
+.cr-tone-red-solid   { --toast-tint: var(--color-danger); --cr-orb: var(--color-danger); --card-tint: var(--color-danger); }
+.cr-tone-blue-solid  { --toast-tint: var(--color-info); --cr-orb: var(--color-info); --card-tint: var(--color-info); }
+.cr-tone-amber-solid { --toast-tint: var(--color-warning); --cr-orb: var(--color-warning); --card-tint: var(--color-warning); }
+
+/* ─── Chip de cristal: píldora de dato dentro de una superficie de vidrio ─
+   El color se inyecta con --chip-tint.                                 */
+.cr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  color: var(--fg);
+  border: 1px solid color-mix(in srgb, var(--chip-tint, var(--glass-chroma)) 38%, var(--glass-border));
+  background: color-mix(in srgb, var(--chip-tint, var(--glass-chroma)) 13%, var(--glass-bg));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--chip-tint, var(--glass-chroma)) 30%, #ffffff);
+}
+
+.dark .cr-chip {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--chip-tint, var(--glass-chroma)) 26%, transparent);
+}
+
+.cr-chip-ico {
+  color: var(--chip-tint, var(--glass-chroma));
+  flex: none;
+}
+
+/* ─── Botones de cristal ─────────────────────────────────────────────── */
+/* Los degradados de los tres tonos semánticos (rojo, verde, azul) NO se tocan:
+   `qa/accent-probe.js` los mide como valores fijos para verificar que no
+   siguen a la marca. Lo que cambia aquí es solo la interacción: el relieve
+   sube en el hover, se hunde al pulsar y el foco deja de ser invisible. */
+/* Todo el gesto en un solo reloj. Antes este bloque mezclaba cuatro duraciones
+   —transform y box-shadow a 240ms con la curva exponencial, `border-color` a
+   180ms y `filter` a 160ms— y por eso el botón se leía brusco: subía entero y
+   todavía estaba cambiando de color, y el `brightness` en 160ms daba un fogonazo
+   justo en el primer contacto. Ahora comparte `--motion-ui` y `--ease-ui` con el
+   sistema de `index.css`, así que un botón de diálogo y uno del panel hacen el
+   mismo gesto con la misma curva. */
+.cr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 20px;
+  padding: 0.7rem 1.4rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  transition:
+    transform var(--motion-ui) var(--ease-ui),
+    box-shadow var(--motion-ui) var(--ease-ui),
+    border-color var(--motion-ui) var(--ease-ui),
+    filter var(--motion-ui) var(--ease-ui),
+    background-color var(--motion-ui) var(--ease-ui);
+  cursor: pointer;
+}
+
+/* El hover sube 1px, ilumina el relleno y enciende el borde. Antes eran -2px
+   con `--ease-spring`, que al soltar el ratón daba un rebote visible en un
+   elemento de 40px de alto.
+
+   El delta de luz es pequeño a propósito: el `brightness` sube a 1.04 y no más.
+   Subirlo era lo que producía el fogonazo en el primer contacto del puntero,
+   porque el ojo lee un salto de brillo como un flash aunque el botón solo se
+   haya movido 1px. Con la curva simétrica y sin fogonazo, el hover entra y sale
+   como un solo gesto.
+
+   El borde importa tanto como la luz: con el relleno degradado y el contorno
+   fijo al 28%, el borde se perdía justo al pasar el ratón, que es cuando más
+   se nota que la superficie ha dejado de ser plana. */
+.cr-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  border-color: rgba(255, 255, 255, 0.46);
+}
+
+/* Al pulsar el botón BAJA 1px y el relieve se aplasta: el inset se hace más
+   marcado y se caen las sombras de contacto y caída. Antes se quedaba en su
+   sitio, y eso se leía como "el clic no se ha registrado" en vez de como
+   hundido. Ese 1px es imperceptible al mirarlo y es lo que vende la superficie
+   blanda. */
+.cr-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(0.97);
+  box-shadow: inset 0 2px 6px -1px rgba(0, 0, 0, 0.45);
+  /* El hundimiento se mide en 90ms, no en los 220ms del hover: es la
+     confirmación del clic y tiene que sentirse instantánea. Al soltar se vuelve
+     al hover por la curva suave, y de ahí el rebote blando. */
+  transition-duration: var(--motion-press);
+  transition-timing-function: var(--ease-premium);
+}
+
+.cr-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    0 0 0 2px var(--surface, #fff),
+    0 0 0 4px color-mix(in srgb, var(--glass-chroma) 70%, transparent);
+}
+
+.cr-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.cr-btn:disabled:hover {
+  transform: none;
+  filter: none;
+}
+
+.cr-btn-red {
+  background: linear-gradient(135deg, #fb4d6a, #b00f32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -10px 18px -12px rgba(0, 0, 0, 0.5),
+    0 14px 30px -14px rgba(225, 29, 72, 0.65);
+}
+.cr-btn-green {
+  background: linear-gradient(135deg, #14c98f, #046c4e);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -10px 18px -12px rgba(0, 0, 0, 0.5),
+    0 14px 30px -14px rgba(16, 185, 129, 0.62);
+}
+.cr-btn-blue {
+  background: linear-gradient(135deg, #3f83f8, #1a3fc4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -10px 18px -12px rgba(0, 0, 0, 0.5),
+    0 14px 30px -14px rgba(59, 130, 246, 0.62);
+}
+
+/* Cristal de MARCA — la acción principal de un diálogo, y sí sigue al acento.
+   Es la misma receta que `.cr-orb`: un paso hacia el blanco arriba, el color
+   vivo en el centro y un paso hacia el negro abajo, con la luz entrando por
+   arriba-izquierda. El tinte sale de `--btn-tint` y, si nadie lo pone, cae en
+   `--glass-chroma` → `--color-brand-*`, o sea el acento que la cuenta eligió.
+
+   Existe junto a `cr-btn-blue` porque ese es un tono FIJO de la paleta
+   semántica (`qa/accent-probe.js` lo mide): usarlo en "Generar formulario"
+   dejaba la acción principal del generador de IA en azul pase lo que pase. */
+.cr-btn-brand {
+  color: #fff;
+  background: linear-gradient(150deg,
+    color-mix(in srgb, var(--btn-tint, var(--glass-chroma)) 74%, white),
+    var(--btn-tint, var(--glass-chroma)) 48%,
+    color-mix(in srgb, var(--btn-tint, var(--glass-chroma)) 74%, black));
+  box-shadow:
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.6),
+    inset 0 -10px 18px -12px rgba(0, 0, 0, 0.5),
+    0 14px 30px -14px color-mix(in srgb, var(--btn-tint, var(--glass-chroma)) 62%, transparent);
+}
+
+/* Cristal neutro — se adapta al tema del panel donde vive */
+.cr-btn-neutral {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--btn-tint, var(--glass-chroma)) 10%, var(--glass-bg));
+  backdrop-filter: blur(12px) saturate(1.3);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  border: 1px solid color-mix(in srgb, var(--btn-tint, var(--glass-chroma)) 28%, var(--glass-border));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--btn-tint, var(--glass-chroma)) 28%, #ffffff),
+    inset 0 -10px 18px -12px rgba(15, 23, 42, 0.1),
+    0 10px 24px -14px rgba(15, 23, 42, 0.25);
+}
+
+.dark .cr-btn-neutral {
+  color: var(--fg);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--btn-tint, var(--glass-chroma)) 24%, transparent),
+    0 10px 24px -14px rgba(0, 0, 0, 0.5);
+}
+
+/* El hover de los dos que sí son de marca se queda con el blanco genérico que
+   trae `.cr-btn`, porque un borde blanco sobre el cristal de color lava el
+   tinte justo en el borde. Aquí el contorno se tiñe con el mismo `--btn-tint`
+   que el relleno y sube 20 puntos, así que el botón se ilumina entero en vez de
+   hellarse. Se escribe después a propósito: misma especificidad que
+   `.cr-btn:hover`, y gana el último. */
+.cr-btn-brand:hover:not(:disabled),
+.cr-btn-neutral:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--btn-tint, var(--glass-chroma)) 48%, transparent);
+}
+
+/* ─── Botón de cierre del diálogo: filete, no disco blanco ───────────── */
+.cr-close {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  color: var(--fg-muted);
+  border: 1px solid color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 26%, transparent);
+  background: color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 10%, rgba(255, 255, 255, 0.6));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  /* Mismo reloj y misma curva que el resto de botones. Aquí estaban en 200ms
+     con la curva `ease` por defecto, que ya es simétrica pero otro valor: la
+     "X" del diálogo se encendía a un ritmo distinto del resto y eso se nota
+     cuando se cierra y se abre el diálogo seguido. */
+  transition:
+    color var(--motion-ui) var(--ease-ui),
+    background-color var(--motion-ui) var(--ease-ui),
+    border-color var(--motion-ui) var(--ease-ui);
+}
+
+.dark .cr-close {
+  background: color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 12%, rgba(255, 255, 255, 0.04));
+}
+
+.cr-close:hover {
+  color: var(--fg);
+  border-color: color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 55%, transparent);
+  background: color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 18%, rgba(255, 255, 255, 0.75));
+}
+
+.cr-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 70%, transparent);
+}
+
+/* ─── Pie del diálogo: mismo cristal, un punto más de croma ──────────────
+   El filo interior superior (inset blanco del acento) separa el pie del
+   cuerpo con un brillo de 1px, no con un corte seco: es el mismo recurso del
+   `.cr-hairline` pero en horizontal, y hace que el pie se lea como una banda
+   de cristal propia en vez de como el fondo del modal con una raya encima. */
+.modal-foot {
+  border-top: 1px solid color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 24%, rgba(15, 23, 42, 0.06));
+  background: color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 9%, rgba(255, 255, 255, 0.62));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 18%, rgba(255, 255, 255, 0.75));
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+}
+
+.dark .modal-foot {
+  border-top-color: color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 22%, transparent);
+  background: color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 8%, rgba(8, 12, 20, 0.5));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 22%, transparent);
+}
+
+.modal-foot--danger {
+  border-top-color: rgba(225, 29, 72, 0.28);
+  background: rgba(255, 241, 242, 0.62);
+}
+
+.dark .modal-foot--danger {
+  border-top-color: rgba(225, 29, 72, 0.3);
+  background: rgba(76, 5, 25, 0.28);
+}
+
+/* ─── Carcasa de modal: cristal con croma y filo de acento ───────────────
+   El shell premium suma tres capas a la receta base: (1) un filo INTERNO de
+   1px con el acento —un anillo que asienta el cristal y evita el borde
+   "flotante"; (2) una profundidad en cuatro pasos (inset de contacto, ring
+   exterior de 1px, sombra de caída y bloom teñido) en vez del par de sombras
+   genéricas, que es lo que separa un panel de cristal de una tarjeta; y
+   (3) más blur/saturación, para que lo que se ve tras el modal se lea como
+   vidrio esmerilado y no como una capa translúcida cualquiera. */
+.modal-shell {
+  background:
+    radial-gradient(120% 90% at 50% -18%, color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 24%, transparent), transparent 60%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 9%, #ffffff),
+      color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 15%, #eef3fb));
+  border: 1px solid color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 34%, #ffffff);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 46%, #ffffff),
+    inset 0 0 0 1px color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 12%, transparent),
+    inset 0 -30px 60px -40px rgba(15, 23, 42, 0.07),
+    0 0 0 1px color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 14%, transparent),
+    0 30px 60px -22px color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 34%, rgba(8, 14, 26, 0.55)),
+    0 0 72px -26px color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 62%, transparent),
+    0 8px 22px -12px rgba(8, 14, 26, 0.18);
+  backdrop-filter: blur(34px) saturate(1.6);
+  -webkit-backdrop-filter: blur(34px) saturate(1.6);
+}
+
+.dark .modal-shell {
+  background:
+    radial-gradient(120% 90% at 50% -18%, color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 30%, transparent), transparent 60%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 15%, #101927),
+      color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 12%, #0d1420));
+  border-color: color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 30%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 42%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 16%, transparent),
+    inset 0 -30px 60px -40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 16%, transparent),
+    0 34px 64px -24px rgba(0, 0, 0, 0.78),
+    0 0 58px -18px color-mix(in srgb, var(--modal-aura, var(--glass-chroma)) 58%, transparent);
+}
+
+/* ─── Drawer lateral de cristal ──────────────────────────────────────── */
+.drawer-shell {
+  position: relative;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 7%, rgba(255, 255, 255, 0.96)),
+    color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 12%, rgba(248, 251, 255, 0.9)));
+  border-left: 1px solid color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 24%, #ffffff);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 28%, #ffffff),
+    -36px 0 72px -44px rgba(8, 14, 26, 0.45),
+    -10px 0 28px -18px rgba(8, 14, 26, 0.18);
+  backdrop-filter: blur(28px) saturate(1.5);
+  -webkit-backdrop-filter: blur(28px) saturate(1.5);
+}
+
+.dark .drawer-shell {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 12%, rgba(16, 20, 30, 0.95)),
+    color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 10%, rgba(12, 16, 25, 0.9)));
+  border-left-color: color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 20%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 22%, transparent),
+    -36px 0 72px -44px rgba(0, 0, 0, 0.75),
+    -10px 0 28px -18px rgba(0, 0, 0, 0.45);
+}
+
+/* Drawer izquierdo (navegación móvil) */
+.drawer-shell--left {
+  border-left: none;
+  border-right: 1px solid color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 24%, #ffffff);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 28%, #ffffff),
+    36px 0 72px -44px rgba(8, 14, 26, 0.45),
+    10px 0 28px -18px rgba(8, 14, 26, 0.18);
+}
+
+.dark .drawer-shell--left {
+  border-right-color: color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 20%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--drawer-tint, var(--glass-chroma)) 22%, transparent),
+    36px 0 72px -44px rgba(0, 0, 0, 0.75),
+    10px 0 28px -18px rgba(0, 0, 0, 0.45);
+}

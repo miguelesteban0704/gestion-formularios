@@ -1,0 +1,250 @@
+/*
+ * Campo de teléfono del formulario público.
+ *
+ * Estilo "fusión": disparador de país + input en una sola pieza con foco de
+ * anillo único. Solo tokens del tema (`--color-*` / utilidades semánticas vía
+ * variables locales) para que el recoloreado de acento en runtime se refleje
+ * aquí sin hex fijos. El acento se toma de `--color-brand-*`.
+ */
+
+.ui-phone {
+  position: relative;
+}
+
+.ui-phone__shell {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border, rgb(203 213 225));
+  background: var(--color-surface-2, transparent);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.dark .ui-phone__shell {
+  border-color: rgb(51 65 85);
+  background: rgb(30 41 59 / 0.6);
+}
+
+.ui-phone__shell:hover:not(.is-disabled) {
+  border-color: var(--color-brand-300, rgb(148 163 184));
+}
+
+.ui-phone__shell:focus-within {
+  border-color: var(--color-brand-400, rgb(71 60 226));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand-500, #473ce2) 12%, transparent);
+}
+
+.ui-phone__shell.is-error {
+  border-color: rgb(239 68 68);
+}
+
+.ui-phone__shell.is-error:focus-within {
+  box-shadow: 0 0 0 4px rgb(239 68 68 / 0.12);
+}
+
+.ui-phone__shell.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Disparador de país */
+.ui-phone__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.7rem;
+  border: 0;
+  border-top-left-radius: 0.75rem;
+  border-bottom-left-radius: 0.75rem;
+  background: transparent;
+  color: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ui-phone__trigger:hover:not(:disabled) {
+  background: var(--color-surface-3, rgb(148 163 184 / 0.12));
+}
+
+.ui-phone__trigger:disabled {
+  cursor: default;
+}
+
+.ui-phone__flag {
+  width: 1.35rem;
+  height: 0.95rem;
+  flex: none;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-ink, #0f172a) 12%, transparent);
+}
+
+.ui-phone__flag-inline {
+  width: 1.1rem;
+  height: 0.78rem;
+  flex: none;
+  vertical-align: -1px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-ink, #0f172a) 12%, transparent);
+}
+
+.ui-phone__dial {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-muted, rgb(100 116 139));
+}
+
+.ui-phone__caret {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-ink-muted, rgb(100 116 139));
+  transition: transform 0.16s ease;
+}
+
+.ui-phone__caret.is-open {
+  transform: rotate(180deg);
+}
+
+.ui-phone__divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.45rem 0;
+  background: var(--color-border, rgb(203 213 225));
+}
+
+.dark .ui-phone__divider {
+  background: rgb(51 65 85);
+}
+
+.ui-phone__lead {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 0.7rem;
+  color: var(--color-ink-muted, rgb(100 116 139));
+  opacity: 0.7;
+}
+
+.ui-phone__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0.65rem 0.9rem 0.65rem 0.55rem;
+  font-size: 0.875rem;
+  color: inherit;
+  outline: none;
+  border-top-right-radius: 0.75rem;
+  border-bottom-right-radius: 0.75rem;
+}
+
+.ui-phone__input::placeholder {
+  color: var(--color-ink-muted, rgb(148 163 184));
+  opacity: 0.7;
+}
+
+.ui-phone__input:disabled {
+  cursor: not-allowed;
+}
+
+/* Menú de países — portal a `document.body`, `position: fixed` (lo ubica el
+   componente contra el disparador). Va en la capa `--z-popover` para quedar
+   POR ENCIMA del modal que lo contiene (vista previa): al estar en el portal
+   su `z-index` se compara en el `body`, así que con `--z-dropdown` (40)
+   quedaba por debajo del diálogo (`--z-modal`, 60). */
+.ui-phone__menu {
+  position: fixed;
+  z-index: var(--z-popover, 70);
+  width: min(20rem, calc(100vw - 1rem));
+  border-radius: 0.9rem;
+  border: 1px solid var(--color-border, rgb(203 213 225));
+  background: var(--color-surface, #fff);
+  box-shadow: 0 18px 40px -12px rgb(15 23 42 / 0.28);
+  overflow: hidden;
+  animation: ui-phone-pop 0.14s ease-out;
+}
+
+.dark .ui-phone__menu {
+  border-color: rgb(51 65 85);
+  background: rgb(15 23 42);
+}
+
+@keyframes ui-phone-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ui-phone__search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--color-border, rgb(226 232 240));
+  color: var(--color-ink-muted, rgb(100 116 139));
+}
+
+.dark .ui-phone__search {
+  border-color: rgb(30 41 59);
+}
+
+.ui-phone__search input {
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 0.875rem;
+  color: inherit;
+}
+
+.ui-phone__list {
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.ui-phone__option {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.6rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.ui-phone__option.is-active {
+  background: color-mix(in srgb, var(--color-brand-500, #473ce2) 10%, transparent);
+}
+
+.ui-phone__name {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-phone__code {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-muted, rgb(100 116 139));
+}
+
+.ui-phone__empty {
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--color-ink-muted, rgb(100 116 139));
+}
+
+.ui-phone__hint {
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--color-ink-muted, rgb(100 116 139));
+}

@@ -1,0 +1,223 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   PrismDonut — donut premium "Sesiones por dispositivo".
+   Flat dark glassmorphism. Clases `.pd-`.
+   Sin mix-blend-mode ni backdrop-filter anidados (seguro sobre ChartCard).
+   Única animación CSS: el pulso suave del centro (1 elemento).
+   ═══════════════════════════════════════════════════════════════════════ */
+.pd-root {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Halo ambiente estático tras el anillo */
+.pd-halo-bg {
+  position: absolute;
+  left: 50%;
+  top: 92px;
+  transform: translate(-50%, -50%);
+  width: 168px;
+  height: 168px;
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(62% 62% at 34% 30%, rgba(34, 211, 238, 0.16), transparent 70%),
+    radial-gradient(58% 58% at 70% 72%, rgba(255, 184, 77, 0.12), transparent 70%);
+}
+
+.pd-ring {
+  position: relative;
+  z-index: 1;
+}
+.pd-ring .recharts-wrapper {
+  position: relative;
+}
+
+/* Centro retroiluminado */
+.pd-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+  animation: pd-breathe 3.6s ease-in-out infinite;
+}
+@keyframes pd-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.78; }
+}
+.pd-total {
+  font-family: "Space Grotesk", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  text-shadow:
+    0 0 18px rgba(103, 232, 249, 0.55),
+    0 0 42px rgba(34, 211, 238, 0.3);
+}
+
+.pd-total-lab {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #8fa3bd;
+  text-shadow: 0 0 10px rgba(120, 200, 255, 0.35);
+}
+
+/* Tooltip de vidrio compacto */
+.pd-tip {
+  min-width: 132px;
+  padding: 10px 13px 9px;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(34, 211, 238, 0.1), rgba(255, 184, 77, 0.06) 140%),
+    rgba(9, 15, 27, 0.92);
+  border: 1px solid rgba(103, 232, 249, 0.32);
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.06),
+    0 22px 44px -16px rgba(0, 0, 0, 0.9),
+    0 0 30px -8px rgba(34, 211, 238, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.pd-tip-kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #dbe7f5;
+}
+.pd-tip-kicker i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.pd-tip-val {
+  margin-top: 5px;
+  font-family: "Space Grotesk", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-shadow: 0 0 20px rgba(255, 197, 88, 0.45);
+}
+.pd-tip-lab {
+  margin-top: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #8fa3bd;
+}
+.pd-tip-pct {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 205, 120, 0.16);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #ffd687;
+}
+
+/* Leyenda: tarjetas glass con punto luminoso */
+.pd-legend {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.pd-leg-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 13px;
+  border: 1px solid rgba(148, 179, 214, 0.14);
+  background: rgba(15, 23, 42, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+.pd-leg-card:hover {
+  transform: translateX(2px);
+}
+.pd-leg-card--on {
+  border-color: rgba(103, 232, 249, 0.45);
+  background: rgba(15, 23, 42, 0.66);
+}
+.pd-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pd-leg-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #dbe7f5;
+}
+.pd-leg-val {
+  font-family: "Space Grotesk", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #9fb0c8;
+}
+.pd-leg-pct {
+  min-width: 46px;
+  text-align: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-family: "Space Grotesk", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  color: #04141d;
+  background: linear-gradient(180deg, #a8eef8, #67e8f9);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-root *,
+  .pd-root *::before,
+  .pd-root *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Variante clara (panel en modo light) */
+.pd-light .pd-total {
+  color: #0b1626;
+  text-shadow:
+    0 0 14px rgba(8, 145, 178, 0.5),
+    0 0 34px rgba(34, 211, 238, 0.28);
+}
+.pd-light .pd-total-lab {
+  color: #475569;
+  text-shadow: 0 0 8px rgba(8, 145, 178, 0.2);
+}
+.pd-light .pd-leg-card {
+  border-color: rgba(100, 116, 139, 0.16);
+  background: rgba(248, 250, 252, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.pd-light .pd-leg-card--on {
+  border-color: rgba(6, 182, 212, 0.5);
+  background: rgba(224, 242, 254, 0.92);
+}
+.pd-light .pd-leg-name { color: #334155; }
+.pd-light .pd-leg-val { color: #64748b; }

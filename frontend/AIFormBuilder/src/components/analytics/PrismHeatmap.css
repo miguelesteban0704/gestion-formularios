@@ -1,0 +1,393 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   PrismHeatmap v4 — heatmap flat premium "micro-prisma" (7 días × 24h).
+   Rendimiento primero: CERO animaciones por celda (estáticas), pocas capas
+   animadas (anillo + partículas + entrada del tooltip).
+   Tooltip inteligente: flota junto a la celda activa (derecha / debajo /
+   arriba) con flecha direccional según [data-dir]. Posicionado por JS
+   seguro (try/catch) dentro del panel, SÍEMPRE visible.
+   Clases prefijadas con `.pm-`.
+   ═══════════════════════════════════════════════════════════════════════ */
+.pm-root {
+  --pm-teal: #16c8b9;
+  --pm-gold: #ffc558;
+  position: relative;
+  padding: 6px 2px 2px;
+}
+
+.pm-root--dark .pm-day { color: #b6c4da; }
+.pm-root--light .pm-day { color: #64748b; }
+.pm-root--dark .pm-hours { color: #8d9cb4; }
+.pm-root--light .pm-hours { color: #94a3b8; }
+.pm-root--dark .pm-legend small { color: #7d8ca4; }
+.pm-root--light .pm-legend small { color: #64748b; }
+
+/* Capas ambiente ESTÁTICAS (sin animación) */
+.pm-gloss {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 32%,
+    rgba(255, 255, 255, 0.04) 46%,
+    rgba(56, 232, 255, 0.05) 51%,
+    transparent 66%
+  );
+}
+.pm-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 90% at 18% 12%,
+    rgba(56, 232, 255, 0.07),
+    transparent 55%
+  );
+}
+
+/* ── Cuadrícula ── */
+.pm-grid {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pm-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.pm-day {
+  width: 32px;
+  flex-shrink: 0;
+  padding-right: 7px;
+  text-align: right;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(2, 6, 12, 0.55);
+}
+.pm-cells {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 3px;
+}
+
+/* ── Celda micro-prisma (estática, sin animaciones) ── */
+.pm-cell {
+  position: relative;
+  height: 22px;
+  border-radius: 5px;
+  cursor: pointer;
+  z-index: 1;
+  transition: transform 0.18s ease;
+}
+.pm-cell:hover {
+  transform: scale(1.3);
+  z-index: 6;
+}
+.pm-cell:hover .pm-tile {
+  box-shadow:
+    0 0 14px rgba(56, 232, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+}
+.pm-tile {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.35),
+      rgba(255, 255, 255, 0.06) 36%,
+      rgba(255, 255, 255, 0) 55%
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 42%),
+    var(--c);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+}
+.pm-cell--empty {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.16);
+}
+.pm-cell--empty .pm-tile {
+  display: none;
+}
+
+/* ── Celda seleccionada ── */
+.pm-cell--sel {
+  transform: scale(1.45);
+  z-index: 7;
+}
+.pm-cell--sel .pm-tile {
+  box-shadow:
+    0 0 20px rgba(255, 200, 87, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.18);
+}
+.pm-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 8px;
+  border: 1.4px solid rgba(255, 214, 120, 0.95);
+  box-shadow: 0 0 18px rgba(255, 200, 87, 0.55);
+  animation: pm-ring 2.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes pm-ring {
+  0%, 100% { opacity: 0.95; }
+  50% { opacity: 0.45; }
+}
+
+/* ── Eje de horas ── */
+.pm-hours {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 3px;
+  margin: 6px 0 0 35px;
+  padding: 0 1px;
+}
+.pm-hours span {
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.pm-hours span:first-child { text-align: left; }
+.pm-hours span:last-child { text-align: right; }
+
+/* ── Leyenda Menos/Más (del panel) ── */
+.pm-legend {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 9px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.pm-swatches {
+  display: flex;
+  gap: 3px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(11, 17, 30, 0.5);
+}
+.pm-swatches i {
+  width: 16px;
+  height: 8px;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* ── Partículas decorativas (solo transform + opacidad) ── */
+.pm-part {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(circle, #fff, rgba(56, 232, 255, 0.85) 45%, transparent 72%);
+  opacity: 0;
+  animation: pm-move var(--pd, 3.4s) linear infinite;
+  animation-delay: var(--dly, 0s);
+}
+@keyframes pm-move {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  12% { opacity: 0.9; }
+  85% { opacity: 0.7; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.3); opacity: 0; }
+}
+
+/* ── Tooltip vidrio · flota junto a la celda (dir: right/left/below/above) ── */
+.pm-tip {
+  position: absolute;
+  z-index: 12;
+  width: 218px;
+  padding: 12px 15px 11px;
+  border-radius: 16px;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(56, 232, 255, 0.12), rgba(255, 200, 87, 0.08) 135%),
+    rgba(9, 15, 27, 0.93);
+  border: 1px solid rgba(255, 205, 120, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(255, 205, 120, 0.08),
+    0 26px 52px -18px rgba(0, 0, 0, 0.92),
+    0 0 46px -6px rgba(255, 200, 87, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  animation: pm-pop 0.32s cubic-bezier(0.18, 0.89, 0.32, 1.18) both;
+}
+@keyframes pm-pop {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* borde holográfico superior */
+.pm-tip::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(56, 232, 255, 0.9), rgba(255, 214, 120, 0.95), transparent);
+}
+
+/* Flecha señala la celda según [data-dir] */
+.pm-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+.pm-tip[data-dir="right"] .pm-arrow {
+  left: -8px;
+  top: 50%;
+  margin-top: -7px;
+  border-width: 7px 8px 7px 0;
+  border-color: transparent rgba(255, 205, 120, 0.55) transparent transparent;
+}
+.pm-tip[data-dir="left"] .pm-arrow {
+  right: -8px;
+  top: 50%;
+  margin-top: -7px;
+  border-width: 7px 0 7px 8px;
+  border-color: transparent transparent transparent rgba(255, 205, 120, 0.55);
+}
+.pm-tip[data-dir="below"] .pm-arrow {
+  top: -8px;
+  left: 50%;
+  margin-left: -8px;
+  border-width: 0 8px 8px 8px;
+  border-color: transparent transparent rgba(255, 205, 120, 0.55) transparent;
+}
+.pm-tip[data-dir="above"] .pm-arrow {
+  bottom: -8px;
+  left: 50%;
+  margin-left: -8px;
+  border-width: 8px 8px 0 8px;
+  border-color: rgba(255, 205, 120, 0.55) transparent transparent transparent;
+}
+
+/* Contenido del tooltip */
+.pm-kicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: linear-gradient(92deg, #6df0ff, #d9f6ff 55%, #ffd27a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.pm-kicker i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffd27a;
+  box-shadow: 0 0 10px #ffc857;
+}
+.pm-value {
+  margin-top: 6px;
+  font-family: "Space Grotesk", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 29px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffd687;
+  text-shadow: 0 0 20px rgba(255, 200, 87, 0.45);
+}
+.pm-label {
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: #9fb0c8;
+  text-transform: uppercase;
+}
+.pm-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 22px;
+  margin-top: 10px;
+}
+.pm-bars i {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, rgba(56, 232, 255, 0.9), rgba(14, 150, 180, 0.75));
+  opacity: 0.85;
+}
+.pm-bars i.pm-bar--hl {
+  background: linear-gradient(180deg, #ffd687, #f0933a);
+  opacity: 1;
+}
+.pm-ctx {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255, 205, 120, 0.16);
+  font-size: 10.5px;
+  color: #a9b6cc;
+}
+.pm-ctx b {
+  color: #ffe1a3;
+  font-weight: 600;
+}
+
+/* Leyenda gradiente dentro del tooltip */
+.pm-tip-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8fa0b8;
+}
+.pm-tip-sw {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  height: 7px;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.pm-tip-sw i {
+  flex: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-root *,
+  .pm-root *::before,
+  .pm-root *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

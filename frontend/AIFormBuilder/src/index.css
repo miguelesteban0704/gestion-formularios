@@ -1,0 +1,2267 @@
+@import "tailwindcss";
+
+/* PROBE: hoja del panel admin en el pipeline principal para que sus
+   @utility se compilen. */
+@import "./components/admin/admin.css";
+
+/* Dark mode por clase (toggled on <html class="dark">). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Tipografías autoalojadas vía @fontsource (ver docs/TYPOGRAPHY.md):
+     Manrope = cuerpo/UI · JetBrains Mono = datos, slugs y códigos ·
+     Fraunces = display (títulos). Sin CDN externo (evita bloqueos regionales). */
+  --font-sans:
+    "Manrope Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", monospace;
+  --font-display:
+    "Fraunces Variable", "Manrope Variable", ui-serif, Georgia, serif;
+
+  /* Brand scale */
+  --color-brand-50: #ebfbff;
+  --color-brand-100: #ccf6ff;
+  --color-brand-200: #94ecff;
+  --color-brand-300: #61e3ff;
+  --color-brand-400: #2edaff;
+  --color-brand-500: #00D2FF;
+  --color-brand-600: #00b5db;
+  --color-brand-700: #0097b8;
+  --color-brand-800: #007a94;
+  --color-brand-900: #005c70;
+  --color-brand-950: #003b47;
+
+  /* Semantic palette — each with 100% custom identity, no generic purple */
+  /* Semantic palette — unificada en #10B981/#EF4444/#F59E0B/#3B82F6 (spec
+     del sistema de feedback). Cada tono con su capa `-ink` para alcanzar AA
+     como texto: base = tintes/orbes, soft = fondos, ink = texto. */
+  --color-success: #10B981;
+  --color-success-soft: #e8f7f1;
+  --color-success-ring: #10B981;
+  --color-success-ink: #047857;
+  --color-warning: #F59E0B;
+  --color-warning-soft: #fdf3e1;
+  --color-warning-ink: #B45309;
+  --color-danger: #EF4444;
+  --color-danger-soft: #fef1f1;
+  --color-danger-ink: #DC2626;
+  --color-info: #3B82F6;
+  --color-info-soft: #eaf1fe;
+  --color-info-ink: #1D4ED8;
+
+  /* Decorative accents (kept) */
+  --color-accent-gold: #bfa23a;
+  --color-accent-coral: #c2706a;
+  --color-accent-purple: #7e6cc0;
+  --color-accent-blue: #6f86c9;
+  --color-accent-orange: #f87217;
+
+  /* Acentos decorativos de tarjeta (bento): paleta fija que NO sigue al
+     acento del sitio. Se usan como `var(--accent-*)` desde tokens.ts. */
+  --accent-gold: #bfa23a;
+  --accent-coral: #c2706a;
+  --accent-purple: #7e6cc0;
+  --accent-blue: #6f86c9;
+  --accent-teal: #2f9e8a;
+
+  /* Radii — intentional hierarchy */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+  /* Nocturne: silueta media. El cristal deja de ser un rectángulo blanco
+     para apoyarse en el radio y en el croma, no solo en la sombra. */
+  --radius-modal: 1.125rem;   /* 18px — dialogo */
+  --radius-modal-lg: 1.25rem; /* 20px — dialogo ancho */
+  --radius-toast: 0.875rem;   /* 14px — notificacion */
+  --radius-tooltip: 0.625rem;
+  --radius-pill: 9999px;
+  --radius-btn: 0.625rem;     /* 10px — boton de cristal */
+
+  /* ── Nocturne · croma ─────────────────────────────────────────────────
+     La receta de "superficie con color de verdad en la base" (no un blanco
+     roto) la consume crystal.css. El color de acento lo inyecta cada
+     componente (--modal-aura, --toast-tint, --chip-tint, --card-tint);
+     sin tinte propio, el cristal cae en --glass-chroma.
+
+     Y --glass-chroma NO es un color: es --color-brand-*. Esa es la razón de
+     que todo el sistema tenga un solo sitio donde cambiar el color. El
+     acento en vivo (lib/accent.js) reescribe --color-brand-* en el
+     <html>, y por lo tanto también el croma de las cards, los modales, los
+     toasts, los drawers y los botones de cristal, sin tocar ninguno de
+     ellos. Poner aquí un hex fijo los dejaba congelados en teal por muy
+     que se cambiara el acento.
+
+     En claro se usa 500 y en oscuro 400 porque sobre fondo oscuro el mismo
+     500 se apaga: es lo que hace falta para que el tinte se lea igual. */
+  --glass-chroma: var(--color-brand-500);
+
+  /* Shadows — per component, not one-size */
+  --shadow-soft:
+    0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.01);
+  --shadow-card:
+    0 1px 3px rgba(16, 24, 40, 0.05), 0 12px 32px -12px rgba(16, 24, 40, 0.12);
+  --shadow-pop: 0 12px 40px -8px rgba(16, 24, 40, 0.22);
+  --shadow-toast:
+    0 12px 32px -8px rgba(16, 24, 40, 0.14), 0 4px 16px -6px rgba(16, 24, 40, 0.08), 0 0 0 1px rgba(255,255,255,0.7) inset;
+  --shadow-toast-dark:
+    0 16px 40px -12px rgba(0, 0, 0, 0.55), 0 4px 16px -6px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.06) inset;
+  --shadow-modal:
+    0 24px 64px -16px rgba(16, 24, 40, 0.22), 0 8px 24px -8px rgba(16, 24, 40, 0.10), 0 0 0 1px rgba(255,255,255,0.6) inset;
+  --shadow-modal-dark:
+    0 28px 72px -16px rgba(0,0,0,0.62), 0 10px 28px -10px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06) inset;
+  --shadow-tooltip:
+    0 10px 24px -6px rgba(16, 24, 40, 0.18), 0 0 0 1px rgba(255,255,255,0.08) inset;
+
+  --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Sistema de feedback: ritmo ── */
+  --duration-dialog: 320ms;
+  --duration-dialog-exit: 160ms;
+  --duration-toast: 240ms;
+  --gradient-loading: linear-gradient(90deg, var(--color-info), var(--color-brand-500), var(--color-info));
+
+  /* ── Capas de interacción ──────────────────────────────────────────────
+     Un solo lugar para decidir qué tapa a qué. Los overlays leen estas
+     variables, nunca un número suelto.
+       app < sticky < dropdown < modal < popover < tooltip < toast < critical < splash
+
+     `--z-popover` es la capa de los DESPLEGABLES montados en portal
+     (`document.body`): al vivir fuera del modal no heredan su contexto de
+     apilado, así que su `z-index` se compara en el `body`. Sin esta capa,
+     un desplegable abierto dentro de un modal (p. ej. los países del campo
+     de teléfono en la vista previa) quedaba por debajo del diálogo
+     (`--z-modal`), que es justo el efecto que se veía. */
+  --z-app: 0;
+  --z-sticky: 20;
+  --z-dropdown: 40;
+  --z-modal-backdrop: 50;
+  --z-modal: 60;
+  --z-popover: 70;
+  --z-tooltip: 80;
+  --z-toast: 100;
+  --z-critical: 150;
+  --z-splash: 200;
+
+  /* ── Movimiento (rápido y consistente en todo el sistema) ───────────── */
+  --transition-instant: 110ms;
+  --transition-fast: 160ms;
+  --transition-normal: 240ms;
+  --transition-slow: 340ms;
+  --motion-enter-scale: 0.96;
+
+  /* ── Movimiento de lo que se puede pulsar ──────────────────────────────
+     `--ease-premium` es una exponencial: `cubic-bezier(0.16, 1, 0.3, 1)` tiene
+     pendiente inicial `1 / 0.16` = 6.25x, así que en el primer fotograma de la
+     transición la propiedad ya ha recorrido una cuarta parte del camino. Para
+     una card o un modal está bien, porque entra desde el reposo y solo
+     necesita llegar. Para un botón no: el puntero ya está encima cuando
+     empieza, y una curva que arranca a 6x se lee como un tirón. Al salir ocurre
+     lo mismo al revés —cae de golpe y luego repta— y el conjunto se percibe
+     brusco.
+
+     `--ease-ui` es simétrica y arranca con velocidad cero: entrar y salir son el
+     mismo gesto. Y es la misma curva que usa `transition-colors` de Tailwind,
+     de modo que un botón nativo y uno del sistema responden igual al dedazo.
+
+     Un solo reloj para todo el gesto. Antes `transform` y `box-shadow` iban a
+     240ms y `background-color`, `border-color` y `filter` a 160ms: el botón
+     terminaba de subir un 80ms antes de terminar de cambiar de color, y esa
+     desincronía es justo lo que se nota como "sucio" y no como "brusco". */
+  --ease-ui: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ui: 220ms;
+
+  /* El PULSADO es el gesto contrario al hover y necesita el tratamiento
+     opuesto. El hover es ambiente: puede haber un rato de silencio entre que
+     el puntero pasa por encima y el usuario decide pulsarlo, y entonces una
+     transicion larga y suave se lee bien. El pulsado es confirmacion
+     directa: si tarda 220ms en hundirse, el usuario suelta el raton creyendo
+     que no ha registrado. Aqui la misma exponencial que antes se usaba para
+     todo, pero a 90ms: a esa duracion sale disparada y termina en el primer
+     fotograma, que es exactamente lo que se percibe como inmediato. Al soltar
+     vuelve al hover por la curva suave, y ahi si da un rebote blando en vez
+     de un tirón. */
+  --motion-press: 90ms;
+  --animate-fade-in: fade-in 0.25s ease-out;
+  --animate-slide-up: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-scale-in: scale-in 0.18s ease-out;
+  --animate-pop: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-slide-in-right: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-in-left: slide-in-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-shimmer: shimmer 1.6s linear infinite;
+}
+
+/* ── Tokens de valoración premium (rating / estrellas) ──
+   Glassmorphism: superficie, borde y sombra se derivan de tokens del
+   sistema; el color por rango usa la paleta semántica
+   (danger/warning/success), nunca hex de marca a fuego. */
+:root {
+  --rating-glass-bg: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  --rating-glass-border: color-mix(in srgb, var(--color-ink) 10%, transparent);
+  --rating-glass-hover: color-mix(in srgb, var(--color-surface) 52%, transparent);
+  --rating-shadow: 0 10px 26px -10px rgba(16, 24, 40, 0.16);
+  --rating-focus-ring: color-mix(in srgb, var(--color-brand-500) 35%, transparent);
+  --rating-transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --rating-size: 2.75rem;
+  --rating-gap: 0.75rem;
+}
+.dark {
+  --rating-glass-bg: color-mix(in srgb, var(--color-surface-2) 60%, transparent);
+  --rating-glass-border: color-mix(in srgb, var(--color-ink) 18%, transparent);
+  --rating-glass-hover: color-mix(in srgb, var(--color-surface-2) 40%, transparent);
+  --rating-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.35);
+}
+
+/* 🔑 CAMBIO CLAVE: exponer las variables semánticas como utilidades
+   de Tailwind (bg-surface, text-fg, border-line, ...) con soporte
+   completo de variantes: hover:, dark:, group-hover:, etc. */
+@theme inline {
+  --color-app: var(--app-bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-ink: var(--fg);
+  --color-ink-muted: var(--fg-muted);
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+
+@keyframes slide-in-left {
+  from {  
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.12);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Pulso de peligro para CTAs destructivos (DeleteDialog): anillo que se
+   expande y se disuelve. Vive fuera de la utilidad para no heredar. */
+@keyframes danger-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-danger) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-danger) 0%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cr-btn-danger-pulse {
+    animation: none !important;
+  }
+}
+
+@utility cta-glass-shadow {
+  box-shadow: 0 8px 32px 0 rgba(31,38,135,0.37);
+}
+
+@utility animated-underline {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: currentColor;
+    transition: width 0.3s ease-out;
+  }
+  &:hover::after {
+    width: 100%;
+  }
+}
+
+@utility bg-brand-gradient {
+  background-image: linear-gradient(145deg, var(--color-brand-400) 0%, var(--color-brand-600) 100%);
+}
+
+@utility animate-page-enter {
+  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility shadow-glow {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 25%, transparent),
+    0 8px 32px -8px color-mix(in srgb, var(--color-brand-500) 45%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SISTEMA DE BOTONES
+   ═══════════════════════════════════════════════════════════════════════
+   Los botones se redefinen aquí y no en el `className` de cada uno. Dos
+   razones, las mismas que motivaron `card-*`:
+
+   1. Los rellenos y las sombras son `color-mix()`, y dentro de una clase
+      arbitraria (`shadow-[0_0_0_1px_color-mix(...)]`) el parser de Tailwind se
+      come las comas. Escritos como utilidad, compilan siempre.
+   2. Una sombra de cuatro capas en un `className` es ilegible. Aquí se lee.
+
+   Cada botón se compone con una utilidad de ASPECTO (`btn-primary`,
+   `btn-secondary`…) y otra de ESTADO (`btn-hi`, `btn-press`). Separarlas es lo
+   que permite que un `className` del llamante ajuste solo el color sin tener
+   que reescribir el relieve entero.
+
+   Todas leen `--btn-*`, que se resuelve en `:root` y en `.dark`. El acento lo
+   pone `src/lib/accent.js` reescribiendo `--color-brand-*` en `<html>`, así que
+   el botón primario sigue a la marca sin que nadie vuelva a tocar este archivo. */
+
+/* Relieve del botón: el bisel de arriba, la sombra de contacto, la sombra de
+   caída y el halo de acento. Cuatro capas y en este orden. */
+@utility btn-relief {
+  box-shadow:
+    /* 1 — bisel: el filo de luz de 1px arriba, que es lo que lo hace leer como
+           una superficie con thickness y no como un rectángulo de color. */
+    inset 0 1px 0 0 var(--btn-bevel),
+    /* 2 — contacto: la sombra corta y oscura justo bajo el borde. */
+    0 1px 2px 0 var(--btn-contact),
+    /* 3 — caída: la difusa que lo despega del fondo, más abierta y suave
+           para leer como cristal pulido y no como pegatina. */
+    0 10px 24px -8px var(--btn-lift),
+    /* 4 — halo: el resplandor de acento, sutil en reposo. */
+    0 0 0 1px var(--btn-halo);
+  /* Un solo `transition` para todo lo que se mueve a la vez, con el MISMO reloj
+     y la MISMA curva para cada propiedad. Las cuatro sombras, el color, el
+     borde, el filtro y el desplazamiento arrancan y terminan a la vez: si el
+     transform va a 240ms y el color a 160ms el botón se mueve dos veces, y ese
+     desfase se percibe mucho más que la propia lentitud. */
+  transition:
+    transform var(--motion-ui) var(--ease-ui),
+    box-shadow var(--motion-ui) var(--ease-ui),
+    background-color var(--motion-ui) var(--ease-ui),
+    background-image var(--motion-ui) var(--ease-ui),
+    border-color var(--motion-ui) var(--ease-ui),
+    color var(--motion-ui) var(--ease-ui),
+    filter var(--motion-ui) var(--ease-ui);
+}
+
+/* ── Primario: degradado de marca + halo de acento ───────────────────────
+   El degradado va de un paso más claro a uno más oscuro en diagonal (145°),
+   que es la dirección con la que la luz cae desde arriba-izquierda. El halo
+   sale de `--color-brand-500`, así que el botón_primary emite la marca que el
+   usuario eligió en Ajustes. */
+@utility btn-primary {
+  background-image: linear-gradient(
+    145deg,
+    var(--color-brand-300) 0%,
+    var(--color-brand-500) 52%,
+    var(--color-brand-700) 100%
+  );
+  color: #ffffff;
+  border-color: color-mix(in srgb, var(--color-brand-300) 48%, transparent);
+  --btn-bevel: color-mix(in srgb, #ffffff 48%, transparent);
+  --btn-contact: color-mix(in srgb, var(--color-brand-700) 42%, transparent);
+  --btn-lift: color-mix(in srgb, var(--color-brand-600) 58%, transparent);
+  --btn-halo: color-mix(in srgb, var(--color-brand-500) 30%, transparent);
+  /* El degradado se ilumina con `filter` en el hover, no con un
+     relleno plano: un `background-color` jamás se ve sobre un
+     `background-image`. */
+  --btn-hi-fill: transparent;
+  --btn-hi-filter: brightness(1.06) saturate(1.04);
+  --btn-hi-border: color-mix(in srgb, var(--color-brand-200) 60%, transparent);
+}
+
+/* ── Secundario: superficie con borde, no color plano ───────────────────── */
+@utility btn-secondary {
+  background-color: var(--surface);
+  /* Vidrio: un filo de luz arriba que cae a transparente, presente
+     en claro y en oscuro por igual (el blanco a baja opacidad es
+     el reflejo del cristal, no un color). */
+  background-image: linear-gradient(180deg,
+    color-mix(in srgb, #ffffff 34%, transparent),
+    color-mix(in srgb, #ffffff 0%, transparent) 46%);
+  color: var(--fg);
+  border-color: var(--border);
+  --btn-bevel: color-mix(in srgb, #ffffff 72%, transparent);
+  --btn-contact: color-mix(in srgb, var(--fg) 9%, transparent);
+  --btn-lift: color-mix(in srgb, var(--fg) 14%, transparent);
+  --btn-halo: transparent;
+  --btn-hi-fill: color-mix(in srgb, var(--fg) 5%, transparent);
+  --btn-hi-border: color-mix(in srgb, var(--fg) 18%, transparent);
+}
+
+/* ── Contorno: el filo de marca sin relleno ─────────────────────────────── */
+@utility btn-outline {
+  background-color: transparent;
+  color: var(--color-brand-600);
+  border-color: color-mix(in srgb, var(--color-brand-400) 45%, transparent);
+  --btn-bevel: color-mix(in srgb, #ffffff 55%, transparent);
+  --btn-contact: color-mix(in srgb, var(--color-brand-700) 16%, transparent);
+  --btn-lift: color-mix(in srgb, var(--color-brand-600) 22%, transparent);
+  --btn-halo: transparent;
+  --btn-hi-fill: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  --btn-hi-border: color-mix(in srgb, var(--color-brand-300) 65%, transparent);
+}
+
+/* ── Peligro: rojo sólido. Mismo recipe que el primario pero con su propia
+   escala, para que el relieve no se note prestado. El `--btn-*` se declara
+   aquí y no se hereda del primario porque son utilidades planas, no clases. ── */
+@utility btn-danger {
+  background-image: linear-gradient(
+    145deg,
+    color-mix(in srgb, #f87171 92%, #ffffff) 0%,
+    #EF4444 52%,
+    #991b1b 100%
+  );
+  color: #ffffff;
+  border-color: color-mix(in srgb, #fca5a5 40%, transparent);
+  --btn-bevel: color-mix(in srgb, #ffffff 42%, transparent);
+  --btn-contact: color-mix(in srgb, #7f1d1d 42%, transparent);
+  --btn-lift: color-mix(in srgb, #b91c1c 55%, transparent);
+  --btn-halo: color-mix(in srgb, #EF4444 26%, transparent);
+  --btn-hi-fill: transparent;
+  --btn-hi-filter: brightness(1.06);
+  --btn-hi-border: color-mix(in srgb, #fecaca 55%, transparent);
+}
+
+/* ── Sutil: el tinte de marca más bajo de la escala, para acciones terciarias
+   que no pueden competir con el primario pero aún así son de marca. ──────── */
+@utility btn-subtle {
+  background-color: color-mix(in srgb, var(--color-brand-500) 11%, transparent);
+  background-image: linear-gradient(180deg,
+    color-mix(in srgb, #ffffff 26%, transparent),
+    color-mix(in srgb, #ffffff 0%, transparent) 50%);
+  color: color-mix(in srgb, var(--color-brand-700) 88%, var(--fg));
+  border-color: color-mix(in srgb, var(--color-brand-400) 28%, transparent);
+  --btn-bevel: color-mix(in srgb, #ffffff 48%, transparent);
+  --btn-contact: color-mix(in srgb, var(--fg) 7%, transparent);
+  --btn-lift: color-mix(in srgb, var(--color-brand-600) 18%, transparent);
+  --btn-halo: transparent;
+  --btn-hi-fill: color-mix(in srgb, var(--color-brand-500) 12%, transparent);
+  --btn-hi-border: color-mix(in srgb, var(--color-brand-300) 55%, transparent);
+}
+
+/* ── Ghost: sin superficie hasta que se le pasa por encima ───────────────── */
+@utility btn-ghost {
+  background-color: transparent;
+  color: var(--fg-muted, color-mix(in srgb, var(--fg) 62%, transparent));
+  border-color: transparent;
+  --btn-bevel: transparent;
+  --btn-contact: transparent;
+  /* El ghost sí levanta en el hover, aunque solo un pelo: sin esta capa no
+     se distinguiría de un texto con cursor y es la única señal de que hay
+     algo pulsable debajo. */
+  --btn-lift: color-mix(in srgb, var(--fg) 8%, transparent);
+  --btn-halo: transparent;
+  --btn-hi-fill: color-mix(in srgb, var(--fg) 6%, transparent);
+  --btn-hi-border: transparent;
+  transition:
+    transform var(--motion-ui) var(--ease-ui),
+    box-shadow var(--motion-ui) var(--ease-ui),
+    background-color var(--motion-ui) var(--ease-ui),
+    color var(--motion-ui) var(--ease-ui);
+}
+
+/* ── ESTADOS ────────────────────────────────────────────────────────────
+   Una sola pareja para todos los aspectos. El hover eleva 1px y enciende el
+   halo; el activo hunde 1px y aplasta el relieve. Los dos se mueven con
+   `--motion-ui` y `--ease-ui`, el mismo reloj y la misma curva simétrica: así
+   bajar el puntero deshace exactamente el gesto de subirlo, y el botón no
+   parece que recoja un rebote al salir.
+
+   `translate` y no `scale` en los dos: el `scale` deformaba el texto y el hueco
+   del icono, y a 1px de desplazamiento el botón sube y baja sin que nada se
+   note deformado. El único `scale` del sistema está en el glifo, que sí es
+   una imagen y sí puede estirarse sin que se rompa nada. */
+
+@utility btn-hi {
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 0 var(--btn-bevel),
+      0 2px 4px 0 var(--btn-contact),
+      0 12px 24px -8px var(--btn-lift),
+      0 10px 26px -8px var(--btn-halo);
+    background-color: var(--btn-hi-fill);
+    /* El borde se enciende al pasar por encima. En los botones de color plano
+       es lo que separa el botón del fondo cuando los dos son oscuros: sin
+       esto, un primario sobre una superficie oscura se fundía con ella en el
+       único píxel que no tiene degradado. */
+    border-color: var(--btn-hi-border, transparent);
+    /* Los que llevan `background-image` no se iluminan con `background-color`
+       —un color plano jamás se ve sobre un degradado—, así que suben con
+       `filter`. El 1.06 es el techo: a partir de ahí el texto blanco vibra y
+       el rojo del peligro satura. Los de superficie fija dejan `none` y se
+       iluminan con el relleno de arriba. */
+    filter: var(--btn-hi-filter, none);
+  }
+}
+
+@utility btn-press {
+  &:active {
+    transform: translateY(1px);
+    box-shadow: inset 0 2px 6px -2px var(--btn-contact);
+    /* Solo el reloj y la curva, no las propiedades: hundirse tiene que ser
+       instantáneo, pero al soltar se vuelve al hover con los 220ms suaves de
+       `btn-relief`. Ese par de tiempos desiguales es lo que produce el rebote
+       blando; con los dos a 220ms el hundimiento se sentiría retardado. */
+    transition-duration: var(--motion-press);
+    transition-timing-function: var(--ease-premium);
+  }
+}
+
+@layer components {
+
+  /* El glifo sube un 7% con el botón. Se hace sobre el `<svg>` DIRECTO del
+     botón y no envolviendo los hijos en un `span`: ese envoltorio se comería
+     el `gap` que el botón declara entre icono y etiqueta, que es justo lo que
+     da el aire al conjunto.
+
+     El spinner queda fuera por dos motivos, y los dos importan. Si heredase
+     la `transition`, la rotación se suavizaría entre fotogramas y el indicador
+     de carga daría un tirón. Y si heredase el `scale` del hover, el `:hover`
+     está anulado por `:not(:disabled)` —un botón en carga está deshabilitado—
+     pero entonces el `scale` ganaría por orden de fuente sobre el `rotate` de
+     `animate-spin` y el spinner se detendría al pasar el ratón por encima.
+
+     Va en `components` y no suelto a propósito: así un llamante que quiera su
+     propio `hover:scale-*` en el icono lo gana, en vez de pelearse con una
+     regla sin capa que aplasta a todas las utilidades. */
+  .group\/btn > svg:not([data-btn-spinner]) {
+    flex: none;
+    /* Mismo reloj y misma curva que el botón. Con el glifo en la curva
+       exponencial y el botón en la simétrica, el icono se adelantaba a su
+       contenedor y el conjunto se descuadraba justo al empezar y al soltar. */
+    transition: transform var(--motion-ui) var(--ease-ui);
+  }
+
+  .group\/btn:hover:not(:disabled) > svg:not([data-btn-spinner]) {
+    transform: scale(1.07);
+  }
+
+  .group\/btn:active:not(:disabled) > svg:not([data-btn-spinner]) {
+    transform: scale(0.97);
+  }
+}
+
+/* Deshabilitado: sin relieve y sin hover. La opacidad la pone el componente
+   (50%), aquí solo se anula lo que se movía. */
+@utility btn-off {
+  &:disabled {
+    box-shadow: inset 0 1px 0 0 color-mix(in srgb, #ffffff 22%, transparent);
+    transform: none;
+  }
+}
+
+/* ── CARGA ───────────────────────────────────────────────────────────────
+   El estado que le faltaba al sistema, y no es un `:disabled` disfrazado:
+   deshabilitado dice «no puedes», en carga dice «puedes, pero espera», y
+   confundirlos deja al usuario creyendo que la acción falló.
+
+   Dos decisiones:
+
+   1. El ANCHO NO CAMBIA. El spinner entra al principio de la fila y la
+      etiqueta se atenúa en su sitio. Un botón que se ensancha al empezar la
+      carga y se encoge al terminar empuja todo lo que tenga a su lado, que en
+      una barra de acciones es la mitad de la barra.
+
+   2. La etiqueta baja a 45% en vez de desaparecer. Con el texto fuera, un
+      botón de «Guardar» pasa a ser un disco del tamaño del icono y al volver
+      a crecer el salto se nota justo en el momento en que el usuario está
+      mirando para confirmar que terminó. */
+@utility btn-busy {
+  &[aria-busy="true"] > :not([data-btn-spinner]) {
+    opacity: 0.45;
+    transition: opacity var(--motion-ui) var(--ease-ui);
+  }
+}
+
+/* Giro propio y no `animate-spin` de Tailwind por el ritmo: la utilidad gira
+   en 1s lineales, que se lee como un reloj. A 0.8s el indicador se siente
+   activo sin parecer nervioso, y un `--ease-linear` explícito evita que herede
+   la deceleración del resto de micro-interacciones del sistema. */
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@utility btn-spinner {
+  animation: btn-spin 0.8s linear infinite;
+}
+
+/* El foco no usa `outline`: el anillo es el indicador, y va con el color de
+   marca y desplazamiento para que se lea también sobre el botón de color. */
+@utility btn-focus {
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      inset 0 1px 0 0 var(--btn-bevel),
+      0 2px 4px 0 var(--btn-contact),
+      0 12px 24px -8px var(--btn-lift),
+      0 10px 26px -8px var(--btn-halo),
+      0 0 0 2px var(--surface),
+      0 0 0 4px color-mix(in srgb, var(--color-brand-500) 72%, transparent);
+  }
+}
+
+/* Marco del preview del logo: mismo bisel y misma sombra de contacto que el
+   resto de superficies del panel, para que la imagen se lea como parte de la
+   interfaz y no como un recorte pegado encima.
+
+   Vive como utilidad y no como `shadow-[...]` en el componente por el motivo
+   de siempre: un `color-mix()` con comas dentro de una clase arbitraria lo
+   muerde el parser de Tailwind y la sombra se pierde entera. */
+@utility logo-frame {
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 60%, transparent),
+    0 1px 2px 0 color-mix(in srgb, var(--fg) 10%, transparent);
+}
+
+.dark .logo-frame {
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 14%, transparent),
+    0 1px 2px 0 color-mix(in srgb, #000000 30%, transparent);
+}
+
+/* Superficie insignia: la card principal del panel. Antes era un degradado
+   teal escrito a mano, así que era la tarjeta más visible del sitio y la
+   única que no cambie con el acento. Vive aquí y no en un bg-[...] porque
+   un color-mix() con comas dentro de un valor arbitrario de Tailwind es
+   frágil: el parser de la clase se come las comas. */
+@utility bg-brand-hero {
+  background-image: linear-gradient(135deg,
+      var(--color-brand-400) 0%,
+      var(--color-brand-500) 32%,
+      var(--color-brand-700) 100%);
+}
+
+@utility shadow-brand-hero {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset,
+    0 10px 32px -14px color-mix(in srgb, var(--color-brand-600) 60%, transparent);
+}
+
+/* El hover va en su propia utilidad y no dentro de la anterior con `&:hover`.
+   Al meterlo anidado competiría con los `dark:shadow-[...]` de la propia card y
+   el orden de Utilities frente a variantes deja de ser obvio: mejor dos
+   utilidades que se apliquen en el orden en que están escritas. */
+@utility shadow-brand-hero-hover {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) inset,
+    0 18px 48px -16px color-mix(in srgb, var(--color-brand-600) 65%, transparent);
+}
+
+@utility text-brand-gradient {
+  background-image: linear-gradient(145deg, var(--color-brand-400), var(--color-brand-600));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility skeleton-shimmer {
+  background: linear-gradient(90deg,
+      var(--surface-2) 25%,
+      color-mix(in srgb, var(--border) 55%, var(--surface)) 50%,
+      var(--surface-2) 75%);
+  background-size: 200% 100%;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SUPERFICIE DE TARJETA
+   ───────────────────────────────────────────────────────────────────────────
+   Una sola definición de "qué es una tarjeta" en el sitio, en vez de que cada
+   componente escriba su borde, su fondo y sus tres sombras. Vive aquí y no en
+   clases arbitrarias por dos motivos que ya estaban escritos arriba para
+   `bg-brand-hero`: un `color-mix()` con comas dentro de un `bg-[...]` se lo
+   come el parser de Tailwind, y un `box-shadow` de cuatro capas escrito en el
+   className es ilegible y no se puede revisar de un vistazo.
+
+   EL COLOR DE ACENTO ES POR TARJETA, Y SE LLAMA IGUAL QUE EL DE LA MARCA.
+   `--card-accent` está declarado en `:root` más abajo con el acento del sitio,
+   para que cualquier tarjeta que no diga nada siga a la marca en vivo; las que
+   sí lo dicen (las seis del panel, cada una con su color, y las de
+   formularios, que alternan por posición) lo pisan en línea y heredan el resto
+   de las capas recalculadas. Un solo sitio decide el tinte, igual que con
+   `--glass-chroma`.
+
+   Sin `backdrop-filter` en la rejilla de formularios, a propósito: cada tarjeta
+   con `backdrop-filter` es una raíz de composición propia, y con noventa
+   tarjetas en pantalla eso se nota al desplazar. Las diez tarjetas grandes (el
+   bento del panel y las de métricas) sí lo llevan, y la rejilla compensa con
+   más opacidad de fondo. El mismo resultado, sin el coste. */
+@utility card-surface {
+  position: relative;
+  /* Contexto de apilamiento propio para que el mesh y el grano (capas con
+     z-index negativo) se pinten ENTRE el fondo de la tarjeta y el texto, no
+     encima: sin esto el ruido con `mix-blend-mode` se comería los títulos.
+     `isolate` y no un `z-index` porque no queremos alterar el orden de las
+     tarjetas entre sí dentro de la rejilla. */
+  isolation: isolate;
+  border-radius: var(--card-radius);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 10%, var(--border));
+  background-color: var(--card-bg);
+  backdrop-filter: var(--card-backdrop);
+  -webkit-backdrop-filter: var(--card-backdrop);
+
+  /* Cuatro capas, cada una con un trabajo:
+     1. contacto — la línea de apoyo, la que dice que la tarjeta está ahí;
+     2. difusa — el cuerpo, muy abierta, para dar peso sin ensuciar;
+     3. halo — la exterior, la que despega la tarjeta del fondo;
+     4. filo interior — el cristal, arriba más claro que abajo. */
+  box-shadow: var(--card-shadow);
+  transition:
+    transform var(--transition-slow) var(--ease-premium),
+    box-shadow var(--transition-slow) var(--ease-premium),
+    border-color var(--transition-fast) ease,
+    background-color var(--transition-fast) ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--card-accent) 30%, var(--border));
+    background-color: var(--card-bg-hover);
+    /* El borde "se enciende": aro del acento + su halo, por encima de la
+       sombra de reposo. Es el mismo acento que el mesh, no un color aparte. */
+    box-shadow: var(--card-glow), var(--card-shadow-hover);
+  }
+}
+
+/* El mesh: tres focos radiales repartidos por toda la tarjeta más una veladura
+   vertical. Sustituye a los orbes de las esquinas, que se leían como manchas
+   planas; repartido por la superficie se lee como luz. Los porcentajes son
+   tokens porque en oscuro el mismo valor se apaga y hay que subirlo. */
+@utility card-mesh {
+  z-index: -1;
+  background-image: var(--card-mesh-image);
+}
+
+/* El grano. Sin esto los degradados grandes hacen banding en pantallas
+   graduadas, que es justo donde se ve que la tarjeta es "plana". Va con
+   `mix-blend-mode` para que no sea una capa gris encima sino textura. */
+@utility card-grain {
+  z-index: -1;
+  background-image: var(--card-grain-tile);
+  background-size: 120px 120px;
+  opacity: var(--card-grain-alpha);
+  mix-blend-mode: var(--card-grain-blend);
+}
+
+/* Filo interior de la tarjeta: el anillo claro de arriba y el oscuro de abajo
+   son los que leen la tarjeta como cristal en vez de como rectángulo. */
+@utility card-rim {
+  z-index: -1;
+  border-radius: var(--card-radius);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #ffffff 55%, transparent);
+}
+
+/* Contenedor de icono. El relieve es con `box-shadow` interno y NO con un
+   gradiente de fondo: los indicadores de la cuenta de QA se leen del
+   `background-color` y del `color` de estos contenedores (qa/accent-probe.js),
+   y un `background-image` no tocaría ninguno de los dos… pero tampoco hace
+   falta: el brillo se consigue con el inset de arriba. */
+@utility card-icon {
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 72%, transparent),
+    inset 0 -1px 0 0 color-mix(in srgb, var(--fg) 7%, transparent),
+    0 1px 2px color-mix(in srgb, var(--fg) 9%, transparent);
+  background-image: linear-gradient(
+    150deg,
+    color-mix(in srgb, #ffffff 62%, transparent) 0%,
+    transparent 58%
+  );
+}
+
+/* El borde del contenedor de icono, aparte del relieve porque necesita un
+   `color-mix`: dentro de una clase arbitraria (`border-[color-mix(...)]`) las
+   comas las muerde el parser de Tailwind, que es justo lo que pasó con
+   `bg-brand-hero` y por lo que ese degradado se declara como utilidad. */
+@utility card-icon-frame {
+  border-color: color-mix(in srgb, var(--card-accent) 22%, transparent);
+}
+
+/* Tinta de acento: el color de la tarjeta llevado al texto, mezclado con el
+   color de texto del tema en vez de usarse crudo. Sin esto el oro de
+   "Plantillas" daba 2.4:1 sobre su propio fondo al 11% y el icono se
+   perdía — un acento claro no puede ser tinta. Al 78% de acento la mezcla
+   siempre queda por encima de 3:1 con los nueve acentos, en los dos temas, y
+   sigue siendo reconociblemente el color de la tarjeta. Es la misma receta que
+   usa `card-pill`. */
+@utility card-accent-ink {
+  color: color-mix(in srgb, var(--card-accent) 78%, var(--fg));
+}
+
+/* El relleno sólido del acento, para el hover de la flecha. Existe como
+   utilidad y no como `group-hover:bg-[var(--card-accent)]` para que quede
+   junto a las demás capas de tarjeta y no suelto en un className. */
+@utility card-accent-fill {
+  background-color: var(--card-accent);
+}
+
+/* La flecha de las tarjetas. El botón redondo del pie se pone del color de la
+   tarjeta y el glifo pasa a blanco al hover.
+
+   Se declara aquí y no en el componente por la misma razón que el resto de la
+   superficie: el relleno y el color del glifo son `color-mix`, y dentro de una
+   clase arbitraria (`group-hover:bg-[...]`) las comas las muerde el parser de
+   Tailwind. Escrita como utilidad, ambas cosas salen de `--card-accent`, así
+   que la tarjeta que la lleva pone su acento una sola vez.
+
+   La transición va aquí, en `transition`, y no como `transition-all` en el
+   className: se animan solo las tres propiedades que de verdad cambian
+   (relleno, glifo y relieve), no el `transform`, que lo lleva el grupo con su
+   propia escala. `--transition-slow` y `--ease-premium` son los mismos tokens
+   que usa `card-surface`, para que el botón y la tarjeta se muevan a la vez y
+   con el mismo ritmo. */
+@utility card-arrow {
+  border-color: color-mix(in srgb, var(--card-accent) 24%, transparent);
+  background-color: color-mix(in srgb, var(--card-accent) 9%, transparent);
+  color: color-mix(in srgb, var(--card-accent) 78%, var(--fg));
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 55%, transparent),
+    0 1px 2px color-mix(in srgb, var(--fg) 8%, transparent);
+  transition:
+    background-color var(--transition-slow) var(--ease-premium),
+    color var(--transition-slow) var(--ease-premium),
+    border-color var(--transition-fast) ease,
+    box-shadow var(--transition-slow) var(--ease-premium);
+}
+
+/* El hover de la flecha: relleno sólido del acento y glifo blanco. Separate de
+   `card-arrow` para que quien la use escriba el estado de reposo y el de hover
+   como dos palabras, igual que cualquier otra pareja de utilidades. */
+@utility card-arrow-on {
+  background-color: var(--card-accent);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 30%, transparent),
+    0 6px 18px -6px color-mix(in srgb, var(--card-accent) 70%, transparent);
+}
+
+/* Velo bajo el texto de la insignia. El degradado de marca es claro (Cian por
+   defecto) y el texto es blanco: sobre `#00D2FF` mide 1.7:1, muy por debajo de
+   lo que pide WCAG. Un velo corto desde abajo es la solución de siempre —
+   oscurece solo la franja donde vive el texto, deja el resto de la insignia
+   con su color intacto y sube la medición por encima de 4.5:1. */
+@utility card-hero-scrim {
+  background-image: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--color-brand-950) 46%, transparent) 0%,
+    color-mix(in srgb, var(--color-brand-950) 20%, transparent) 32%,
+    transparent 64%
+  );
+}
+/* Píldora. El texto se compone con el acento sobre el color de texto en vez de
+   negro o blanco fijos: se lee como cristal teñido y sigue teniendo contraste
+   en los dos temas y con los nueve acentos. */
+@utility card-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 20%, transparent);
+  background-color: color-mix(in srgb, var(--card-accent) 10%, transparent);
+  color: color-mix(in srgb, var(--card-accent) 72%, var(--fg));
+  padding: 0.3125rem 0.625rem;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition:
+    border-color var(--transition-fast) ease,
+    background-color var(--transition-fast) ease;
+}
+
+/* ── Tokens de la superficie de tarjeta ── */
+:root {
+  --card-radius: 1.375rem; /* 22px */
+
+  /* El acento por defecto se declara AQUÍ y no en `card-surface`, y no es
+     cosmetics: `--card-glow` y `--card-mesh-image` se construyen en `:root`
+     haciendo `color-mix` con `--card-accent`. Una variable personalizada se
+     resuelve donde se DECLARA, así que si `:root` no la conoce, esas dos
+     nacen inválidas y esa invalidez se hereda: el `box-shadow` del hover se
+     caía entero a `none` (4 capas a 0) sin que se viera ningún error. Las
+     tarjetas que sí traen acento propio lo pisan en línea y las capas se
+     recalculan con el suyo. */
+  --card-accent: var(--color-brand-500);
+
+  --card-bg: color-mix(in srgb, var(--surface) 88%, transparent);
+  --card-bg-hover: color-mix(in srgb, var(--surface) 94%, transparent);
+  --card-backdrop: blur(16px) saturate(1.6);
+
+  --card-shadow:
+    0 1px 2px -1px color-mix(in srgb, var(--fg) 10%, transparent),
+    0 6px 16px -6px color-mix(in srgb, var(--fg) 10%, transparent),
+    0 20px 44px -24px color-mix(in srgb, var(--fg) 20%, transparent),
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 72%, transparent);
+  --card-shadow-hover:
+    0 1px 2px -1px color-mix(in srgb, var(--fg) 12%, transparent),
+    0 10px 26px -10px color-mix(in srgb, var(--fg) 14%, transparent),
+    0 34px 68px -30px color-mix(in srgb, var(--fg) 28%, transparent),
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 82%, transparent);
+  --card-glow:
+    0 0 0 1px color-mix(in srgb, var(--card-accent) 26%, transparent),
+    0 16px 44px -20px color-mix(in srgb, var(--card-accent) 42%, transparent);
+
+  --card-mesh-image:
+    radial-gradient(115% 85% at 6% -4%, color-mix(in srgb, var(--card-accent) 13%, transparent) 0%, transparent 54%),
+    radial-gradient(95% 70% at 104% 6%, color-mix(in srgb, var(--card-accent) 9%, transparent) 0%, transparent 52%),
+    radial-gradient(150% 105% at 46% 116%, color-mix(in srgb, var(--card-accent) 8%, transparent) 0%, transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, #ffffff 52%, transparent) 0%, transparent 40%);
+
+  /* Un solo tile de ruido SVG para todas las superficies del sitio. El `#` del
+     `url(#g)` va como `%23`: sin eso el data-URI se corta y el ruido no sale. */
+  --card-grain-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)'/%3E%3C/svg%3E");
+  --card-grain-alpha: 0.03;
+  --card-grain-blend: overlay;
+}
+
+/* ── Semantic tokens: light ── */
+:root {
+  color-scheme: light;
+  --app-bg: #fbfcfe;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #e8ebf0;
+  --fg: #0f172a;
+  --fg-muted: #64748b;
+
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-bg-hover: rgba(255, 255, 255, 0.84);
+
+  /* Toast / semantic soft — tuned for contrast, never pastel lavado */
+  --toast-success-bg: #ffffff;
+  --toast-success-border: #c7ece5;
+  --toast-success-accent: var(--color-success);
+  --toast-error-bg: #ffffff;
+  --toast-error-border: #fecaca;
+  --toast-error-accent: var(--color-danger);
+  --toast-warning-bg: #ffffff;
+  --toast-warning-border: #fde68a;
+  --toast-warning-accent: var(--color-warning);
+  --toast-info-bg: #ffffff;
+  --toast-info-border: #dbeafe;
+  --toast-info-accent: var(--color-info);
+
+  /* Modal overlay */
+  --overlay-bg: rgba(15, 23, 42, 0.14);
+  --overlay-blur: 16px;
+
+  /* Halo de marca. Son tokens y no rgba(...) en cada componente porque un
+     color-mix() dentro de un shadow-[...] arbitrario de Tailwind es frágil:
+     el parser de la clase se come las comas. Además el paso de la escala
+     cambia con el tema: en oscuro un 500 queda apagado y hace falta el 400. */
+  --shadow-brand-glow:
+    0 0 20px color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+  --shadow-brand-ring:
+    0 0 0 3px color-mix(in srgb, var(--color-brand-500) 12%, transparent),
+    0 8px 24px -12px color-mix(in srgb, var(--color-brand-500) 20%, transparent);
+  --shadow-brand-ring-wide:
+    0 0 0 4px color-mix(in srgb, var(--color-brand-500) 12%, transparent);
+  --shadow-brand-rail:
+    0 0 10px color-mix(in srgb, var(--color-brand-500) 45%, transparent);
+  --shadow-brand-drag:
+    0 16px 40px -12px color-mix(in srgb, var(--color-brand-500) 35%, transparent),
+    0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-brand-select:
+    0 8px 24px -12px color-mix(in srgb, var(--color-brand-500) 18%, transparent);
+}
+
+/* ── Semantic tokens: dark — never pure black/white, tinted slate ── */
+.dark {
+  color-scheme: dark;
+  --app-bg: #0a0c12;
+  --surface: #12151d;
+  --surface-2: #171b25;
+  --border: #232936;
+  --fg: #e9edf4;
+  --fg-muted: #8a93a6;
+
+  --glass-bg: rgba(18, 21, 29, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-bg-hover: rgba(18, 21, 29, 0.84);
+  --glass-chroma: var(--color-brand-400);
+
+  /* Superficie de tarjeta en oscuro. Tres ajustes, no uno:
+     - más opacidad de fondo, porque en claro el ruido y el mesh se leen
+       sobre el blanco y aquí se perderían;
+     - el mesh sube de 13% a 20%: sobre fondo casi negro, el mismo 13% es
+       invisible, que es el error clásico de copiar un degradado de un tema al
+       otro sin volver a mirarlo;
+     - el grano pasa de `overlay` a `soft-light` y sube de 0.03 a 0.05: en
+       claro `overlay` es casi nada y aquí hace falta que se note un poco. */
+  --card-bg: color-mix(in srgb, var(--surface) 70%, transparent);
+  --card-bg-hover: color-mix(in srgb, var(--surface) 80%, transparent);
+
+  --card-shadow:
+    0 1px 2px -1px rgba(0, 0, 0, 0.5),
+    0 6px 18px -6px rgba(0, 0, 0, 0.45),
+    0 24px 52px -24px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  --card-shadow-hover:
+    0 1px 2px -1px rgba(0, 0, 0, 0.55),
+    0 12px 30px -10px rgba(0, 0, 0, 0.55),
+    0 38px 76px -30px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  --card-glow:
+    0 0 0 1px color-mix(in srgb, var(--card-accent) 34%, transparent),
+    0 18px 48px -20px color-mix(in srgb, var(--card-accent) 52%, transparent);
+
+  --card-mesh-image:
+    radial-gradient(115% 85% at 6% -4%, color-mix(in srgb, var(--card-accent) 20%, transparent) 0%, transparent 54%),
+    radial-gradient(95% 70% at 104% 6%, color-mix(in srgb, var(--card-accent) 15%, transparent) 0%, transparent 52%),
+    radial-gradient(150% 105% at 46% 116%, color-mix(in srgb, var(--card-accent) 13%, transparent) 0%, transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, #ffffff 7%, transparent) 0%, transparent 42%);
+
+  --card-grain-alpha: 0.05;
+  --card-grain-blend: soft-light;
+
+  --toast-success-bg: #111a1f;
+  --toast-success-border: rgba(14, 147, 132, 0.28);
+  --toast-success-accent: var(--color-success-ink);
+  --toast-error-bg: #1a1214;
+  --toast-error-border: rgba(209, 67, 67, 0.28);
+  --toast-error-accent: var(--color-danger-ink);
+  --toast-warning-bg: #1a1710;
+  --toast-warning-border: rgba(212, 164, 58, 0.28);
+  --toast-warning-accent: var(--color-warning-ink);
+  --toast-info-bg: #121723;
+  --toast-info-border: rgba(79, 125, 232, 0.24);
+  --toast-info-accent: var(--color-info-ink);
+
+  /* Texto/iconos semánticos sobre fondo oscuro (AA): los `-ink` suben de
+     luminancia para contrastar sobre superficie oscura. */
+  --color-success-ink: #34D399;
+  --color-warning-ink: #FBBF24;
+  --color-danger-ink: #F87171;
+  --color-info-ink: #7AA4FF;
+
+  --overlay-bg: rgba(2, 6, 16, 0.46);
+  --overlay-blur: 18px;
+
+  --shadow-brand-glow:
+    0 0 20px color-mix(in srgb, var(--color-brand-400) 18%, transparent);
+  --shadow-brand-ring:
+    0 0 0 3px color-mix(in srgb, var(--color-brand-400) 15%, transparent),
+    0 8px 24px -12px color-mix(in srgb, var(--color-brand-400) 24%, transparent);
+  --shadow-brand-ring-wide:
+    0 0 0 4px color-mix(in srgb, var(--color-brand-400) 12%, transparent);
+  --shadow-brand-rail:
+    0 0 14px color-mix(in srgb, var(--color-brand-400) 45%, transparent);
+  --shadow-brand-drag:
+    0 16px 40px -12px color-mix(in srgb, var(--color-brand-400) 35%, transparent),
+    0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Creative dark depth — aurora sutil detrás de las cards.
+   Los tres focos salen de la escala de marca en vez de estar clavados. Antes
+   eran teal, ámbar y violeta fijos: con un acento teal encajaba por casualidad,
+   pero en Rose o Amber el fondo se peleaba con el color de la marca. Ahora los
+   tres tonos son el mismo matiz en distintas profundidades, así que la aurora
+   acompaña a cualquier acento y sigue siendo un degradado con carácter. */
+.dark body {
+  background-color: var(--app-bg);
+  background-image:
+    radial-gradient(at 12% 8%, color-mix(in srgb, var(--color-brand-500) 10%, transparent), transparent 42%),
+    radial-gradient(at 88% 18%, color-mix(in srgb, var(--color-brand-400) 7%, transparent), transparent 38%),
+    radial-gradient(at 50% 85%, color-mix(in srgb, var(--color-brand-800) 6%, transparent), transparent 45%);
+  background-attachment: fixed;
+}
+
+@layer base {
+  * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+  
+    *::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+  
+    *::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 999px;
+      border: 3px solid var(--app-bg);
+    }
+  
+    *::-webkit-scrollbar-thumb:hover {
+      background: var(--fg-muted);
+    }
+
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-sans);
+  }
+
+  /* Datos, slugs y códigos van en monoespaciada (JetBrains Mono). */
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--app-bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--color-brand-500);
+    color: white;
+  }
+
+  ::placeholder {
+    color: var(--fg-muted);
+    opacity: 0.8;
+  }
+
+  a,
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  /* 🆕 Foco visible accesible y consistente */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* 🆕 Respetar preferencia de reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Redondeo por defecto de cualquier <button> nativo que no declare el suyo.
+   El radio de los botones del sistema es una píldora de 20px, y esta regla lo
+   impone a los que no son `<Button>` ni `cr-btn`, que son unos cuantos y
+   ninguno traía radio propio.
+
+   Va DENTRO de `@layer base`, y las dos cosas son necesarias por separado.
+   Fuera de una capa, esta regla ganaría a `rounded-full` aunque su
+   especificidad fuera cero: el orden de capas se resuelve ANTES que la
+   especificidad, y lo que no está en ninguna capa cuenta como una última
+   capa por encima de `utilities`. Con eso, los switches, las píldoras de
+   filtro y `rounded-none` seguían viendo un cuadrado de 20px. En `base` solo
+   entra cuando nadie más ha declarado un radio, que es justo lo que cubre. */
+@layer base {
+  :where(button:not([data-radius])) {
+    border-radius: var(--btn-radius, 20px);
+  }
+}
+
+@layer utilities {
+
+  /* ⚠️ LEGADO: estas clases quedan por compatibilidad mientras
+     migramos los componentes a bg-surface / text-ink / border-line.
+     Se eliminan al final del refactor. */
+  .flag-icon {
+    display: inline-block;
+    width: 1.25rem;
+    height: 0.875rem;
+    flex: 0 0 auto;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--border) 85%, #64748b);
+    border-radius: 2px;
+  }
+
+  .flag-es {
+    background: linear-gradient(to bottom,
+        #aa151b 0 25%,
+        #f1bf00 25% 75%,
+        #aa151b 75% 100%);
+  }
+
+  .flag-en {
+    background:
+      linear-gradient(to right, transparent 42%, #cf142b 42% 58%, transparent 58%),
+      linear-gradient(to bottom, transparent 36%, #cf142b 36% 64%, transparent 64%),
+      #ffffff;
+  }
+
+  .bg-app {
+    background-color: var(--app-bg);
+  }
+
+  .bg-surface {
+    background-color: var(--surface);
+  }
+
+  .bg-surface-2 {
+    background-color: var(--surface-2);
+  }
+
+  .text-fg {
+    color: var(--fg);
+  }
+
+  .text-muted {
+    color: var(--fg-muted);
+  }
+
+  .border-default {
+    border-color: var(--border);
+  }
+
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--glass-border);
+    transition: background 0.2s ease-out; /* Add transition for smooth background change */
+  }
+  .glass:hover {
+    background: var(--glass-bg-hover);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* ── Iconografía sutil global (rediseño outline minimalista) ─────────────
+   Trazo fino y uniforme en todos los iconos Lucide: menor peso visual,
+   sin rellenos sólidos, integrados con el contenido en vez de competir
+   con él. El `stroke-width` por prop en cada icono sigue mandando donde
+   se declara explícitamente. */
+.lucide {
+  stroke-width: 1.5;
+  shape-rendering: geometricPrecision;
+}
+
+/* ── Hover scale de botones: transición simétrica y desacelerada ──────────
+   Solo se toca el transform: bordes, colores, sombras, tipografías y
+   espaciados quedan intactos. Los botones que ya traen su propio scale
+   (hover:scale-*) lo conservan; aquí solo ganan la transición coherente.
+   Sin capas ni !important: este CSS sin capa precede a las utilidades. */
+button,
+.btn,
+[class*="button"],
+[class*="btn-"],
+a.button,
+input[type="button"],
+input[type="submit"] {
+  transition:
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    translate 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    scale 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 200ms ease,
+    box-shadow 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease,
+    opacity 200ms ease;
+}
+
+/* Escala por defecto solo donde no hay una propia (sin "scale" en clases). */
+button:not([class*="scale"]):hover,
+.btn:not([class*="scale"]):hover,
+[class*="button"]:not([class*="scale"]):hover,
+[class*="btn-"]:not([class*="scale"]):hover,
+a.button:not([class*="scale"]):hover,
+input[type="button"]:not([class*="scale"]):hover,
+input[type="submit"]:not([class*="scale"]):hover,
+button:not([class*="scale"]):focus-visible,
+.btn:not([class*="scale"]):focus-visible,
+[class*="button"]:not([class*="scale"]):focus-visible,
+[class*="btn-"]:not([class*="scale"]):focus-visible,
+a.button:not([class*="scale"]):focus-visible {
+  transform: scale(1.03);
+}
+
+/* Cards: se conserva el suavizado ya aceptado (expo-out, entrada y salida).
+   Los botones quedan fuera: los rige la regla simétrica de arriba. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .card-surface,
+  [class*="hover:scale"]:not(button):not(a),
+  [class*="group-hover:scale"]:not(button):not(a) {
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    transition-duration: 350ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .btn,
+  [class*="button"],
+  [class*="btn-"],
+  a.button,
+  input[type="button"],
+  input[type="submit"] {
+    transition: none;
+    transform: none;
+  }
+  button:hover,
+  .btn:hover,
+  [class*="button"]:hover,
+  [class*="btn-"]:hover,
+  a.button:hover,
+  input[type="button"]:hover,
+  input[type="submit"]:hover {
+    transform: none;
+  }
+}
+
+/* ── Escenario de acceso por entidad (/a/:slug) ─────────────────────────
+   Fotografía institucional al fondo según el rol del enlace
+   (`/fondo_admin_entity.png` o `/fondo_form_creator.png`), velada con
+   degradados para dar contraste, viñeta y una tarjeta de cristal premium.
+   Respeta light/dark y `prefers-reduced-motion`. */
+.auth-stage {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  overflow: hidden;
+  padding: 2.5rem 1rem;
+  background:
+    radial-gradient(ellipse at 12% 6%, color-mix(in srgb, var(--color-brand-500) 11%, transparent), transparent 42%),
+    radial-gradient(ellipse at 90% 98%, color-mix(in srgb, var(--color-brand-600) 9%, transparent), transparent 46%),
+    linear-gradient(160deg, #f4f8f9 0%, #eef3f5 48%, #f6f4ee 100%);
+}
+.dark .auth-stage {
+  background:
+    radial-gradient(ellipse at 12% 6%, color-mix(in srgb, var(--color-brand-500) 15%, transparent), transparent 42%),
+    radial-gradient(ellipse at 90% 98%, color-mix(in srgb, var(--color-brand-500) 11%, transparent), transparent 46%),
+    linear-gradient(160deg, #0d1417 0%, #121a1d 48%, #171612 100%);
+}
+/* Fotografía de fondo: lienzo velado y teñido de marca para que la tarjeta
+   de cristal y el texto se lean sobre cualquier zona de la imagen.
+   La imagen cambia por rol:
+   - .auth-photo--gestor-entidad -> /Gestor de Entidad en Azul Tech.png
+   - .auth-photo--gestor-formularios -> /Gestor de Formularios Futurista.png
+   - .auth-photo--super-admin -> /Super Administrador_ Control total digital.png */
+.auth-photo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 14% 8%, color-mix(in srgb, var(--color-brand-500) 22%, transparent), transparent 44%),
+    radial-gradient(ellipse at 88% 96%, color-mix(in srgb, var(--color-brand-600) 20%, transparent), transparent 46%),
+    linear-gradient(90deg, rgb(5 11 18 / 0.4), rgb(5 11 18 / 0.16) 58%, rgb(5 11 18 / 0.34)),
+    linear-gradient(0deg, rgb(5 11 18 / 0.42), transparent 46%, rgb(5 11 18 / 0.24)),
+    var(--auth-photo) center / cover no-repeat;
+}
+.auth-photo--gestor-entidad {
+  --auth-photo: url("/gestor_entidad.png");
+}
+.auth-photo--gestor-formularios {
+  --auth-photo: url("/gestor_formularios.png");
+}
+.auth-photo--super-admin {
+  --auth-photo: url("/super_administrador.png");
+}
+.auth-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(ellipse 92% 74% at 50% 40%, transparent 44%, rgb(15 23 42 / 0.16) 100%);
+}
+.auth-card {
+  position: relative;
+  z-index: 10;
+  border-radius: 25px;
+  backdrop-filter: blur(26px);
+  -webkit-backdrop-filter: blur(26px);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--color-brand-500) 5%, rgb(255 255 255 / 0.86)),
+      color-mix(in srgb, var(--color-brand-500) 10%, rgb(255 255 255 / 0.68)));
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 22%, rgb(255 255 255 / 0.6));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.8),
+    inset 0 -26px 48px -32px color-mix(in srgb, var(--color-brand-600) 40%, transparent),
+    0 30px 64px -30px color-mix(in srgb, var(--color-brand-600) 40%, rgb(15 23 42 / 0.32)),
+    0 2px 8px rgb(16 24 40 / 0.06);
+  animation: auth-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.dark .auth-card {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--color-brand-500) 9%, rgb(15 23 42 / 0.82)),
+      color-mix(in srgb, var(--color-brand-500) 6%, rgb(2 6 23 / 0.76)));
+  border-color: color-mix(in srgb, var(--color-brand-400) 28%, rgb(255 255 255 / 0.1));
+}
+/* Hairline luminoso en el borde superior: el detalle de lujo. */
+.auth-card::before {
+  content: "";
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    transparent,
+    color-mix(in srgb, var(--color-brand-400) 72%, transparent),
+    transparent);
+}
+
+/* Aura de acento en el fondo del escenario: brilla detrás de la tarjeta según el rol */
+.auth-aura {
+  position: absolute;
+  right: -20%;
+  top: 50%;
+  translate: 0 -50%;
+  width: 60vw;
+  max-width: 600px;
+  aspect-ratio: 1;
+  pointer-events: none;
+  z-index: 5;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%,
+    color-mix(in srgb, var(--auth-accent, var(--color-brand-500)) 18%, transparent 60%),
+    transparent 80%);
+  filter: blur(60px);
+  opacity: 0.6;
+  animation: auth-aura-pulse 4s ease-in-out infinite;
+}
+.dark .auth-aura {
+  opacity: 0.45;
+}
+
+/* Glow animado en el borde superior de la tarjeta: respira con el color del rol */
+.auth-card-glow {
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  pointer-events: none;
+  border-radius: 24px 24px 0 0;
+  background: linear-gradient(90deg,
+    transparent,
+    var(--auth-accent, var(--color-brand-500)),
+    transparent);
+  opacity: 0;
+  animation: auth-glow-breathe 3s ease-in-out infinite;
+}
+
+/* Campo premium del acceso por entidad: borde y foco de marca. El padding
+   lateral lo aportan las utilidades del campo. */
+.auth-input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 16%, var(--border));
+  background: color-mix(in srgb, var(--color-app) 78%, rgb(255 255 255 / 0.7));
+  color: var(--fg);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+.dark .auth-input {
+  background: color-mix(in srgb, var(--color-app) 78%, rgb(2 6 23 / 0.5));
+}
+.auth-input::placeholder {
+  color: var(--fg-muted);
+}
+.auth-input:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-brand-500) 42%, var(--border));
+}
+.auth-input:focus-visible {
+  border-color: var(--color-brand-500);
+  background: color-mix(in srgb, var(--color-app) 92%, rgb(255 255 255 / 0.85));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand-500) 16%, transparent);
+}
+.dark .auth-input:focus-visible {
+  background: color-mix(in srgb, var(--color-app) 90%, rgb(2 6 23 / 0.6));
+}
+.auth-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Animaciones premium */
+@keyframes auth-aura-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+  50% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.7; }
+}
+@keyframes auth-glow-breathe {
+  0%, 100% { opacity: 0.3; filter: blur(0px); }
+  50% { opacity: 1; filter: blur(4px); }
+}
+@keyframes auth-rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* Barrido de la línea de recarga del escaparate (pills Todos/Públicos/Privados). */
+@keyframes guestbar {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(320%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-card { animation: none; }
+  .auth-aura { animation: none; opacity: 0.4; }
+  .auth-card-glow { animation: none; opacity: 0.6; }
+}
+
+/* ── Escenario del portal Super Admin ─────────────────────────────────
+  Curvas topográficas y marco arquitectónico, aislados del login compartido y
+  compatible con tema claro/oscuro y movimiento reducido. */
+@property --sa-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.sa-stage {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  place-items: end center;
+  overflow: hidden;
+  padding: 2.5rem 2rem 2.5rem 1rem;
+  background:
+    radial-gradient(ellipse at 8% 92%, color-mix(in srgb, var(--color-brand-500) 8%, transparent), transparent 38%),
+    linear-gradient(126deg, #f0f2ed 0%, #e8edef 55%, #f0ede5 100%);
+}
+
+.dark .sa-stage {
+  background:
+    radial-gradient(ellipse at 8% 92%, color-mix(in srgb, var(--color-brand-500) 8%, transparent), transparent 38%),
+    linear-gradient(126deg, #111819 0%, #1b2023 55%, #201e1a 100%);
+}
+
+.sa-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, rgb(5 11 18 / 0.38), rgb(5 11 18 / 0.12) 58%, rgb(5 11 18 / 0.28)),
+    linear-gradient(0deg, rgb(5 11 18 / 0.24), transparent 48%, rgb(5 11 18 / 0.16)),
+    url("/super_administrador.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.sa-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 92% 74% at 50% 38%, transparent 42%, rgb(15 23 42 / 0.1) 100%);
+}
+
+.dark .sa-vignette {
+  background: radial-gradient(ellipse 92% 74% at 50% 38%, transparent 40%, rgb(2 6 23 / 0.45) 100%);
+}
+
+/* Nota de capas: el padding NO se escribe aquí. Las utilidades `pl-9`/
+   `pr-3`/`pr-10`/`py-2.5` del campo viven en @layer utilities y una regla
+   sin capa las pisaría; solo pintamos borde, fondo, foco y estados. */
+.sa-card {
+  position: relative;
+  border-radius: 24px;
+  padding: 1.75rem;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--color-brand-500) 6%, rgb(255 255 255 / 0.84)),
+      color-mix(in srgb, var(--color-brand-500) 11%, rgb(255 255 255 / 0.64)));
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 24%, rgb(255 255 255 / 0.55));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.78),
+    inset 0 -24px 44px -30px color-mix(in srgb, var(--color-brand-600) 45%, transparent),
+    0 28px 60px -28px color-mix(in srgb, var(--color-brand-600) 42%, rgb(15 23 42 / 0.35)),
+    0 2px 8px rgb(16 24 40 / 0.06);
+}
+
+.dark .sa-card {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--color-brand-500) 9%, rgb(15 23 42 / 0.8)),
+      color-mix(in srgb, var(--color-brand-500) 6%, rgb(2 6 23 / 0.74)));
+  border-color: color-mix(in srgb, var(--color-brand-400) 30%, rgb(255 255 255 / 0.1));
+}
+
+/* Orbe del portal: escena porcelana para el logo. Vidrio casi
+   transparente, filete de 1px teñido de marca y un solo relieve suave;
+   el color lo pone el propio favicon, el contenedor solo lo enmarca. */
+.sa-orb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--glass-chroma) 26%, transparent);
+  background:
+    radial-gradient(130% 130% at 50% 0%, rgb(255 255 255 / 0.7), transparent 55%),
+    radial-gradient(110% 110% at 50% 100%, color-mix(in srgb, var(--glass-chroma) 8%, transparent), transparent 65%),
+    color-mix(in srgb, var(--color-app) 40%, rgb(255 255 255 / 0.5));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 10px 22px -14px color-mix(in srgb, var(--glass-chroma) 50%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.dark .sa-orb {
+  border-color: rgb(255 255 255 / 0.18);
+  background:
+    radial-gradient(130% 130% at 50% 0%, rgb(255 255 255 / 0.16), transparent 55%),
+    radial-gradient(110% 110% at 50% 100%, color-mix(in srgb, var(--color-brand-500) 12%, transparent), transparent 65%),
+    color-mix(in srgb, var(--color-app) 55%, rgb(255 255 255 / 0.06));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 12px 26px -16px rgb(0 0 0 / 0.6);
+}
+
+/* Filete exterior: el detalle de lujo — un anillo hairline separado. */
+.sa-orb::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+  border: 1px solid color-mix(in srgb, var(--glass-chroma) 14%, transparent);
+  pointer-events: none;
+}
+
+.dark .sa-orb::before {
+  border-color: rgb(255 255 255 / 0.1);
+}
+
+.sa-orb img,
+.sa-orb .logo-tint {
+  filter: drop-shadow(0 2px 3px rgb(15 23 42 / 0.18));
+}
+
+/* Logo teñido con el acento en vivo (portal del super): el PNG se usa como
+   máscara y el relleno sale de la escala brand reescrita por lib/accent.js. */
+.logo-tint {
+  display: inline-block;
+  flex-shrink: 0;
+  background: linear-gradient(150deg, var(--color-brand-400), var(--color-brand-600));
+  -webkit-mask: url("/favicon.png") center / contain no-repeat;
+  mask: url("/favicon.png") center / contain no-repeat;
+  filter: drop-shadow(0 2px 3px rgb(15 23 42 / 0.18));
+}
+
+/* Aro luminoso: un conic-gradient giratorio recorta la línea de 1px del borde. */
+.sa-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from var(--sa-angle, 0deg),
+    transparent 0deg 90deg,
+    color-mix(in srgb, var(--color-brand-400) 90%, transparent) 140deg,
+    color-mix(in srgb, var(--color-brand-300) 55%, transparent) 180deg,
+    transparent 230deg 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.9;
+  animation: sa-sweep 9s linear infinite;
+}
+
+.sa-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.325rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: color-mix(in srgb, var(--fg) 78%, var(--color-brand-700));
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 28%, transparent);
+  background: color-mix(in srgb, var(--color-brand-500) 8%, rgb(255 255 255 / 0.55));
+}
+
+.dark .sa-chip {
+  color: color-mix(in srgb, var(--fg) 82%, var(--color-brand-200));
+  background: color-mix(in srgb, var(--color-brand-500) 12%, rgb(2 6 23 / 0.45));
+}
+
+.sa-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 22%, transparent);
+  animation: sa-pulse-dot 2.4s ease-in-out infinite;
+}
+
+.sa-input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--color-app) 82%, rgb(255 255 255 / 0.55));
+  color: var(--fg);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.dark .sa-input {
+  background: color-mix(in srgb, var(--color-app) 82%, rgb(2 6 23 / 0.5));
+}
+
+.sa-input::placeholder {
+  color: var(--fg-muted);
+}
+
+.sa-input:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-brand-500) 45%, var(--border));
+}
+
+.sa-input:focus-visible {
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand-500) 18%, transparent);
+}
+
+.sa-input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-danger) 16%, transparent);
+}
+
+.sa-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sa-err {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  padding: 0.65rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.35;
+  outline: none;
+}
+
+.dark .sa-err {
+  background: color-mix(in srgb, var(--color-danger) 16%, transparent);
+}
+
+.sa-skel {
+  border-radius: 12px;
+  background: linear-gradient(100deg,
+    color-mix(in srgb, var(--fg) 7%, transparent) 40%,
+    color-mix(in srgb, var(--color-brand-400) 20%, transparent) 50%,
+    color-mix(in srgb, var(--fg) 7%, transparent) 60%);
+  background-size: 200% 100%;
+  animation: sa-shimmer 1.6s linear infinite;
+}
+
+@keyframes sa-sweep {
+  to { --sa-angle: 360deg; }
+}
+
+@keyframes sa-pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.78); }
+}
+
+@keyframes sa-shimmer {
+  from { background-position: 160% 0; }
+  to { background-position: -60% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-card::before, .sa-chip-dot, .sa-skel { animation: none; }
+}
+
+@media (max-width: 640px) {
+  .sa-backdrop {
+    background-position: 54% center;
+  }
+}
+
+/* ── Etiqueta de categoría (CategoryBadge) ──────────────────────────────
+   Píldora glassmorphism para Público / Privado / Restringido.
+   Los colores viven en variables para que el administrador los ajuste
+   globalmente. */
+:root {
+  --color-public: #4f7d70;
+  --color-public-bg: rgba(127, 179, 163, 0.1);
+  --color-public-border: rgba(127, 179, 163, 0.25);
+  --color-public-bg-hover: rgba(127, 179, 163, 0.16);
+  --color-public-border-hover: rgba(127, 179, 163, 0.4);
+  --color-unlisted: #4a6f96;
+  --color-unlisted-bg: rgba(110, 170, 235, 0.1);
+  --color-unlisted-border: rgba(110, 170, 235, 0.25);
+  --color-unlisted-bg-hover: rgba(110, 170, 235, 0.16);
+  --color-unlisted-border-hover: rgba(110, 170, 235, 0.4);
+  --color-private: #6b6b6b;
+  --color-private-bg: rgba(140, 140, 140, 0.1);
+  --color-private-border: rgba(140, 140, 140, 0.25);
+  --color-private-bg-hover: rgba(140, 140, 140, 0.16);
+  --color-private-border-hover: rgba(140, 140, 140, 0.4);
+  --cat-icon-stroke: 1.4;
+}
+.dark {
+  --color-public: #93b8ac;
+  --color-public-bg: rgba(127, 179, 163, 0.12);
+  --color-public-border: rgba(127, 179, 163, 0.28);
+  --color-public-bg-hover: rgba(127, 179, 163, 0.18);
+  --color-public-border-hover: rgba(127, 179, 163, 0.45);
+  --color-unlisted: #a3c4e0;
+  --color-unlisted-bg: rgba(110, 170, 235, 0.12);
+  --color-unlisted-border: rgba(110, 170, 235, 0.28);
+  --color-unlisted-bg-hover: rgba(110, 170, 235, 0.18);
+  --color-unlisted-border-hover: rgba(110, 170, 235, 0.45);
+  --color-private: #a8a8a8;
+  --color-private-bg: rgba(140, 140, 140, 0.14);
+  --color-private-border: rgba(140, 140, 140, 0.3);
+  --color-private-bg-hover: rgba(140, 140, 140, 0.2);
+  --color-private-border-hover: rgba(140, 140, 140, 0.45);
+}
+.cat-badge {
+  --cat-fg: var(--color-public);
+  --cat-bg: var(--color-public-bg);
+  --cat-bg-hover: var(--color-public-bg-hover);
+  --cat-border: var(--color-public-border);
+  --cat-border-hover: var(--color-public-border-hover);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--cat-border);
+  background: linear-gradient(135deg, var(--cat-bg), transparent 160%), var(--cat-bg);
+  color: var(--cat-fg);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+  cursor: default;
+}
+.cat-badge.cat-unlisted {
+  --cat-fg: var(--color-unlisted);
+  --cat-bg: var(--color-unlisted-bg);
+  --cat-bg-hover: var(--color-unlisted-bg-hover);
+  --cat-border: var(--color-unlisted-border);
+  --cat-border-hover: var(--color-unlisted-border-hover);
+}
+.cat-badge.cat-private {
+  --cat-fg: var(--color-private);
+  --cat-bg: var(--color-private-bg);
+  --cat-bg-hover: var(--color-private-bg-hover);
+  --cat-border: var(--color-private-border);
+  --cat-border-hover: var(--color-private-border-hover);
+}
+.cat-badge:hover {
+  --cat-bg: var(--cat-bg-hover);
+  --cat-border: var(--cat-border-hover);
+}
+.cat-badge:focus-visible {
+  outline: 2px solid var(--cat-fg);
+  outline-offset: 2px;
+}
+.cat-badge svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  opacity: 0.8;
+  stroke: currentColor;
+  stroke-width: var(--cat-icon-stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cat-dot {
+  width: 4px;
+  height: 4px;
+  flex: none;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.6;
+}
+.cat-tip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: 210px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(20, 20, 20, 0.92);
+  color: #f5f5f5;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-2px);
+  transition: opacity 120ms ease-out, transform 120ms ease-out;
+  transition-delay: 200ms;
+  z-index: 50;
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .cat-tip {
+    background: rgba(20, 20, 20, 0.96);
+  }
+}
+@supports (backdrop-filter: blur(1px)) {
+  .cat-tip {
+    backdrop-filter: blur(8px);
+  }
+}
+.cat-badge:hover .cat-tip,
+.cat-badge:focus-visible .cat-tip {
+  opacity: 1;
+  transform: none;
+}
+@media (max-width: 479px) {
+  .cat-badge .cat-text {
+    display: none;
+  }
+  .cat-badge {
+    padding: 5px 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cat-badge,
+  .cat-tip {
+    transition: none;
+  }
+}
+
+/* ── Insignia de identidad por rol (.role-badge) ──────────────────────────
+   Muestra el rol del realm activo con un lenguaje premium: medallón con
+   degradado del acento (aire de "app icon"), borde y fondo tintados, halo suave
+   y un barrido de luz al pasar por el disparador. El acento entra por
+   `--rb-accent`: los tokens decorativos `--accent-*` por rol, o
+   `--color-ink-muted` para invitado/cuenta legacy. El TEXTO va siempre en
+   `--color-ink` —el color vive en el medallón y los tintes— para no arriesgar
+   el contraste AA con acentos intermedios. Mismo contrato que `.cat-badge`. */
+.role-badge {
+  --rb-accent: var(--color-ink-muted);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px 3px 3px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--rb-accent) 34%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--rb-accent) 20%, transparent),
+    color-mix(in srgb, var(--rb-accent) 4%, transparent) 72%
+  );
+  color: var(--color-ink);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  vertical-align: middle;
+  isolation: isolate;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--rb-accent) 30%, transparent),
+    0 8px 22px -14px color-mix(in srgb, var(--rb-accent) 100%, transparent);
+}
+.role-badge[data-size="sm"] {
+  gap: 6px;
+  padding: 2px 10px 2px 2px;
+  font-size: 11px;
+}
+.role-badge[data-size="md"] {
+  font-size: 12.5px;
+  padding: 4px 13px 4px 4px;
+}
+
+/* Medallón: círculo con degradado del acento y brillo superior. */
+.role-badge__medallion {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  color: #fff;
+  background: radial-gradient(
+    120% 120% at 32% 20%,
+    color-mix(in srgb, var(--rb-accent) 55%, rgb(255 255 255)),
+    var(--rb-accent) 68%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    0 3px 9px -4px color-mix(in srgb, var(--rb-accent) 100%, transparent);
+}
+.role-badge[data-size="sm"] .role-badge__medallion {
+  width: 18px;
+  height: 18px;
+}
+.role-badge[data-size="md"] .role-badge__medallion {
+  width: 22px;
+  height: 22px;
+}
+.role-badge__medallion svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.4;
+}
+.role-badge[data-size="md"] .role-badge__medallion svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Microetiqueta del rol: mayúsculas + tracking amplio, la voz de "chip de
+   producto". El tamaño lo hereda de `.role-badge` (11/12/12.5px). */
+.role-badge__text {
+  position: relative;
+  z-index: 1;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Barrido de luz: reposa fuera y cruza solo al pasar por el disparador/hero. */
+.role-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 34%,
+    color-mix(in srgb, var(--rb-accent) 26%, transparent) 48%,
+    transparent 62%
+  );
+  transform: translateX(-150%);
+  transition: transform 0.7s var(--ease-premium);
+  pointer-events: none;
+}
+.identity-trigger:hover .role-badge::after,
+.identity-hero .role-badge:hover::after {
+  transform: translateX(150%);
+}
+
+/* Anillo de rol alrededor del avatar: la identidad "colapsada" cuando la
+   insignia no cabe (cabecera estrecha, móvil). Degradado cónico del acento
+   (`--rb-accent`) con halo. */
+.role-avatar {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
+  border-radius: 999px;
+  background: conic-gradient(
+    from 150deg,
+    color-mix(in srgb, var(--rb-accent) 55%, rgb(255 255 255)),
+    var(--rb-accent) 30%,
+    color-mix(in srgb, var(--rb-accent) 62%, rgb(11 18 32)) 68%,
+    color-mix(in srgb, var(--rb-accent) 55%, rgb(255 255 255))
+  );
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--rb-accent) 20%, transparent),
+    0 10px 22px -14px color-mix(in srgb, var(--rb-accent) 100%, transparent);
+}
+.role-avatar > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+/* Envoltorio del avatar con el punto de estado (sesión activa). El punto es
+   hermano del anillo (`.role-avatar`), no hijo, para poder sobresalir del
+   círculo por la esquina inferior derecha. */
+.identity-avatar {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.identity-status {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color-success);
+  box-shadow: 0 0 0 2px var(--color-surface-2);
+}
+
+/* ── Hero de identidad en el menú (.identity-hero) ─────────────────────────
+   Cabecera del menú de usuario: panel tintado por el rol (`--rb-accent`) con un
+   halo difuso, la identidad protagonista y la puerta secundaria. */
+.identity-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: 1px solid color-mix(in srgb, var(--rb-accent) 26%, var(--color-line));
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--rb-accent) 16%, transparent),
+    color-mix(in srgb, var(--rb-accent) 3%, transparent) 60%,
+    transparent
+  );
+}
+.identity-hero__glow {
+  position: absolute;
+  top: -2.5rem;
+  right: -1.5rem;
+  width: 6.5rem;
+  height: 6.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--rb-accent) 42%, transparent);
+  filter: blur(2.2rem);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-badge::after {
+    display: none;
+  }
+}
+
+/* ── Menú flotante (.animate-menu-in) ─────────────────────────────────────
+   Entrada del panel del `Dropdown`: micro-desplazamiento + escala desde la
+   esquina del disparador. `transform-origin` y `--menu-shift` los fija el
+   componente (según si el panel abre hacia abajo o voltea hacia arriba), así
+   que el gesto siempre "sale" del botón. 180 ms con la exponencial del sistema,
+   sin rebote. */
+@utility animate-menu-in {
+  animation: menu-in 180ms var(--ease-premium) both;
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--menu-shift, 6px)) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Tecla de atajo (kbd) para los items del menú: la voz de "hint" del producto. */
+@utility kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--fg-muted);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-menu-in {
+    animation: none;
+  }
+}

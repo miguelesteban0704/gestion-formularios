@@ -1,0 +1,84 @@
+/* Catálogo de iconos de estado (/design).
+ * Los tokens son los del proyecto: --color-surface, --color-ink,
+ * --color-ink-muted, --color-line y --glass-chroma. Nada de clases
+ * shadcn (bg-background, text-foreground) porque aquí no existen. */
+
+.si {
+  border-radius: var(--radius-modal);
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--glass-chroma) 5%, #ffffff),
+    color-mix(in srgb, var(--glass-chroma) 9%, #f7f9fc));
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+}
+
+.dark .si {
+  border-color: color-mix(in srgb, var(--glass-chroma) 22%, rgba(255, 255, 255, 0.07));
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--glass-chroma) 9%, #151a25),
+    color-mix(in srgb, var(--glass-chroma) 4%, #0d1119));
+}
+
+.si-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+}
+
+.si-cell {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.si-frame {
+  display: grid;
+  place-items: center;
+  width: 5rem;
+  height: 5rem;
+  color: var(--si-tint, var(--fg));
+  border-radius: var(--radius-modal);
+  border: 1px solid color-mix(in srgb, var(--si-tint, var(--glass-chroma)) 30%, transparent);
+  background: color-mix(in srgb, var(--si-tint, var(--glass-chroma)) 7%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--si-tint, var(--glass-chroma)) 26%, transparent);
+}
+
+.si-cell figcaption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  text-align: center;
+}
+
+.si-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--fg);
+}
+
+.si-states {
+  font-size: 0.625rem;
+  line-height: 1.3;
+  color: var(--fg-muted);
+}
+
+/* Segunda fila de la celda: el mismo icono a 20px. Es la prueba visual
+ * de que `strokeWidth` existe — sin subirlo, el trazo queda en un pelo. */
+.si-frame-sm {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-control);
+}
+
+.si-alias {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.5625rem;
+  line-height: 1;
+  color: color-mix(in srgb, var(--fg-muted) 78%, var(--si-tint, var(--glass-chroma)));
+  opacity: 0.9;
+}

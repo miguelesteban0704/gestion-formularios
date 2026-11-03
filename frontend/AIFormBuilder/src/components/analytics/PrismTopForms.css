@@ -1,0 +1,318 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   PrismTopForms — "Formularios destacados" premium glassmorphism.
+   Clases `.pt-`. Sin mix-blend-mode ni backdrop-filter anidados (seguro
+   sobre ChartCard). Animaciones solo de entrada (barras) y transiciones
+   de hover — cero animaciones continuas por elemento.
+   ═══════════════════════════════════════════════════════════════════════ */
+.pt-root {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 2px 0;
+}
+
+/* ── Fila glass numerada ─────────────────────────────────────────────── */
+.pt-row {
+  appearance: none;
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, auto) minmax(0, 1.1fr) minmax(0, 1.15fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 179, 214, 0.14);
+  background: rgba(15, 23, 42, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+.pt-row:hover,
+.pt-row--on {
+  transform: translateX(2px);
+}
+.pt-row:focus-visible {
+  outline: 2px solid rgba(103, 232, 249, 0.55);
+  outline-offset: 2px;
+}
+
+.pt-rank {
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 179, 214, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+    rgba(9, 15, 27, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  font-family: "Space Grotesk", ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #b9c8dc;
+}
+.pt-row--on .pt-rank {
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(103, 232, 249, 0.6);
+}
+
+.pt-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pt-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #e8f1fb;
+  text-shadow: 0 0 12px rgba(160, 205, 255, 0.25);
+}
+
+/* ── Barra de vidrio degradada ───────────────────────────────────────── */
+.pt-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(9, 15, 27, 0.55);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(148, 179, 214, 0.08);
+  overflow: hidden;
+}
+.pt-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  transition: box-shadow 0.18s ease;
+}
+/* Brillo glossy sobre el relleno (sigue al ancho animado automáticamente) */
+.pt-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.08) 42%, transparent 68%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.14), transparent 30%);
+  pointer-events: none;
+}
+
+.pt-count {
+  font-family: "Space Grotesk", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+  text-shadow: 0 0 14px rgba(160, 205, 255, 0.35);
+  text-align: right;
+  min-width: 2ch;
+}
+
+.pt-pill {
+  min-width: 46px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid;
+  font-family: "Space Grotesk", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+  background: rgba(9, 15, 27, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.pt-empty {
+  padding: 14px 4px;
+  font-size: 12.5px;
+  color: #8fa3bd;
+  text-align: center;
+}
+
+/* ── Tooltip de vidrio ───────────────────────────────────────────────── */
+.pt-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  min-width: 176px;
+  padding: 11px 13px 10px;
+  border-radius: 15px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+  background:
+    linear-gradient(180deg, rgba(103, 232, 249, 0.09), rgba(255, 184, 77, 0.05) 150%),
+    rgba(9, 15, 27, 0.93);
+  border: 1px solid rgba(103, 232, 249, 0.32);
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.05),
+    0 24px 46px -18px rgba(0, 0, 0, 0.95),
+    0 0 34px -10px rgba(34, 211, 238, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.pt-tip::before {
+  content: "";
+  position: absolute;
+  inset-x: 12px;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+}
+
+.pt-tip-kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #dbe7f5;
+}
+.pt-tip-kicker i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pt-tip-val {
+  margin-top: 5px;
+  font-family: "Space Grotesk", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  text-shadow: 0 0 20px rgba(255, 197, 88, 0.45);
+}
+.pt-tip-lab {
+  margin-top: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #8fa3bd;
+}
+
+/* Mini histograma semanal */
+.pt-mini {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 205, 120, 0.14);
+}
+.pt-mini-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 32px;
+}
+.pt-mini-bar {
+  flex: 1;
+  min-width: 0;
+  border-radius: 3px 3px 1.5px 1.5px;
+  opacity: 0.92;
+  transition: transform 0.15s ease;
+}
+.pt-mini-bar--peak {
+  opacity: 1;
+  outline: 1px solid rgba(255, 226, 154, 0.5);
+}
+.pt-mini-bar--zero {
+  background: rgba(148, 179, 214, 0.14) !important;
+}
+.pt-mini-labs {
+  display: flex;
+  gap: 4px;
+  margin-top: 5px;
+}
+.pt-mini-labs span {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #8fa3bd;
+}
+
+.pt-tip-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 179, 214, 0.12);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #c3d2e6;
+}
+
+/* ── Variante clara ──────────────────────────────────────────────────── */
+.pt-light .pt-row {
+  border-color: rgba(100, 116, 139, 0.16);
+  background: rgba(248, 250, 252, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.pt-light .pt-name {
+  color: #1e293b;
+  text-shadow: 0 0 10px rgba(148, 179, 214, 0.25);
+}
+.pt-light .pt-count {
+  color: #0f172a;
+  text-shadow: 0 0 10px rgba(8, 145, 178, 0.25);
+}
+.pt-light .pt-rank {
+  border-color: rgba(100, 116, 139, 0.18);
+  background: rgba(241, 245, 249, 0.9);
+  color: #526077;
+}
+.pt-light .pt-track {
+  background: rgba(226, 232, 240, 0.8);
+  box-shadow:
+    inset 0 1px 2px rgba(100, 116, 139, 0.25),
+    inset 0 0 0 1px rgba(100, 116, 139, 0.1);
+}
+.pt-light .pt-pill {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 639px) {
+  .pt-row {
+    /* En móvil se oculta la barra para que el nombre respire, pero la
+       píldora de % (derecha) se conserva: número y barra siguen la regla. */
+    grid-template-columns: 1.75rem auto minmax(0, 1fr) auto auto;
+  }
+  .pt-track {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pt-root *,
+  .pt-root *::before,
+  .pt-root *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
