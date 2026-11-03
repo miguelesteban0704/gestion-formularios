@@ -1,0 +1,69 @@
+# render.yaml — Despliegue full-stack en Render (render.com)
+# Backend: Node.js/Express
+# Frontend: sitio estático (Vite build)
+
+services:
+  # ┌─────────────────────────────────────────────────────────────────┐
+  # │ BACKEND — API Express                                           │
+  # └─────────────────────────────────────────────────────────────────┘
+  - type: web
+    name: gestion-formularios-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8000
+      - key: NODE_TLS_REJECT_UNAUTHORIZED
+        value: "0"
+      - key: DATABASE_URL
+        sync: false   # Conecta una base de datos PostgreSQL en Render y pon el valor aquí
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CLIENT_URL
+        sync: false   # Pon la URL de tu frontend (ej: https://gestion-formularios-frontend.onrender.com)
+      - key: FRONTEND_URL
+        sync: false   # Igual que CLIENT_URL
+      - key: OIDC_ISSUER_URL
+        sync: false   # Si usas IDP/Keycloak, pon la URL del emisor
+      - key: OIDC_CLIENT_ID
+        sync: false
+      - key: OIDC_REDIRECT_URI
+        sync: false
+      - key: OIDC_LOGIN_REDIRECT_URI
+        sync: false
+      - key: OIDC_POST_LOGOUT_REDIRECT_URI
+        sync: false
+      - key: AI_PROVIDER
+        value: dashscope
+      - key: AI_API_KEY
+        sync: false   # Tu clave de IA (Qwen / DashScope)
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_MODEL
+        value: qwen-coder-plus
+      - key: AI_TIMEOUT_MS
+        value: 90000
+      - key: MAIL_PROVIDER
+        value: ethereal
+
+  # ┌─────────────────────────────────────────────────────────────────┐
+  # │ FRONTEND — Sitio estático (Vite build)                          │
+  # └─────────────────────────────────────────────────────────────────┘
+  - type: static
+    name: gestion-formularios-frontend
+    rootDir: frontend/AIFormBuilder
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    plan: free
+    region: oregon
+    envVars:
+      - key: VITE_API_URL
+        sync: false   # Pon la URL del backend (ej: https://gestion-formularios-backend.onrender.com/api)
