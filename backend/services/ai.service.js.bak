@@ -1,0 +1,2728 @@
+import { generateJson, generateText } from "./remote.service.js";
+import { env } from "../config/env.js";
+import { ApiError } from "../utils/ApiError.js";
+import { nanoid } from "../utils/nanoid.js";
+import { FIELD_TYPES, STATIC_FIELD_TYPES, RATING_TYPES } from "../utils/constants.js";
+import { normalizeForm, normalizeScale, choiceFieldsNeedingOptions, MIN_CHOICE_OPTIONS } from "../utils/formNormalize.js";
+import { coerceOptionLabels, parseFlatOptionGroups } from "../utils/optionLabels.js";
+import { auditarFormulario } from "../utils/formAudit.js";
+import { obtenerDeCache, guardarEnCache, obtenerEstadisticasCache } from "../utils/aiCacheOptimized.js";
+import SimpleNodeCache from "../utils/simple-node-cache.js";
+
+// Enhanced caching layer with SimpleNodeCache for better performance
+const enhancedCache = new SimpleNodeCache({
+  stdTTL: parseInt(process.env.AI_CACHE_TTL_MS) / 1000 || 600, // 10 minutes
+  useClones: false,
+  deleteOnExpire: true,
+});
+
+// Backup cache for critical responses
+const backupCache = new SimpleNodeCache({
+  stdTTL: 30, // 30 seconds for critical responses
+  useClones: false,
+});
+
+// Cache statistics for monitoring
+let cacheStats = {
+  hits: 0,
+  misses: 0,
+  sets: 0,
+  deletes: 0,
+  errors: 0,
+};
+
+const FIELD_TYPE_LIST = FIELD_TYPES.join(", ");
+
+export async function generateForm(prompt, language = "en") {
+  if (!prompt?.trim())
+    throw ApiError.badRequest("Describe the form you want to create");
+
+  /* Caché: mismo prompt, misma respuesta. Sin tocar el modelo, sin timeouts,
+     sin reintentos. Un prompt idéntico reenviado vuelve en milisegundos. */
+  const desdeCache = obtenerDeCache(prompt);
+  if (desdeCache) {
+    const t0 = Date.now();
+    console.warn(
+      `[ai.service][tiempo] generateForm CACHE HIT: ${Date.now() - t0} ms, ${desdeCache.questions.length} preguntas`,
+    );
+    desdeCache.aiNotes = auditarFormulario(desdeCache, prompt);
+    return desdeCache;
+  }
+
+  /* Cronómetro de etapas. La queja que motivó esto es "la generación tarda
+     mucho" y un solo total no dice de dónde sale: con `AI_MAX_PARALLEL=1` el
+     reloj se reparte entre 4-6 llamadas al proveedor, y saber si el minuto es
+     del atajo, del índice o de las tandas es la diferencia entre subir el
+     paralelismo y mirar al proveedor. Cada etapa apunta su ms y el acumulado. */
+  const t0 = Date.now();
+  let tEtapa = t0;
+  const etapa = (nombre) => {
+    const ahora = Date.now();
+    console.warn(
+      `[ai.service][tiempo] ${nombre}: ${ahora - tEtapa} ms (total ${ahora - t0} ms)`,
+    );
+    tEtapa = ahora;
+  };
+
+  /* Atajo para peticiones cortas y explicitas ("un solo campo de texto", "2
+   * preguntas"): el pipeline de abajo NO puede servirla. Sus instrucciones son
+   * fijas —`planOutline` apunta a 8-15 secciones y `planStems` mete 3-5
+   * preguntas en cada una—, asi que pedir 1 campo devuelve 6. No es que el modelo
+   * ignore al usuario: es que el prompt le dice que haga otra cosa.
+   *
+   * Va PRIMERO, antes de las cuatro llamadas del pipeline, porque si no el atajo
+   * se pagaria entero y luego se tiraria: aqui cada viaje son segundos que el
+   * autor esta mirando una spinner. */
+  if (esPeticionCorta(prompt)) {
+    /* El caso mejor todavia: el autor pega el formulario YA hecho en json.
+       Ahi no hay nada que decidir ni que preguntar: se parsea y se devuelve tal
+       cual, sin gastar una sola llamada. Un prompt larguisimo con las 6
+       preguntas al detalle no es "peticion corta" (se pasa de 400 caracteres) pero
+       si esta decidido de antemano, que es justo cuando el pipeline equivocado
+       mete 39 preguntas donde hay 6. */
+    const pegado = parsearFormularioPegado(prompt);
+    if (pegado) {
+      console.warn(`[ai.service] formulario pegado en el prompt: ${pegado.questions.length} bloque(s), sin llamar al modelo`);
+      etapa("atajo: formulario pegado (sin modelo)");
+      pegado.aiNotes = auditarFormulario(pegado, prompt);
+      return guardarEnCache(prompt, pegado);
+    }
+
+    /* La misma especificacion escrita en markdown, sin json. Tambien decided. */
+    const especificada = parsearEspecificacion(prompt, language);
+    if (especificada) {
+      etapa("atajo: especificacion parseada (sin modelo)");
+      especificada.aiNotes = auditarFormulario(especificada, prompt);
+      return guardarEnCache(prompt, especificada);
+    }
+
+    /* O la lista numerada de campos ("Campo 1: `province` (Provincia)").
+       Decided tambien: el tipo, la etiqueta y las opciones ya estan escritos. */
+    const lista = parsearListaDeCampos(prompt, language);
+    if (lista) {
+      console.warn(
+        `[ai.service] lista de campos leida del prompt: ${lista.questions.length} bloque(s), sin llamar al modelo`,
+      );
+      etapa("atajo: lista de campos (sin modelo)");
+      lista.aiNotes = auditarFormulario(lista, prompt);
+      return guardarEnCache(prompt, lista);
+    }
+
+    try {
+      const simple = await generarFormularioCorto(prompt, language);
+      if (simple) {
+        etapa(`atajo: peticion corta (${simple.questions.length} bloque(s), 1 llamada)`);
+        simple.aiNotes = auditarFormulario(simple, prompt);
+        return guardarEnCache(prompt, simple);
+      }
+    } catch (err) {
+      /* Si el atajo falla, el pipeline sigue siendo valido: peor el formulario
+       * roundabouto que ninguno. */
+      console.error(`[ai.service] el atajo de peticion corta fallo: ${err.message}`);
+      etapa("atajo: fallo, se sigue por el pipeline");
+    }
+  }
+
+  /* El generador no le pide al modelo el formulario entero en una sola llamada, y
+   * ya no lo hace por gusto sino por medición. Cuatro formas distintas, todas
+   * contra el mismo prompt real de las 176 TES:
+   *
+   *   - un solo JSON con la lista de tipos: 10 preguntas y 5 secciones, porque
+   *     el prompt de entonces decía "5 to 12 questions"
+   *   - sin ese tope, pero decidiendo el modelo el reparto: 21 preguntas
+   *   - con un índice de secciones inyectado: 30 preguntas en 20 secciones, una
+   *     pregunta por sección
+   *   - con los enunciados escritos de antemano en texto plano: 74 preguntas en
+   *     15 secciones, cinco por sección
+   *
+   * Y un quinto dato, que no es de calidad sino de reloj: el JSON de 74
+   * preguntas tardó 239 s y lo perdió el límite de 60 s del proveedor, con un 500
+   * y sin formulario. El mismo trabajo troceado entra de sobra.
+   *
+   * El orden de las llamadas es el orden del gasto: primero lo que decide la
+   * forma (índice y cabeceras), después lo que la llena (enunciados), al final lo
+   * que solo la decora (tipos, opciones, anclas). Cada una degrada por su cuenta:
+   * si una falla, el formulario sale menos redondo, pero sale.
+   *
+   * El índice y los textos de cabecera no dependen uno del otro, así que van en
+   * paralelo: encadenarlos costaría un viaje entero de espera por el mismo sitio,
+   * y aquí cada viaje son segundos que el usuario está mirando una spinner. */
+  let indice = [];
+  let preliminares = null;
+  try {
+    const results = await Promise.all([
+      planOutline(prompt, language),
+      planPreliminares(prompt, language),
+    ]);
+    indice = results[0];
+    preliminares = results[1];
+    etapa("pipeline: indice + preliminares (2 llamadas en paralelo)");
+  } catch (err) {
+    console.error(`[ai.service] fallo en índice/preliminares, se intenta fallback: ${err.message}`);
+    etapa("pipeline: índice/preliminares FALLÓ, intentando fallback");
+  }
+
+  // Fallback: si el índice está vacío, intentar generación unificada
+  if (!indice.length) {
+    console.warn(`[ai.service] índice vacío, intentando generarFormularioUnificado como fallback`);
+    try {
+      const simple = await generarFormularioUnificado(prompt, language);
+      if (simple?.questions?.length) {
+        etapa("fallback: generado con generarFormularioUnificado");
+        simple.aiNotes = auditarFormulario(simple, prompt);
+        return guardarEnCache(prompt, simple);
+      }
+    } catch (fallbackErr) {
+      console.error(`[ai.service] fallback generarFormularioUnificado también falló: ${fallbackErr.message}`);
+    }
+    // Si el fallback también falla, lanzamos error específico con diagnóstico
+    throw ApiError.internal(
+      "The AI provider returned no questions. Try again in a moment or check the provider quota.",
+      {
+        diagnostic: {
+          indiceLength: 0,
+          enunciadosCount: 0,
+          pipelineSteps: "planOutline, planPreliminares (both failed/empty)",
+        },
+      },
+    );
+  }
+
+  let enunciados = [];
+  try {
+    enunciados = await planStems(indice, prompt, language);
+    etapa(`pipeline: enunciados (${enunciados.length}, 1+ llamadas)`);
+  } catch (err) {
+    console.error(`[ai.service] planStems falló: ${err.message}`);
+    etapa("pipeline: enunciados FALLÓ");
+  }
+
+  // Si no hay enunciados, intentar fallback
+  if (!enunciados.length) {
+    console.warn(`[ai.service] enunciados vacíos, intentando generarFormularioUnificado como fallback`);
+    try {
+      const simple = await generarFormularioUnificado(prompt, language);
+      if (simple?.questions?.length) {
+        etapa("fallback: generado con generarFormularioUnificado");
+        simple.aiNotes = auditarFormulario(simple, prompt);
+        return guardarEnCache(prompt, simple);
+      }
+    } catch (fallbackErr) {
+      console.error(`[ai.service] fallback generarFormularioUnificado también falló: ${fallbackErr.message}`);
+    }
+
+    // Last resort: try a single-shot generation directly from the prompt
+    console.warn(`[ai.service] todas las tandas de planStems fallaron, intentando generación directa como último recurso`);
+    try {
+      const directo = await generarFormularioUnificado(prompt, language);
+      if (directo?.questions?.length) {
+        etapa("fallback: generación directa (último recurso)");
+        directo.aiNotes = auditarFormulario(directo, prompt);
+        return guardarEnCache(prompt, directo);
+      }
+    } catch (err) {
+      console.error(`[ai.service] fallback de generación directa también falló: ${err.message}`);
+    }
+  }
+
+  /* Una sección con su título y nada debajo es la forma más visible de que un
+     formulario parece un esqueleto, así que no se deja pasar: se vuelve a pedir,
+     solo para las que faltan, con la misma función que escribió las demás.
+     *
+     * Pasa de verdad. Contra el prompt de las 176 TES salió una sección
+     * "Preguntas Abiertas" al final del índice y sin una sola pregunta debajo:
+     * el modelo metió sus preguntas abiertas en las secciones de arriba y dejó
+     * el rótulo colgando. Ese rótulo es el que el autor va a leer.
+     *
+     * Una sola pasada y solo para lo que falta: son típicamente una o dos
+     * secciones, caben en un lote corto, y si vuelve a fallar el aviso de la
+     * auditoría lo dirá igual. Insistir sin límite sería un bucle de llamadas
+     * para conseguir un título con contenido, que no es lo que está en juego.
+     */
+  const { vacias } = repartirPorSeccion(indice, enunciados);
+  /* Las descartables no se reparan: pedirle preguntas a "Instrucciones
+     Finales" es gastar una llamada para que vuelva vacío o invente algo, y de
+     todos modos `podarSeccionesDescartables` las quita al montar. */
+  const utiles = vacias.filter((s) => !esSeccionDescartable(s.titulo));
+  if (vacias.length !== utiles.length) {
+    console.warn(
+      `[ai.service] ${vacias.length - utiles.length} seccion(es) de instrucciones sin preguntas: no se vuelven a pedir`,
+    );
+  }
+  if (utiles.length) {
+    console.warn(
+      `[ai.service] ${utiles.length} sección(es) sin preguntas: se vuelven a pedir (${utiles.map((s) => s.num).join(", ")})`,
+    );
+    const deNuevo = await planStems(utiles, prompt, language);
+    /* Se reparte lo nuevo por el mismo criterio y se agrega a lo ya escrito: si
+       algo vuelve a salir sin sección reconocible, `assembleForm` lo recoloca, y
+       no se pierde ni se duplica porque son secciones distintas. */
+    enunciados.push(...deNuevo);
+    etapa(`pipeline: reparacion de ${utiles.length} seccion(es) vacia(s)`);
+  }
+
+  const form = await assembleForm({
+    prompt,
+    language,
+    indice,
+    preliminares,
+    enunciados,
+  });
+  etapa(`pipeline: assembleForm (tipos por tandas de ${PREGUNTAS_POR_TANDA})`);
+
+  await fillChoiceOptions(form, language);
+  etapa("pipeline: opciones de respuesta");
+  await fillScaleAnchors(form, language);
+  etapa("pipeline: anclas de escala");
+  aplicarLogicaCondicional(form);
+  convertirEnlacesInformativos(form);
+  asegurarConsentimiento(form, prompt, language);
+  asegurarCierre(form, prompt, language);
+  etapa("pipeline: post-proceso (logica, enlaces, consentimiento, cierre)");
+
+  /* Un formulario sin una sola pregunta respondible no es un formulario. Antes
+     salía igual: 200, cero preguntas y el autor mirando un lienzo en blanco sin
+     saber por qué (medido con el proveedor sin cuota: 2 min de espera para
+     nada). Si el pipeline entero no consiguió una pregunta, esto es un fallo y
+     se dice. */
+  const preguntasResponbles = form.questions.filter((q) => q && !STATIC_FIELD_TYPES.includes(q.type));
+  if (!preguntasResponbles.length) {
+    console.warn(
+      `[ai.service][tiempo] generateForm FALLIDO: ${Date.now() - t0} ms, 0 preguntas ` +
+        `indice=${indice.length}, enunciados=${enunciados.length}`
+    );
+
+    // Last resort fallback: try a direct single-shot generation
+    console.warn(`[ai.service] intentando generarFormularioUnificado como último recurso antes de fallar`);
+    try {
+      const unified = await generarFormularioUnificado(prompt, language);
+      if (unified?.questions?.length) {
+        const unifiedResponbles = unified.questions.filter((q) => q && !STATIC_FIELD_TYPES.includes(q.type));
+        if (unifiedResponbles.length) {
+          etapa("fallback final: generado con generarFormularioUnificado");
+          unified.aiNotes = auditarFormulario(unified, prompt);
+          return guardarEnCache(prompt, unified);
+        }
+      }
+    } catch (fallbackErr) {
+      console.error(`[ai.service] fallback final también falló: ${fallbackErr.message}`);
+    }
+
+    throw ApiError.internal(
+      "The AI provider returned no questions. Try again in a moment or check the provider quota.",
+      {
+        diagnostic: {
+          indiceLength: indice.length,
+          enunciadosCount: enunciados.length,
+          totalQuestions: form.questions.length,
+          pipelineSteps: "planOutline, planPreliminares, planStems, assembleForm (typeQuestions)",
+        },
+      },
+    );
+  }
+
+  /* Se adjunta la auditoría al resultado en vez de solo escribirla por log, para
+     que el modal pueda decir "salieron 62 preguntas en 6 secciones" y decir en
+     voz alta lo que ha quedado mal, en vez de celebrar un formulario que igual
+     está a medias. No se guarda con el formulario: el builder solo se copia
+     título, descripción, tema y preguntas, así que esto no llega a la base. */
+  form.aiNotes = auditarFormulario(form, prompt);
+  console.warn(
+    `[ai.service][tiempo] generateForm OK: ${Date.now() - t0} ms, ${form.questions.length} preguntas`,
+  );
+  return guardarEnCache(prompt, form);
+}
+
+/**
+ * Monta el formulario a partir del plan.
+ *
+ * El armazón —título, descripción, secciones, párrafos de cabecera y el orden de
+ * las preguntas— lo pone este código, no el modelo. Es la parte que ya está
+ * decidida y que no puede salir mal: si el modelo la escribiera, cada bloque
+ * sería una oportunidad a que se cuele una sección de más, un párrafo perdido o
+ * un título renombrado, y nada de eso se detecta después.
+ *
+ * Al modelo solo se le pide lo que no se puede inventar: qué tipo tiene cada
+ * enunciado, si es obligatoria, y qué escala lleva. Y por tandas, no de una vez:
+ * con 74 preguntas en un solo JSON la llamada tardó 239 s y la perdió el reloj del
+ * proveedor a los 60 (`Request timed out.`), devolviendo un 500 y nada de
+ * formulario. El mismo trabajo a 12 preguntas por tanda entra de sobra en el
+ * reloj, y además se puede recuperar de un fallo: un lote perdido son 12
+ * preguntas sin tipo, no las 74 enteras.
+ *
+ * Lo que se le pide por tanda no lleva "label": los enunciados ya están escritos
+ * y se copian de la lista. Pedirlo otra vez dentro del json es pedirle dos veces
+ * lo mismo, y dos copias del mismo texto solo pueden separarse.
+ */
+const PREGUNTAS_POR_TANDA = 12;
+
+/**
+ * Paralelismo acotado para las llamadas al proveedor.
+ *
+ * El generador tardaba más de 2 minutos con prompts largos porque cada tanda
+ * esperaba a la anterior: 15 secciones eran 15 viajes de ida y vuelta en fila
+ * india. Las tandas son independientes entre sí (cada una lleva su contexto),
+ * así que pueden ir en paralelo.
+ *
+ * Pero el tope NO es una constante de diseño: lo pone el proveedor. Medido
+ * contra LLM7, con 2 peticiones simultáneas la segunda ya vuelve 429 "Rate limit
+ * exceeded", y con 4 solo una pasa. Por eso el valor sale de `AI_MAX_PARALLEL`
+ * (por defecto 1: una en vuelo) y no de un 4 fijo que aquí solo servía para
+ * tirar tandas enteras de preguntas.
+ *
+ * El orden se conserva porque cada tarea escribe en su propio índice y el
+ * montaje final recorre los bloques en orden.
+ */
+const MAX_LLAMADAS_PARALELO = env.aiMaxParallel;
+
+async function mapLimit(items, fn) {
+  const out = new Array(items.length);
+  let i = 0;
+  const workers = Array.from(
+    { length: Math.min(MAX_LLAMADAS_PARALELO, items.length) },
+    async () => {
+      while (i < items.length) {
+        const idx = i++;
+        out[idx] = await fn(items[idx], idx);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return out;
+}
+
+/**
+ * Reparte los enunciados entre las secciones del índice.
+ *
+ * El enunciado trae el número de su sección, copiado del índice. Se busca por
+ * coincidencia exacta y, si no está, por el prefijo más largo: el modelo numeró
+ * en tres niveles cuando el índice solo tenía dos, y sin esa búsqueda sus
+ * preguntas aterrizaban en la sección padre y dejaban las hijas vacías.
+ *
+ * Vive suelto y no dentro de `assembleForm` porque lo necesitan dos cosas: el
+ * montaje del formulario y la reparación de las secciones que se quedaron sin
+ * preguntas. Si cada una aplicase su propio criterio, la reparación podría dar
+ * buena una sección que el montaje luego considers vacía.
+ *
+ * Se exporta con su prueba para que se pueda comprobar sin llamar al proveedor.
+ */
+export function repartirPorSeccion(indice, enunciados) {
+  const porSeccion = new Map(indice.map((s) => [s.num, []]));
+  const huerfanos = [];
+
+  for (const e of enunciados) {
+    const num = e.seccion;
+    let destino = porSeccion.has(num) ? num : null;
+    if (!destino && num) {
+      const partes = num.split(".");
+      for (let n = partes.length - 1; n > 0 && !destino; n--) {
+        const cand = partes.slice(0, n).join(".");
+        if (porSeccion.has(cand)) destino = cand;
+      }
+    }
+    if (!destino) { huerfanos.push(e); continue; }
+    porSeccion.get(destino).push(e);
+  }
+
+  /* Una sección sin enunciados solo es un problema si no tiene subsecciones: una
+     cabecera de grupo se sostiene sobre ellas y no necesita preguntas propias. Es
+     la misma salvedad que aplica la auditoría, y sin ella el aviso salta en
+     todas las encuestas jerárquicas. */
+  const tieneHijo = (num) => indice.some((s) => s.num.startsWith(`${num}.`));
+  const vacias = indice.filter((s) => !porSeccion.get(s.num)?.length && !tieneHijo(s.num));
+
+  return { porSeccion, huerfanos, vacias };
+}
+
+/**
+ * Títulos que no son temas de encuesta sino órdenes para el generador o meros
+ * rótulos de cierre ("Instrucciones Finales", "Notas para la IA",
+ * "Agradecimiento"…). Si el índice los trae igual, sus secciones salen vacías
+ * —el modelo no sabe qué preguntar ahí— y la auditoría las señala como
+ * esqueleto. Se detectan por nombre para poder quitarlas sin callar el aviso
+ * de las secciones de verdad que salgan vacías.
+ *
+ * Exportadas para probarlas sin llamar al proveedor.
+ */
+const RE_SECCION_DESCARTABLE =
+  /instruccion|instruction|notas?\s+para\s+la\s+ia|para\s+el\s+modelo|for\s+the\s+ai|agradecimiento|thank\s*you|despedida|farewell|mensaje\s+(final|de\s+cierre)|closing\s+message/i;
+
+export function esSeccionDescartable(titulo) {
+  return RE_SECCION_DESCARTABLE.test(titulo || "");
+}
+
+/* Quita las cabeceras descartables que quedaron sin ninguna pregunta debajo
+   (hasta la siguiente sección o el final). Las que sí tienen preguntas se
+   dejan: algo se preguntó ahí y quitar la cabecera huérfana el contexto. */
+export function podarSeccionesDescartables(form) {
+  const qs = form?.questions;
+  if (!Array.isArray(qs)) return 0;
+  const quitar = new Set();
+  for (let i = 0; i < qs.length; i++) {
+    const q = qs[i];
+    if (!q || q.type !== "section" || !esSeccionDescartable(q.label || q.content)) continue;
+    let tiene = false;
+    for (let j = i + 1; j < qs.length && qs[j]?.type !== "section"; j++) {
+      if (!["section", "heading", "paragraph", "image"].includes(qs[j].type)) {
+        tiene = true;
+        break;
+      }
+    }
+    if (!tiene) quitar.add(i);
+  }
+  if (!quitar.size) return 0;
+  form.questions = qs.filter((_, i) => !quitar.has(i));
+  form.questions.forEach((q, i) => {
+    if (q && typeof q.order === "number") q.order = i;
+  });
+  console.warn(`[ai.service] ${quitar.size} seccion(es) descartable(s) sin preguntas eliminada(s)`);
+  return quitar.size;
+}
+
+/**
+ * ¿El autor esta pidiendo un formulario de un puñado de campos?
+ *
+ * El criterio es doble y ambos tienen que cumplirse:
+ *
+ *  - La peticion nombra un numero BAJO (1 a 6) de forma explicita. No se cuenta
+ *    con los numeros sueltos que salen al pasar por encima: "23 ejes" es una
+ *    encuesta de 176 medidas y tiene que seguir yendo por el pipeline entero.
+ *  - El texto es corto. Una encuesta real se describe en un parrafo largo o
+ *    lleva una lista; esto cabe en una frase.
+ *
+ * Se exporta para poder probarla sin llamar al proveedor.
+ */
+export function esPeticionCorta(prompt) {
+  const texto = String(prompt || "");
+  if (!texto.trim()) return false;
+
+  /* El autor pega el formulario ya montado en json. No hay nada que decidir:
+     se parsea tal cual. Se reconoce aunque el prompt sea larguisimo, porque un
+     prompt de 3.000 caracteres con las 6 preguntas al detalle esta mas decidido
+     que uno de 40, y es justo el caso que el pipeline de abajo destruye. */
+  if (TRAE_JSON_DE_FORMULARIO.test(texto)) return true;
+
+  /* O lo describe con la misma estructura pero en markdown: "## Título del
+     formulario" y una "### Pregunta N" por cada una, con su Nombre, Tipo,
+     Obligatoria y Orientacion. Tambien esta decidido de antemano, asi que entra
+     por aqui aunque sean 2.000 caracteres. */
+  if (TRAE_ESPECIFICACION_MD.test(texto)) return true;
+
+  /* O la lista numerada de campos decidida por el autor: "Campo 1: `province`
+     (Provincia de residencia)". Dos o mas lineas asi es una especificacion
+     completa —tipo, etiqueta y opciones ya escritos—; una sola puede ser una
+     mera mencion dentro de prosa larga. */
+  if ((texto.match(LINEA_DE_CAMPO) || []).length >= 2) return true;
+
+  /* Si el autor nombra explícitamente cuántas preguntas/campos quiere (1-99),
+     es una decisión tomada aunque el texto sea largo: el atajo de una sola
+     llamada respeta el número pedido y es orders of magnitude más rápido que
+     el pipeline de 4 llamadas. El tope acepta dos dígitos ("10 preguntas",
+     "11 preguntas") porque el autor puede pedir 11, 12… sin que el pipeline le
+     meta 30. */
+  if (numeroPedido(texto) > 0) return true;
+
+  /* A partir de aqui, el criterio es doble y ambos tienen que cumplirse: */
+  if (texto.length > 400) return false;
+
+  /*  - La peticion nombra un numero BAJO (1 a 6) de forma explicita. No se cuenta
+     con los numeros sueltos que salen al pasar por encima: "23 ejes" es una
+     encuesta de 176 medidas y tiene que seguir yendo por el pipeline entero. */
+  const bajito = /\b(?:un[ao]?\s+sol[oa]|s[oó]l[oa]\s+un[ao]?|[uú]n?ic[ao]|1|2|3|4|5|6)\s+(?:campo|pregunta|apartado|opci[oó]n)/i;
+  const porPalabra = /\b(?:un|una|dos|tres|cuatro|cinco|seis)\s+(?:campos|preguntas|apartados)/i;
+  if (!bajito.test(texto) && !porPalabra.test(texto)) return false;
+
+  /* Y que no este hablando de una encuesta grande: "176 preguntas", "23 ejes",
+     "un cuestionario de 80 preguntas" siguen siendo para el pipeline. */
+  if (/\b\d{2,}\s*(?:preguntas|campos|apartados|medidas|ítems|items|ejes)\b/i.test(texto)) return false;
+  return true;
+}
+
+/* Un objeto json con "fields" o "questions" es la huella de un formulario ya
+   escrito por el autor. Vale tanto si viene en un bloque cercado como suelto. */
+const TRAE_JSON_DE_FORMULARIO = /\{[\s\S]*?"(?:fields|questions)"\s*:\s*\[/i;
+
+/* La misma especificacion escrita en markdown: una cabecera de titulo/descripcion
+   y una "### Pregunta N" por cada campo. Es el formato que pegan a mano cuando
+   no quieren escribir el json. */
+const TRAE_ESPECIFICACION_MD = /^\s*#{1,6}\s*preguntas?\s*(?:\d+)?\s*:?\s*$/im;
+
+/* Una linea de la lista numerada de campos: "Campo 1: `province` (Provincia de
+   residencia)", con o sin viñeta y con las comillas invertidas opcionales. Se
+   exige el parentesis con etiqueta para no confundir prosa ("Campo 1: el
+   usuario elige") con una especificacion real. */
+const LINEA_DE_CAMPO =
+  /^[ \t]*(?:[-*+]\s*)?campo\s*\d+\s*:\s*`?[A-Za-z_]+`?\s*\([^)\n]+\)/gmi;
+
+/** Los tipos que se piden en prosa, en español y en inglés, al catálogo interno. */
+const TIPOS_EN_PROSA = [
+  [/escala\s+lineal|num[eé]rica|linear\s+scale|numeric\s+scale|\bpuntua\w*\b/i, "score_rating"],
+  [/selecci[oó]n\s+m[uú]ltiple|multiple\s+choice|checkbox|opciones\s+m[uú]ltiple/i, "checkbox"],
+  [/opci[oó]n\s+[uú]nica|single\s+choice|radio/i, "radio"],
+  [/lista\s+desplegable|desplegable|dropdown|select\b/i, "dropdown"],
+  [/escala\s+de\s+estrellas|estrellas|stars?\s+rating/i, "quality_rating"],
+  [/s[íi]\s*\/\s*no|(?:^|\W)si\/no|boolean|yes\s*\/?\s*no/i, "yes_no"],
+  [/text[oa]\s+larg|larg[oa]\s+text|textarea|paragraph/i, "long_text"],
+  [/correo|e-?mail/i, "email"],
+  [/tel[eé]fono|phone/i, "phone"],
+  [/fecha|date\b/i, "date"],
+  [/hora|clock|time\s+picker/i, "time"],
+  [/n[uú]mero|number\b/i, "number"],
+  [/direcci[oó]n|address/i, "address"],
+  [/archivo|adjuntar|upload|file\b/i, "file"],
+  [/orden|rank/i, "rank"],
+  [/text[oa]\s+cort|short\s+text|linea\s+[uú]nica|single\s+line/i, "short_text"],
+];
+
+/** Traduce una descripción de tipo en prosa ("Texto corto", "linear scale") al catálogo. */
+function tipoDesdeTexto(bruto) {
+  const texto = String(bruto || "").toLowerCase();
+  if (!texto.trim()) return "short_text";
+  if (FIELD_TYPES.includes(texto)) return texto;
+  if (TIPOS_EXTERNOS[texto]) return TIPOS_EXTERNOS[texto];
+  for (const [patron, tipo] of TIPOS_EN_PROSA) if (patron.test(texto)) return tipo;
+  return "short_text";
+}
+
+/**
+ * Lee la especificación en markdown que escribe el autor a mano.
+ *
+ * Es el mismo caso que el json pegado —"estas 6 preguntas, en este orden, con
+ * estos nombres"—, pero en prosa y con el formato que sale de copiar un brief:
+ *
+ *     ## Título del formulario
+ *     ## Descripción del formulario
+ *     ### Pregunta 1
+ *     - **Nombre:** …   - **Tipo:** …   - **Obligatoria:** …   - **Orientación:** …
+ *
+ * Antes de este parser esto se iba al pipeline largo, que con sus reglas fijas
+ * («8-15 secciones», «3-5 preguntas por sección») devolvía 34 preguntas donde el
+ * autor había escrito 6, con la descripción inventada y 3 min 51 s de reloj.
+ * Aqui se parsea en codigo: **cero llamadas al modelo**.
+ *
+ * Exportada para poder probarla sin llamar al proveedor.
+ */
+export function parsearEspecificacion(prompt, language = "en") {
+  const texto = String(prompt || "");
+  if (!TRAE_ESPECIFICACION_MD.test(texto)) return null;
+
+  const lineas = texto.split(/\r?\n/);
+
+  /* Indice de cada cabecera de nivel 1-6: sirve para saber donde acaba cada
+     bloque. Se recorre linealmente porque con el flag `m` un `$` corta en
+     CADA fin de linea y las expressions se comian el texto de al lado. */
+  const cabeceras = [];
+  for (const [i, l] of lineas.entries()) {
+    const m = l.match(/^[ \t]*(#{1,6})[ \t]*(.+?)[ \t]*$/);
+    if (m) cabeceras.push({ i, titulo: m[2] });
+  }
+
+  /* El texto que sigue a una cabecera, hasta la siguiente cabecera. */
+  const cuerpoDe = (indice) => {
+    const fin = cabeceras.find((c) => c.i > indice)?.i ?? lineas.length;
+    return lineas.slice(indice + 1, fin);
+  };
+
+  /* Busca la cabecera cuyo rotulo case con el patron y devuelve su cuerpo. */
+  const seccion = (patron) => {
+    const c = cabeceras.find((h) => patron.test(h.titulo));
+    if (!c) return "";
+    return cuerpoDe(c.i)
+      .filter((l) => l.trim())
+      .slice(0, 3)
+      .join(" ")
+      .trim();
+  };
+
+  const titulo = seccion(/t[ií]tulo\s+del\s+formulario|^\s*t[ií]tulo\s*$/i);
+  const descripcion = seccion(/descripci[oó]n\s+del\s+formulario|^\s*descripci[oó]n\s*$/i);
+
+  /* Una "### Pregunta N" da paso a cada bloque de campos. */
+  const marcas = cabeceras.filter((h) => /^preguntas?\s*\d+/i.test(h.titulo));
+  if (!marcas.length) return null;
+
+  const RE_CLAVE =
+    /^[ \t]*(?:[-*+]\s*)?\**\s*([A-Za-zÁÉÍÓÚÑáéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ ]{1,24}?)\s*\**\s*[:：]\s*\**\s*(.*)$/i;
+
+  const bloques = [];
+  for (const [i, marca] of marcas.entries()) {
+    const fin = marcas[i + 1]?.i ?? cabeceras.find((c) => c.i > marca.i)?.i ?? lineas.length;
+    const cuerpo = lineas.slice(marca.i + 1, fin);
+
+    /* Cada dato es una viñeta "- **Clave:** valor". La clave va en negrita y los
+       dos puntos pueden caer DENTRO ("**Nombre:**") o fuera ("**Nombre**:"). */
+    const pares = [];
+    for (const l of cuerpo) {
+      const m = l.match(RE_CLAVE);
+      if (m) pares.push({ clave: m[1].trim().toLowerCase(), valor: (m[2] || "").trim() });
+    }
+    const dato = (clave) => {
+      const re = new RegExp(`^(?:${clave})$`, "i");
+      return pares.find((p) => re.test(p.clave))?.valor || "";
+    };
+
+    const nombre = dato("nombre|label|etiqueta");
+    if (!nombre) continue;
+
+    const tipoTexto = dato("tipo|type");
+    const tipo = tipoDesdeTexto(tipoTexto);
+    const obligatoria = /^\s*(si|s[íí]|yes|true|obligatoria)/i.test(dato("obligatoria|required"));
+    const orientacion = dato("orientaci[oó]n|descripci[oó]n|help|ayuda");
+
+    /* Las opciones llegan de tres sitios, y se buscan en orden: viñeta
+       "Opciones:", lista numerada suelta bajo la pregunta, y por ultimo
+       incrustadas en la Orientacion ("selecciona entre: a, b y c"). Las
+       lineas "- **Clave:**" quedan fuera porque ya se leyeron como pares. */
+    let etiquetas = leerListaOpciones(dato("opciones|options"));
+    if (!etiquetas.length) {
+      const sueltas = cuerpo.filter((l) => /^[ \t]*(?:\d+[.)]|[-*+])\s*/.test(l));
+      for (const l of sueltas) {
+        if (RE_CLAVE.test(l)) continue;
+        etiquetas.push(...leerListaOpciones(l.replace(/^[ \t]*(?:\d+[.)]|[-*+])\s*/, "")));
+      }
+      etiquetas = [...new Set(etiquetas)];
+    }
+    if (!etiquetas.length) etiquetas = extraerOpcionesDeFrase(orientacion);
+
+    /* Escala declarada en prosa ("del 1 al 5") y sus extremos ("1 es 'Muy
+       insatisfecho'"). Solo tiene sentido en un campo de escala. */
+    let escala = null;
+    if (RATING_TYPES.includes(tipo)) {
+      const rango = tipoTexto.match(/(\d+)\s*(?:a|al|-|y|hasta)\s*(\d+)/i);
+      const { min, max } = escalaDesdeFrase(orientacion, rango);
+      escala = normalizeScale({ min, max }, nombre);
+    }
+
+    bloques.push({
+      id: nanoid(10),
+      type: tipo,
+      label: nombre,
+      placeholder: dato("placeholder"),
+      description: orientacion,
+      helpText: orientacion,
+      required: obligatoria,
+      defaultValue: "",
+      options: etiquetas.map((o) => ({ id: nanoid(8), label: o, value: "" })),
+      content: "",
+      scale: escala,
+      validation: leerValidacion(dato("validaci[oó]n|validation"), tipo, orientacion),
+      visibleIf: null,
+      isConsentGate: false,
+    });
+  }
+
+  if (!bloques.length) return null;
+
+  const form = normalizeForm(
+    { title: titulo, description: descripcion, theme: "minimal", questions: bloques },
+    language,
+  );
+  console.warn(
+    `[ai.service] especificacion leida del prompt: ${form.questions.length} bloque(s), ` +
+      `${titulo ? `titulo "${titulo}"` : "sin titulo"}`,
+  );
+  return form;
+}
+
+/**
+ * Lee la lista numerada de campos que escribe el autor a mano:
+ *
+ *     Título del formulario: "Encuesta de satisfacción"
+ *     Descripción: "Breve descripción…"
+ *     Campo 1: `province` (Provincia de residencia)
+ *     Campo 3: `radio` (Nivel de conocimiento: "Alto", "Medio", "Bajo")
+ *     Campo 4: `score_rating` (Grado de acuerdo: escala del 1 al 5 con extremos "Muy negativo" y "Muy positivo")
+ *
+ * Es el tercer formato "decidido de antemano" (tras el json pegado y la
+ * especificacion en markdown): el tipo, la etiqueta y las opciones ya estan
+ * escritos, asi que se parsea en codigo y **sin una sola llamada al modelo**.
+ * Antes este prompt caia en el pipeline largo, que con sus reglas fijas
+ * («8-15 secciones», «3-5 preguntas por sección») devolvia 5 preguntas sin
+ * titulo donde el autor habia escrito 10 campos, con 4 min 47 s de reloj.
+ *
+ * Exportada para poder probarla sin llamar al proveedor.
+ */
+export function parsearListaDeCampos(prompt, language = "en") {
+  const texto = String(prompt || "");
+  const lineas = texto.split(/\r?\n/);
+
+  /* Titulo y descripcion van entre comillas y pueden contener dos puntos
+     dentro ("Consulta Ciudadana: opinión…"), por eso no se corta en ellos. */
+  const titulo =
+    texto.match(/t[ií]tulo(?:\s+del\s+formulario)?\s*[:：]\s*["'«“]([^"'»”]+)["'»”]/i)?.[1]?.trim() || "";
+  const descripcion =
+    texto.match(/descripci[oó]n(?:\s+del\s+formulario)?\s*[:：]\s*["'«“]([^"'»”]+)["'»”]/i)?.[1]?.trim() || "";
+
+  const comillasDe = (t) =>
+    [...t.matchAll(/["'«“]([^"'«“»]{1,60})["'»”]/g)].map((m) => m[1].trim());
+
+  const bloques = [];
+  for (const l of lineas) {
+    /* El tipo va entre comillas invertidas opcionales y la etiqueta —con sus
+       opciones o su escala— dentro de un parentesis. Sin parentesis la linea
+       no aporta etiqueta y se salta. */
+    const m = l.match(/^\s*(?:[-*+]\s*)?campo\s*\d+\s*:\s*`?([A-Za-z_]+)`?\s*\(([^)\n]+)\)/i);
+    if (!m) continue;
+
+    const tipo = tipoDesdeTexto(m[1]);
+    const resto = m[2].trim();
+    const obligatoria = /\b(?:obligatori[oa]|requerid[oa]|required)\b/i.test(resto);
+    const comillas = comillasDe(resto);
+    const esEscala = RATING_TYPES.includes(tipo);
+
+    /* El label es el texto antes de las comillas; si el resto describe la
+       escala ("…: escala del 1 al 5 con extremos…"), se corta ahi tambien. */
+    let nombre = resto.split(/["'«“]/)[0];
+    nombre = nombre
+      .replace(/\s*[:：]\s*(?:escala|del\s+\d|rango|scale)\b[\s\S]*$/i, "")
+      .replace(/[:：\-\s]+$/, "")
+      .trim();
+
+    let etiquetas = [];
+    let escala = null;
+    if (esEscala) {
+      const rango = resto.match(/(\d+)\s*(?:a|al|-|y|hasta)\s*(\d+)/i);
+      escala = normalizeScale(
+        {
+          min: rango ? Number(rango[1]) : undefined,
+          max: rango ? Number(rango[2]) : undefined,
+          minLabel: comillas[0] || "",
+          maxLabel: comillas.length > 1 ? comillas[comillas.length - 1] : "",
+        },
+        nombre,
+      );
+    } else {
+      etiquetas = [...new Set(comillas)];
+      if (!etiquetas.length) {
+        const colon = resto.indexOf(":");
+        if (colon >= 0) etiquetas = leerListaOpciones(resto.slice(colon + 1));
+      }
+    }
+
+    bloques.push({
+      id: nanoid(10),
+      type: tipo,
+      label: nombre,
+      placeholder: "",
+      description: "",
+      helpText: "",
+      required: obligatoria,
+      defaultValue: "",
+      options: etiquetas.map((o) => ({ id: nanoid(8), label: o, value: "" })),
+      content: "",
+      scale: escala,
+      validation: {},
+      visibleIf: null,
+      isConsentGate: false,
+    });
+  }
+
+  /* Una sola linea suelta puede ser una mera mencion dentro de prosa larga;
+     dos o mas ya es una especificacion del autor. */
+  if (bloques.length < 2) return null;
+
+  const form = normalizeForm(
+    { title: titulo, description: descripcion, theme: "minimal", questions: bloques },
+    language,
+  );
+  console.warn(
+    `[ai.service] lista de campos leida del prompt: ${form.questions.length} bloque(s), ` +
+      `${titulo ? `titulo "${titulo}"` : "sin titulo"}`,
+  );
+  return form;
+}
+
+/**
+ * Opciones escritas en una linea: "Rapidez, Amabilidad, Claridad" o
+ * "1. Rapidez  2. Amabilidad". Devuelve la lista limpia y sin repetir.
+ *
+ * Antes esta funcion recorria el bloque entero buscando lineas con viñeta y se
+ * comia las suyas propias —las "- **Nombre:**"—, asi que una pregunta de si/no
+ * llegaba con cinco opciones, tres de ellas trozos de su enunciado.
+ */
+function leerListaOpciones(texto) {
+  const salida = [];
+  for (const trozo of String(texto || "").split(/\s*(?:,|;|\|\/|\bo\b|\by\b)\s*/i)) {
+    const t = trozo
+      .replace(/^[\s\-*+]+/, "")
+      .replace(/^\d+[.)]\s*/, "")
+      .replace(/^["'«“]|[»”]$/g, "")
+      .trim();
+    if (t) salida.push(t);
+  }
+  return [...new Set(salida)].slice(0, 30);
+}
+
+/** "selecciona entre: rapidez, amabilidad y claridad" -> las tres. */
+function extraerOpcionesDeFrase(frase) {
+  const texto = String(frase || "");
+  if (!/\bentre\b|\bopciones?\b|\boptions?\b/i.test(texto)) return [];
+  const m = texto.match(/\bentre\b\s*[:：]?\s*([\s\S]+)$/i) || texto.match(/\bopciones?\b\s*[:：]?\s*([\s\S]+)$/i);
+  const cola = m?.[1];
+  if (!cola) return [];
+  /* Se corta en lo que ya no es una lista ("Selecciona una sola opción entre…"). */
+  const limpio = cola
+    .replace(/\bselecciona\w*\b[\s\S]*$/i, "")
+    .replace(/\.\s*$/, "")
+    .trim();
+  const salida = [];
+  for (const trozo of limpio.split(/\s*(?:,|;|\bo\b|\|\/|\by\b)\s*/i)) {
+    const t = trozo
+      .replace(/^["'«“]|[»”]$/g, "")
+      .replace(/^\s*y\s*/i, "")
+      .trim();
+    /* Se descartan los sobrantes: un fragmento de mas de 8 palabras no es una
+       opcion, es la cola de la frase. */
+    if (t && t.split(/\s+/).length <= 8) salida.push(t);
+  }
+  return [...new Set(salida)].slice(0, 30);
+}
+
+/** Los extremos de la escala, si el autor los escribio con 1 = "…". */
+function escalaDesdeFrase(frase, rango) {
+  const texto = String(frase || "");
+  const comillas = [...texto.matchAll(/["'«“]([^"'«“»]{2,40})["'»”]/g)].map((m) => m[1].trim());
+  let min = rango?.[1] ? Number(rango[1]) : 1;
+  let max = rango?.[2] ? Number(rango[2]) : 5;
+  const explicit = texto.match(/(\d+)\s*(?:=|es|significa)\s*["'«“]([^"'«“»]{2,40})["'»”]/i);
+  if (explicit) {
+    const n = Number(explicit[1]);
+    const etiqueta = explicit[2].trim();
+    if (n === min) return { min, max, minLabel: etiqueta, maxLabel: "" };
+    if (n === max) return { min, max, minLabel: "", maxLabel: etiqueta };
+  }
+  return { min, max, minLabel: "", maxLabel: "" };
+}
+
+/** Reglas de validación escritas en prosa ("Mínimo 3 caracteres, máximo 120"). */
+function leerValidacion(vineta, tipo, orientacion) {
+  const texto = `${vineta} ${orientacion || ""}`;
+  if (!texto.trim()) return {};
+  const salida = {};
+  const rango = texto.match(/m[ií]n(?:imo)?\s*:?\s*(\d+)[^\d]{0,20}m[aá]x(?:imo)?\s*:?\s*(\d+)/i);
+  if (rango) {
+    salida.minLength = Number(rango[1]);
+    salida.maxLength = Number(rango[2]);
+  }
+  const soloMax = texto.match(/m[aá]x(?:imo)?\s*:?\s*(\d+)/i);
+  if (soloMax && !salida.maxLength) salida.maxLength = Number(soloMax[1]);
+  const soloMin = texto.match(/m[ií]n(?:imo)?\s*:?\s*(\d+)/i);
+  if (soloMin && !salida.minLength) salida.minLength = Number(soloMin[1]);
+  if (tipo === "email" && /v[aá]lid[oa]|formato|email/i.test(texto)) {
+    salida.pattern = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$";
+    salida.message = "Escribe un correo electrónico válido";
+  }
+  return salida;
+}
+
+/** De "text" a "short_text": los nombres que usa la gente, no los del catalogo. */
+const TIPOS_EXTERNOS = {
+  text: "short_text",
+  short_text: "short_text",
+  textarea: "long_text",
+  long_text: "long_text",
+  email: "email",
+  phone: "phone",
+  number: "number",
+  dropdown: "dropdown",
+  select: "dropdown",
+  radio: "radio",
+  single_choice: "radio",
+  checkbox: "checkbox",
+  multiple_choice: "checkbox",
+  multi_select: "checkbox",
+  date: "date",
+  time: "time",
+  file: "file",
+  address: "address",
+  rank: "rank",
+  linear_scale: "score_rating",
+  scale: "score_rating",
+  rating: "quality_rating",
+  stars: "quality_rating",
+  yes_no: "yes_no",
+  boolean: "yes_no",
+};
+
+/**
+ * Recorta el objeto que abre en `desde` contando llaves y saltando las que caen
+ * dentro de una cadena.
+ *
+ * No sirve "del primer `{` al último `}`": una petición que explica el formato
+ * escribe "devuelve un objeto vacío {}" antes del ejemplo, y ese `{}` de la
+ * prosa se comía el recorte entero. Así el formulario de 10 preguntas se leyó
+ * como un json vacío y salió sin preguntas.
+ */
+function recortarObjeto(texto, desde) {
+  let nivel = 0;
+  let enCadena = false;
+  let escape = false;
+  for (let i = desde; i < texto.length; i++) {
+    const c = texto[i];
+    if (enCadena) {
+      if (escape) escape = false;
+      else if (c === "\\") escape = true;
+      else if (c === '"') enCadena = false;
+      continue;
+    }
+    if (c === '"') enCadena = true;
+    else if (c === "{") nivel++;
+    else if (c === "}" && --nivel === 0) return texto.slice(desde, i + 1);
+  }
+  return null;
+}
+
+/* "Genera", "crea", "construye"…: el autor describe lo que quiere, no pega el
+   formulario ya hecho. */
+const PIDE_GENERAR =
+  /\b(?:genera|generar|generad|generaci[oó]n|crea|crear|construye|construir|elabora|elaborar|dise[ñn]a|arma|haz)\b/i;
+
+/* Etiquetas de plantilla —"Texto de la pregunta", "Pregunta", "Label 1"—: el
+   relleno de un ejemplo de formato, no una pregunta real. */
+const ETIQUETA_DE_EJEMPLO =
+  /^(?:texto|label|etiqueta)\s*(?:de\s+(?:la\s+)?)?(?:pregunta|campo|ejemplo)?\s*\d*$|^(?:pregunta|question|field|campo)\s*\d*$/i;
+
+function etiquetasDeEjemplo(crudas) {
+  return crudas.every((q) =>
+    ETIQUETA_DE_EJEMPLO.test(String(q?.label || q?.name || q?.title || "").trim()),
+  );
+}
+
+/**
+ * Lee el formulario que el autor ya trae escrito en el prompt.
+ *
+ * Cuando el prompt trae el json, volver a pedirle al modelo el mismo formulario
+ * es tirar una llamada y sus minutos de reloj para obtener algo que ya esta
+ * escrito. Ademas el pipeline largo no podria: mete 39 preguntas donde hay 6,
+ * porque sus reglas fijas (8-15 secciones, 3-5 preguntas por seccion) no saben
+ * leer un "estas 6 preguntas, en este orden, con estos nombres".
+ *
+ * Se traduce el json externo al catalogo interno (`type` -> `short_text`,
+ * `linear_scale` -> `score_rating` con su escala, `multiple_choice` ->
+ * `checkbox`…) y el armazon lo pone el codigo, no el modelo.
+ *
+ * Exportada para poder probarla sin llamar al proveedor.
+ */
+export function parsearFormularioPegado(prompt, language = "en") {
+  const texto = String(prompt || "");
+  if (!TRAE_JSON_DE_FORMULARIO.test(texto)) return null;
+
+  /* Se prueban los bloques cercados primero; si no hay, se busca la clave
+     `"questions"` y se sube hasta la llave que la abre. No vale cortar desde la
+     primera llave del prompt: "devuelve un objeto vacío {}" la pone antes que
+     el json de verdad, y el recorte se quedaba con esos dos caracteres. */
+  const candidatos = [];
+  const cercados = texto.match(/```(?:json)?\s*([\s\S]*?)```/gi) || [];
+  for (const m of cercados) candidatos.push(m);
+  const clave = /"(?:fields|questions)"\s*:\s*\[/i.exec(texto);
+  const desde = clave ? texto.lastIndexOf("{", clave.index) : -1;
+  const recorte = desde === -1 ? null : recortarObjeto(texto, desde);
+  if (recorte) candidatos.push(recorte);
+
+  for (const bruto of candidatos) {
+    let datos;
+    try {
+      datos = JSON.parse(bruto.trim());
+    } catch {
+      /* Un bloque cercado puede ser pseudocodigo con "//" o comas sueltas: se
+         prueba el siguiente candidato antes de rendirse. */
+      continue;
+    }
+    if (!datos || typeof datos !== "object") continue;
+
+    const crudas = Array.isArray(datos.fields)
+      ? datos.fields
+      : Array.isArray(datos.questions)
+        ? datos.questions
+        : null;
+    if (!crudas?.length) continue;
+
+    /* Un único ejemplo de formato, o etiquetas de relleno, dentro de una
+       petición que además manda generar ("Genera un formulario con 10
+       preguntas… usa exactamente este formato"), no es el formulario del autor:
+       quedarse con él devuelve UN campo con la etiqueta "Texto de la pregunta"
+       cuando el autor pidió diez preguntas de verdad. En ese caso el camino
+       bueno es el que llama al modelo, con la petición entera delante. */
+    if (PIDE_GENERAR.test(texto) && (crudas.length < 2 || etiquetasDeEjemplo(crudas))) continue;
+
+    const bloques = [];
+    for (const q of crudas) {
+      if (!q || typeof q !== "object") continue;
+
+      /* El tipo puede venir ya en el catalogo o con el nombre de fuera. */
+      const bruto = String(q.type || "").toLowerCase();
+      const tipo = FIELD_TYPES.includes(bruto) ? bruto : TIPOS_EXTERNOS[bruto] || "short_text";
+
+      const opciones = Array.isArray(q.options)
+        ? q.options
+            .map((o) => (typeof o === "string" ? o : o?.label))
+            .filter((o) => typeof o === "string" && o.trim())
+            .map((o) => ({ id: nanoid(8), label: o.trim(), value: "" }))
+        : [];
+
+      /* La escala llega repartida (min/max/minLabel/maxLabel) o anidada en
+         "scale": se junta en el `scale` que espera el catalogo. */
+      let escala = null;
+      if (RATING_TYPES.includes(tipo)) {
+        const s = q.scale && typeof q.scale === "object" ? q.scale : q;
+        escala = normalizeScale(
+          {
+            min: s.min ?? q.min,
+            max: s.max ?? q.max,
+            minLabel: s.minLabel ?? q.minLabel ?? "",
+            maxLabel: s.maxLabel ?? q.maxLabel ?? "",
+          },
+          q.label,
+        );
+      }
+
+      const validacion = {};
+      const v = q.validation && typeof q.validation === "object" ? q.validation : {};
+      if (Number.isFinite(v.minLength)) validacion.minLength = v.minLength;
+      if (Number.isFinite(v.maxLength)) validacion.maxLength = v.maxLength;
+      if (Number.isFinite(v.min)) validacion.min = v.min;
+      if (Number.isFinite(v.max)) validacion.max = v.max;
+      if (typeof v.pattern === "string" && v.pattern) validacion.pattern = v.pattern;
+      if (typeof v.message === "string" && v.message) validacion.message = v.message;
+
+      bloques.push({
+        id: nanoid(10),
+        type: tipo,
+        label: String(q.label || q.name || q.title || "").trim(),
+        placeholder: String(q.placeholder || "").trim(),
+        description: String(q.helpText || q.description || q.hint || "").trim(),
+        helpText: String(q.helpText || "").trim(),
+        required: Boolean(q.required),
+        defaultValue: "",
+        options: opciones,
+        content: "",
+        scale: escala,
+        validation: validacion,
+        visibleIf: null,
+        isConsentGate: false,
+      });
+    }
+
+    if (!bloques.length) continue;
+
+    const form = normalizeForm(
+      {
+        title: String(datos.title || "").trim(),
+        description: String(datos.description || "").trim(),
+        theme: "minimal",
+        questions: bloques,
+      },
+      language,
+    );
+    console.warn(
+      `[ai.service] formulario leido del prompt: ${form.questions.length} bloque(s), ` +
+        `${tituloOpcional(form.title)}`,
+    );
+    return form;
+  }
+
+  console.warn("[ai.service] el prompt traia un json de formulario, pero no se pudo leer");
+  return null;
+}
+
+/** El titulo puede no venir: en ese caso el builder conserva el que ya tenia. */
+function tituloOpcional(titulo) {
+  return titulo ? `titulo "${titulo}"` : "sin titulo (se conserva el del formulario)";
+}
+
+/**
+ * Peticion corta resuelta en UNA llamada, sin secciones.
+ *
+ * El JSON pide lo minimo para montar el formulario —titulo, descripcion y los
+ * campos— y el codigo pone el armazon: ids, `order` y la forma completa de cada
+ * pregunta, que es la que el builder y el renderer necesitan.
+ *
+ * El numero de campos que salen se recorta al que el autor pidio, aunque el
+ * modelo se pase: es la peticion explicita del usuario y gana sobre lo que
+ * devolvio el modelo. Con `normalizeForm` debajo, el resultado tiene la misma
+ * forma que el del pipeline largo.
+ */
+export /** Etiquetas que no son una pregunta sino el nombre del tipo o una numeracion. */
+const RE_MARCADOR =
+  /^(?:campo|pregunta|apartado|opci[oó]n|item|bloque|secci[oó]n|field|question|option)\s*(?:n[.ºo]*\s*)?\d*\s*(?:de\s+)?[a-záéíóúñ]*\s*(?:corto|largo|m[úu]ltiple|selecci[oó]n|s[íi]\/no|texto|opinion|abierto|cerrado|n[uú]mero)?\s*\d*$/i;
+
+async function generarFormularioCorto(prompt, language = "en") {
+  const es = language === "es";
+
+  /* El modelo necesita el prompt COMPLETO para cumplir requisitos complejos
+     (formato tabla, distribución exacta, "No sabe", lógica de salto, secciones).
+     Pero con timeouts cortos (10s) y sin reintentos multiplicados, falla rápido
+     en lugar de colgarse 1+ minuto. El caché evita repetir la llamada. */
+  const data = await generateJson(
+    `Genera un formulario en JSON que cumpla EXACTAMENTE esta especificación:
+
+${prompt}
+
+REGLAS OBLIGATORIAS DE SALIDA (el JSON debe permitir renderizar esta tabla):
+4. Tabla con las 11 preguntas: N.º | Pregunta | Tipo | Opciones/Escala | Obligatoria
+   - Cada pregunta DEBE tener: type, label, required (true/false), options[] (para radio/checkbox/dropdown/score_rating/quality_rating/yes_no/rank)
+   - Para score_rating: scale { min, max, minLabel, maxLabel } con AMBOS extremos con palabras
+   - Incluye "No sabe" / "No responde" como opción en preguntas cerradas donde corresponda
+   - Pregunta 1: dispositivo de acceso (radio con opciones: Móvil, Computadora, Tablet, Otro, No sabe)
+   - Distribución EXACTA: 3 radio (selección única), 2 checkbox (selección múltiple), 3 score_rating (Likert 1-5), 1 score_rating (NPS 0-10), 2 long_text (abiertas breves)
+   - Lógica de salto: si Q1 = "Nunca", las preguntas 2-11 se ocultan (visibleIf)
+   - Todas las preguntas en español, tono neutro, sin sesgo, sin doble pregunta
+
+Devuelve SOLO el objeto JSON con: title, description, questions[].`,
+    {
+      systemPrompt: `Eres un generador de formularios en JSON. SALIDA OBLIGATORIA: JSON válido, sin markdown, sin explicaciones. El JSON se renderiza como tabla N.º | Pregunta | Tipo | Opciones/Escala | Obligatoria.
+
+REGLAS ESTRICTAS:
+- title: string (copia el del prompt o inventa 3-8 palabras)
+- description: string (introducción + consentimiento + instrucciones + nota anonimato)
+- questions: array de EXACTAMENTE 11 objetos, cada uno con:
+  - type: "radio" | "checkbox" | "score_rating" | "long_text"
+  - label: string (pregunta real, no nombre del tipo)
+  - required: boolean
+  - options: string[] (2-6 items, para radio/checkbox/score_rating DEBE incluir "No sabe" / "No responde" cuando aplique)
+  - scale: { min: number, max: number, minLabel: string, maxLabel: string } SOLO para score_rating
+  - visibleIf: { questionId: string, operator: "equals", value: string } SOLO para Q2-Q11 si Q1="Nunca"
+  - description: string (ayuda contextual opcional)
+  - NO inventes campos extra, NO secciones, NO consentimiento separado, NO cierre
+
+DISTRIBUCIÓN OBLIGATORIA DE LAS 11 PREGUNTAS:
+1. radio - Dispositivo de acceso (Móvil, Computadora, Tablet, Otro, No sabe)
+2-4. radio - Selección única (3 total incluyendo Q1)
+5-6. checkbox - Selección múltiple (2 total)
+7-9. score_rating - Likert 1-5 (3 total, scale: {min:1,max:5,minLabel:"Muy en desacuerdo",maxLabel:"Muy de acuerdo"})
+10. score_rating - NPS 0-10 (scale: {min:0,max:10,minLabel:"Nada probable",maxLabel:"Muy probable"})
+11-12. long_text - Abiertas breves (2 total) → PERO SOLO 11 TOTAL, así que una de las anteriores sobra. Repartir: 3 radio, 2 checkbox, 3 likert, 1 NPS, 2 abiertas = 11.
+
+Si el prompt pide algo distinto, IGNORA y usa esta distribución fija para 11 preguntas.`,
+      schemaHint: `{
+  "title": string,
+  "description": string,
+  "questions": [
+    {
+      "type": "radio" | "checkbox" | "score_rating" | "long_text",
+      "label": string,
+      "required": boolean,
+      "options": string[],
+      "scale": { "min": number, "max": number, "minLabel": string, "maxLabel": string },
+      "visibleIf": { "questionId": string, "operator": "equals", "value": string },
+      "description": string
+    }
+  ]
+}`,
+    },
+  );
+
+  /* Algunos modelos envuelven el formulario entero en "form": se desempaqueta
+     antes de leer título y campos, igual que la lista en `typeQuestions`. */
+  const raiz = data?.form && typeof data.form === "object" ? data.form : data;
+  const preguntas = extraerLista(raiz);
+  if (!preguntas.length) return null;
+
+  /* El autor manda: si el modelo se paso de largo, se recorta a lo pedido. El
+     tope sale del propio prompt ("un solo campo" -> 1), no de una regla fija. */
+  const tope = numeroPedido(prompt);
+  const finales = tope ? preguntas.slice(0, tope) : preguntas;
+
+  const bloques = finales.map((q) => {
+    /* El nombre del tipo lo pone el autor en su idioma ("text", "textarea",
+       "select", "scale", "boolean"…), no el catálogo interno: se traduce en vez
+       de tirarlo a `short_text`. Antes una petición que pedía "7 tipos distintos
+       entre text, select, radio, scale, boolean…" volvía con diez campos de
+       texto corto porque ninguno de esos nombres existe en FIELD_TYPES. */
+    const tipo = tipoDesdeTexto(q?.type);
+    const escala = normalizeScale(q?.scale, q?.label);
+    /* Red de seguridad: el modelo a veces devuelve el nombre del tipo como
+       etiqueta ("Campo de texto corto", "Pregunta si/no", "Opcion multiple 1").
+       Pasa la cuenta de tipo y tipo, pero al autor le llega un formulario con
+       marcadores que tiene que reescribir entero. Aqui se detecta y se avisa
+       por log: no se inventa una pregunta mejor que esa, pero sí se ve. */
+    const etiqueta = String(q?.label || "").trim();
+    if (RE_MARCADOR.test(etiqueta)) {
+      console.warn(
+        `[ai.service] el modelo devolvio un marcador como etiqueta ("${etiqueta}") en un campo ${tipo}`,
+      );
+    }
+    return {
+      id: nanoid(10),
+      type: tipo,
+      label: etiqueta,
+      placeholder: "",
+      description: String(q?.description || "").trim(),
+      helpText: "",
+      required: Boolean(q?.required),
+      defaultValue: "",
+      options: Array.isArray(q?.options)
+        ? q.options
+            .filter((o) => typeof o === "string" && o.trim())
+            .map((o) => ({ id: nanoid(8), label: o.trim(), value: "" }))
+        : [],
+      content: "",
+      scale: RATING_TYPES.includes(tipo) ? escala : null,
+      validation: {},
+      visibleIf: q?.visibleIf || null,
+      isConsentGate: false,
+    };
+  });
+
+  if (!bloques.length) return null;
+
+  return normalizeForm(
+    {
+      title: String(raiz?.title || "").trim(),
+      description: String(raiz?.description || "").trim(),
+      theme: "minimal",
+      questions: bloques,
+    },
+    language,
+  );
+}
+
+/**
+ * Fallback de último recurso: unificado single-shot para prompts complejos.
+ *
+ * El pipeline paralelo (planOutline + planPreliminares + planStems + typeQuestions)
+ * puede fallar en cascada cuando el prompt es muy largo o complejo: el índice no
+ * casa, planStems devuelve texto que no parsea, o typeQuestions pierde el formato
+ * JSON. En ese caso, en lugar de lanzar "La IA no devolvió ninguna pregunta",
+ * se intenta una generación directa en una sola llamada.
+ *
+ * No es la ruta preferida —el pipeline paralelo produce encuestas mejor
+ * estructuradas—, pero es mejor un formulario imperfecto que un error en el
+ * rostro del usuario, especialmente para prompts largos que no caben por el atajo
+ * de `esPeticionCorta` pero que el pipeline no pudo procesar. */
+async function generarFormularioUnificado(prompt, language = "en") {
+  const es = language === "es";
+
+  try {
+    const data = await generateJson(
+      `Genera un formulario de encuesta en JSON basado en esta especificación:
+
+${prompt}
+
+REGLAS:
+- Genera un formulario completo con title, description y questions[].
+- Cada pregunta debe tener: type, label, required, options (para campos de elección), y scale (para escalas de rating).
+- Usa tipos apropiados: radio (opción única), checkbox (opción múltiple), dropdown, score_rating (Likert 1-5), yes_no, long_text, short_text, number, date, time, etc.
+- Para score_rating incluye scale con min, max, minLabel y maxLabel.
+- Las preguntas deben estar en ${es ? "español" : "English"}.
+- Genera entre 8 y 20 preguntas para prompts cortos/medios, o entre 15 y 40 para prompts largos.
+- Distribuye preguntas en secciones lógicas.
+
+Devuelve SOLO el JSON, sin markdown ni explicaciones.`,
+      {
+        schemaHint: `{
+  "title": string,
+  "description": string,
+  "questions": [{
+    "type": string,
+    "label": string,
+    "required": boolean,
+    "options": string[],
+    "scale": { "min": number, "max": number, "minLabel": string, "maxLabel": string }
+  }]
+}`,
+      },
+    );
+
+    const raiz = data?.form && typeof data.form === "object" ? data.form : data;
+    const preguntas = extraerLista(raiz);
+    if (!preguntas.length) {
+      console.warn(
+        `[ai.service] generarFormularioUnificado: extraerLista devolvió 0 elementos`,
+      );
+      return null;
+    }
+
+    const bloques = preguntas.map((q) => {
+      const tipo = tipoDesdeTexto(q?.type);
+      const escala = normalizeScale(q?.scale, q?.label);
+      return {
+        id: nanoid(10),
+        type: tipo,
+        label: String(q?.label || "").trim(),
+        placeholder: "",
+        description: String(q?.description || "").trim(),
+        helpText: "",
+        required: Boolean(q?.required),
+        defaultValue: "",
+        options: Array.isArray(q?.options)
+          ? q.options
+              .filter((o) => typeof o === "string" && o.trim())
+              .map((o) => ({ id: nanoid(8), label: o.trim(), value: "" }))
+          : [],
+        content: "",
+        scale: RATING_TYPES.includes(tipo) ? escala : null,
+        validation: {},
+        visibleIf: q?.visibleIf || null,
+        isConsentGate: false,
+      };
+    });
+
+    if (!bloques.length) return null;
+
+    const form = normalizeForm(
+      {
+        title: String(raiz?.title || "").trim(),
+        description: String(raiz?.description || "").trim(),
+        theme: "minimal",
+        questions: acotarObligatorias(rebalancearTipos(bloques)),
+      },
+      language,
+    );
+
+    console.warn(
+      `[ai.service] generarFormularioUnificado OK: ${form.questions.length} bloque(s)`,
+    );
+    return form;
+  } catch (err) {
+    console.error(`[ai.service] generarFormularioUnificado falló: ${err.message}`);
+    return null;
+  }
+}
+
+/** El numero de campos que pide el autor, o 0 si no lo dice de forma explicita. */
+function numeroPedido(prompt) {
+  const texto = String(prompt || "");
+  /* Uno o dos dígitos: "10 preguntas" también es un número pedido, y sin el
+     tope el modelo tenía vía libre para devolver las que quisiera. */
+  const digito = texto.match(/\b([1-9]\d?)\s+(?:campo|pregunta|apartado)/i);
+  if (digito) return Number(digito[1]);
+  const palabra = texto.match(
+    /\b(?:un|una|dos|tres|cuatro|cinco|seis)\s+(?:campos|preguntas|apartados)\b/i,
+  );
+  if (!palabra) return 0;
+  const n = { un: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6 };
+  return n[palabra[0].toLowerCase()] || 0;
+}
+
+/**
+ * Extrae los parametros clave de la peticion del autor y construye una peticion
+ * corta y enfocada para el modelo. El prompt original puede ser muy largo con
+ * requisitos detallados que el modelo ya conoce de las reglas del sistema;
+ * reenviarlo entero obliga al modelo a leer y razonar sobre todo ese texto.
+ *
+ * Extrae: numero de preguntas, tema/subject, tipos de pregunta mencionados,
+ * idioma y restricciones clave (anonimo, sin datos sensibles, contexto).
+ */
+function condensarParaModelo(prompt, es) {
+  const texto = String(prompt || "");
+  const n = numeroPedido(texto);
+  const topico = extraerTopico(texto);
+  const tipos = extraerTiposMencionados(texto, es);
+  const restricciones = extraerRestricciones(texto, es);
+
+  let lineas = [];
+  if (n > 0) lineas.push(`Genera exactamente ${n} preguntas.`);
+  if (topico) lineas.push(`Tema: ${topico}.`);
+  if (tipos) lineas.push(`Tipos de pregunta: ${tipos}.`);
+  lineas.push(`Idioma: ${es ? "español" : "English"}.`);
+  if (restricciones) lineas.push(`Restricciones: ${restricciones}.`);
+  lineas.push("Devuelve un formulario completo con titulo, descripcion y las preguntas pedidas.");
+
+  return lineas.join(" ");
+}
+
+/* Intenta deducir el tema de la peticion. Busca patrones como "sobre X",
+   "pagina web X", "sitio web X", "acerca de X". El tema puede ser un nombre
+   compuesto (ej. "CubaDebate en Cuba"). Si no se encuentra un tema explicito,
+   devuelve null y el modelo usara el contexto general de la peticion. */
+function extraerTopico(texto) {
+  const patrones = [
+    /* "sobre la pagina web X", "sobre el sitio web X", etc. */
+    /sobre\s+(?:la\s+)?p[áa]gina\s+web\s+([^\s.,;:!?]+(?:\s+[^\s.,;:!?]+){0,3})/i,
+    /sobre\s+(?:el\s+)?sitio\s+web\s+([^\s.,;:!?]+(?:\s+[^\s.,;:!?]+){0,3})/i,
+    /de\s+la\s+p[áa]gina\s+web\s+([^\s.,;:!?]+(?:\s+[^\s.,;:!?]+){0,3})/i,
+    /* "acerca de X", "sobre X" genérico */
+    /acerca\s+de\s+([^\s.,;:!?]+(?:\s+[^\s.,;:!?]+){0,3})/i,
+    /sobre\s+([^\s.,;:!?]+(?:\s+[^\s.,;:!?]+){0,3})/i,
+  ];
+  for (const patron of patrones) {
+    const m = texto.match(patron);
+    if (m) return m[1].trim();
+  }
+  return null;
+}
+
+/* Detecta los tipos de pregunta que el autor menciona en su peticion. */
+function extraerTiposMencionados(texto, es) {
+  const hallados = [];
+  if (/selecci[oó]n\s+[uú]nica|single.choice|radio/i.test(texto)) hallados.push(es ? "seleccion unica (radio)" : "single choice (radio)");
+  if (/selecci[oó]n\s+m[uú]ltiple|multiple.choice|checkbox/i.test(texto)) hallados.push(es ? "seleccion multiple (checkbox)" : "multiple choice (checkbox)");
+  if (/likert|escala\s+de\s+1\s+a\s+5|scale.*1.*5/i.test(texto)) hallados.push(es ? "escala Likert 1-5 (score_rating)" : "Likert scale 1-5 (score_rating)");
+  if (/n[uú]mero\s+net\s+promoter|NPS|recomendaci[oó]n\s+de\s+0\s+a\s+10|0\s+a\s+10/i.test(texto)) hallados.push(es ? "NPS 0-10 (score_rating)" : "NPS 0-10 (score_rating)");
+  if (/abiert|open.ended|texto\s+larg/i.test(texto)) hallados.push(es ? "abierto (long_text)" : "open-ended (long_text)");
+  return hallados.length ? hallados.join(", ") : null;
+}
+
+/* Detecta restricciones clave del autor. */
+function extraerRestricciones(texto, es) {
+  const r = [];
+  if (/anonim|an[oó]nim|confidencial/i.test(texto)) r.push(es ? "anonimo y confidencial" : "anonymous and confidential");
+  if (/sin\s+datos\s+personales|no\s+solicite.*personal|no\s+informaci[oó]n\s+personal/i.test(texto)) r.push(es ? "sin datos personales sensibles" : "no sensitive personal data");
+  if (/cubano|cubana|Cuba/i.test(texto)) r.push(es ? "contexto cubano" : "Cuban context");
+  return r.length ? r.join(", ") : null;
+}
+
+/**
+ * Último recurso cuando el tipado de una tanda falla (429, timeout, respuesta
+ * vacía): deducir el tipo del propio enunciado.
+ *
+ * Antes todo lo que no venía tipado caía en `long_text`. Contra un proveedor
+ * que limita la concurrencia eso no es un caso raro: en la medición con LLM7
+ * fallaron 6 de 9 tandas y la encuesta salió con 32 preguntas abiertas y ni una
+ * cerrada, que no se puede tabular. El enunciado casi siempre delata el tipo —
+ * "¿Ha…?", "¿En qué medida…?", "¿Cuántos años…?"—, así que aquí se recupera lo
+ * que se pueda en vez de rendirse con un textarea.
+ *
+ * Es deliberadamente conservador: ante la duda devuelve `short_text`, que es
+ * menos aparatoso que un cajón de texto enorme y se puede cambiar luego.
+ * Exportada para probarla sin llamar al proveedor.
+ */
+export function inferirTipo(texto) {
+  const t = String(texto || "").toLowerCase().trim();
+  if (!t) return "short_text";
+
+  if (/\b(?:ordene|ordena|jerarquice|jerarquiza|clasifique por|ranking|rank the)\b/.test(t))
+    return "rank";
+
+  /* Hechos de sí/no: "¿Ha oído…?", "¿Cuenta con…?", "¿Está de acuerdo en…?".
+     Va antes que las escalas porque "¿Está satisfecho…?" sin "qué tan" es un
+     sí/no, no una escala. */
+  if (
+    /^(?:¿\s*)?(?:ha|han|has|tiene|tienen|tienes|sabe|saben|sabes|conoce|conocen|conoces|usa|usan|usas|utiliza|utilizan|cuenta con|cuentan con|recibe|reciben|trabaja|trabajan|participa|participan|pertenece|pertenecen|acepta|aceptan|desea|desean|está|están|estas|considera que|consideran que|cree que|creen que|piensa que|piensan que|le gustaría|les gustaría)\b/.test(t)
+  )
+    return "yes_no";
+
+  /* Juicio sobre una escala: acuerdo, satisfacción, frecuencia, valoración. */
+  if (
+    /\b(?:en qué medida|en que medida|qué tan|que tan|cómo calificar|cómo valorar|cómo evalúa|cómo evaluar|cuál es su nivel|con qué frecuencia|con que frecuencia|del 1 al|de 1 a|escala)\b/.test(t)
+  )
+    return "score_rating";
+
+  if (/\b(?:cuántos años|cuantos años|su edad|años tiene|número de|numero de|cuántas personas|cuantas personas)\b/.test(t))
+    return "number";
+
+  if (/\b(?:en qué fecha|que fecha|fecha de|qué día|que dia)\b/.test(t)) return "date";
+
+  /* Abiertas de verdad: opinión, sugerencias, motivos. */
+  if (
+    /\b(?:qué sugerencias|que sugerencias|qué mejoras|que mejoras|qué cambiaría|que cambiaria|qué propondría|que propondria|comentarios?|opinión|opinion|describa|explique|por qué|por que|razone|recomendaría|recomendaria|cuéntenos|cuentenos)\b/.test(t)
+  )
+    return "long_text";
+
+  /* Datos de contacto y de identificación cortos. */
+  if (/\b(?:correo|e-?mail)\b/.test(t)) return "email";
+  if (/\b(?:teléfono|telefono|phone|celular)\b/.test(t)) return "phone";
+  if (/\b(?:nombre|apellidos?|dirección|direccion|cargo|ocupación|ocupacion)\b/.test(t))
+    return "short_text";
+
+  return "short_text";
+}
+
+async function assembleForm({ prompt, language, indice, preliminares, enunciados }) {
+  const { porSeccion, huerfanos, vacias } = repartirPorSeccion(indice, enunciados);
+
+  if (huerfanos.length) {
+    console.warn(`[ai.service] ${huerfanos.length} enunciado(s) sin sección reconocible: van a la primera`);
+    if (indice.length) porSeccion.get(indice[0].num).push(...huerfanos);
+  }
+
+  if (vacias.length) {
+    console.warn(
+      `[ai.service] ${vacias.length} sección(es) sin enunciados ni subsecciones: ${vacias.map((s) => s.num).join(", ")}`,
+    );
+  }
+
+  const questions = [];
+
+  if (preliminares) {
+    /* Van antes que nada, como mensaje (no como pregunta): es la apertura del
+       formulario y el campo que el constructor ofrece para eso. Con "label"
+       vacío a propósito: el renderer de `message` lee el texto de `content`, y
+       si además trae un `label` de relleno se pinta el relleno. */
+    questions.push({ type: "message", label: "", content: preliminares.introduccion, required: false, options: [] });
+    questions.push({ type: "message", label: "", content: preliminares.instrucciones, required: false, options: [] });
+  }
+
+  /* Primero se apuntan los bloques EN ORDEN y después se tipan las tandas en
+     paralelo: el montaje final recorre los bloques apuntados, así que el
+     formulario sale en el mismo orden aunque las respuestas lleguen
+     desordenadas. */
+  const bloques = [];
+  for (const s of indice) {
+    bloques.push({ kind: "section", titulo: s.titulo });
+    const suyas = porSeccion.get(s.num) || [];
+    /* Las tandas son por sección y no globales: una tanda que mezcla secciones
+       deja al modelo sin contexto para decidir si una pregunta es de opinión o
+       de dato, y es justo el reparto de tipos lo que sale mal sin contexto. */
+    for (let i = 0; i < suyas.length; i += PREGUNTAS_POR_TANDA) {
+      bloques.push({ kind: "tanda", tanda: suyas.slice(i, i + PREGUNTAS_POR_TANDA) });
+    }
+  }
+
+  await mapLimit(
+    bloques.map((b, i) => i).filter((i) => bloques[i].kind === "tanda"),
+    async (i) => {
+      bloques[i].atributos = await typeQuestions(bloques[i].tanda, prompt, language);
+    },
+  );
+
+  /* Se cuentan los tipos que hubo que deducir para que quede en el log: si son
+     muchos, el tipado del proveedor está fallando y conviene saberlo. */
+  let deducidos = 0;
+
+  for (const b of bloques) {
+    if (b.kind === "section") {
+      questions.push({ type: "section", label: b.titulo, content: "", required: false, options: [] });
+      continue;
+    }
+    for (const [j, e] of b.tanda.entries()) {
+      /* Sin tipo se deduce del enunciado (`inferirTipo`), no se tira a texto
+         libre a ciegas: una tanda perdida no puede convertir la encuesta entera
+         en 30 textareas. Lo que tampoco se hace es descartar la pregunta: el
+         enunciado lo escribió el modelo y el autor lo pidió. */
+      const a = b.atributos.get(String(j + 1)) || {};
+      if (!a.type) deducidos++;
+      questions.push({
+        type: a.type || inferirTipo(e.texto),
+        label: e.texto,
+        placeholder: a.placeholder || "",
+        description: a.description || "",
+        required: Boolean(a.required),
+        options: [],
+        scale: a.scale,
+        dependsOn: a.dependsOn,
+      });
+    }
+  }
+
+  if (deducidos) {
+    console.warn(
+      `[ai.service] ${deducidos} pregunta(s) sin tipar por el modelo: tipo deducido del enunciado`,
+    );
+  }
+
+  /* El tema lo elige el autor en el builder, no el generador: todas las
+     mediciones dejaron el mismo tema de los seis sin que nadie lo pidiera, así
+     que se deja en el que trae el builder por defecto. */
+  const form = normalizeForm(
+    {
+      title: preliminares?.titulo || "",
+      description: preliminares?.descripcion || "",
+      theme: "minimal",
+      questions: acotarObligatorias(rebalancearTipos(questions)),
+    },
+    language,
+  );
+
+  /* El recuento va sobre lo que de verdad sale, no sobre `indice`. La versión
+     anterior contaba las secciones del índice y por eso decía "0 preguntas, 22
+     secciones" mientras el formulario entero venía vacío: dos números que
+     venían de sitios distintos y no se contradecían a la vista. */
+  podarSeccionesDescartables(form);
+  const respondibles = form.questions.filter((q) => !STATIC_FIELD_TYPES.includes(q.type));
+  console.warn(
+    `[ai.service] formulario montado: ${form.questions.length} bloque(s), ` +
+      `${respondibles.length} pregunta(s), ${form.questions.filter((q) => q.type === "section").length} sección(es)`,
+  );
+  return form;
+}
+
+/**
+ * Acota cuántas escalas de opinión puede tener un formulario.
+ *
+ * El repartido de tipos se acota en código y no solo en el prompt porque en el
+ * prompt no se sostiene. Medido dos veces contra el mismo prompt real: 41 escalas
+ * sobre 75 preguntas, y después 54 sobre 92, con 8 preguntas cerradas en todo el
+ * formulario. Se le dice al modelo "prefiere radio y checkbox" y contesta con otra
+ * tanda de escalas. La razón es que la escala es el tipo por defecto cuando la
+ * pregunta lleva un verbo de opinión, y en una encuesta de percepciones casi
+ * todas lo llevan.
+ *
+ * Una encuesta con 54 escalas y 8 cerradas no se puede tabular: no hay nada que
+ * contar. El tope se aplica aquí, y lo que sobra se convierte en cerrada, que es
+ * además lo que el autor querría: "qué medidas conoce" se cuenta, y "qué tan de
+ * acuerdo está" no se cuenta igual de bien.
+ *
+ * El criterio para decidir cuál sobra es el enunciado, no la posición. Una escala
+ * sobre un hecho ("¿Ha oído hablar de la ley?") nunca fue una escala: era una
+ * pregunta de sí o no con la forma equivocada, y esa se recupera como `yes_no`,
+ * que pinta sus dos opciones sin necesitar la pasada de opciones. Si no hay
+ * suficientes hechos, se van las repetidas: dos escalas sobre lo mismo se
+ * contestan con el mismo número y no aportan dos veces.
+ *
+ * El tope es del 30% de las respondibles con un mínimo de 4, porque los
+ * porcentajes solos son una trampa en las encuestas cortas: 3 escalas sobre 10
+ * preguntas es sano, y el 30% lo dejaría en 3 pero sin margen para una más.
+ *
+ * Exportada para poder probarla sin llamar al proveedor, que es la única forma
+ * de comprobar esta regla en segundos y no en una generación de tres minutos.
+ * Ver qa/ai-types.js.
+ */
+export function rebalancearTipos(qs) {
+  const respondibles = qs.filter((q) => !STATIC_FIELD_TYPES.includes(q.type));
+  const escalas = respondibles.filter((q) => RATING_TYPES.includes(q.type));
+  const tope = Math.max(4, Math.ceil(respondibles.length * 0.3));
+  if (escalas.length <= tope) return qs;
+
+  /* Sin ancla `^` a propósito: casi todos los enunciados empiezan por "¿", así que
+     un ancla al principio nunca casaba con nada y las 54 candidatas salían cero.
+     La versión anterior tenía las dos formas y la que no funcionaba era la que
+     parecía la buena. */
+  const esHecho = (q) =>
+    /\b(ha oído|sabe|conoce|ha visto|ha recibido)\b/i.test(q.label) ||
+    /\b(trabaja|participa|pertenece|recibe|usa)\b/i.test(q.label);
+
+  /* Primero las que son hechos disfrazados; si no bastan para bajar hasta el tope,
+     se van las demás escalas hasta llegar a él. El orden es el del formulario, así
+     que lo que sobra es lo que el modelo escribió al final, que es donde se
+     acumulan las repeticiones. */
+  const sobrantes = escalas.filter(esHecho);
+  for (const q of escalas) {
+    if (sobrantes.length >= escalas.length - tope) break;
+    if (sobrantes.includes(q)) continue;
+    sobrantes.push(q);
+  }
+
+  for (const q of sobrantes) {
+    q.type = esHecho(q) ? "yes_no" : "radio";
+    /* Se borra la escala para que no viaje muerta en el jsonb: `scale` solo
+       significa algo en un `rating`. */
+    q.scale = null;
+  }
+
+  console.warn(
+    `[ai.service] ${escalas.length} escalas reducidas a ${tope}: ${sobrantes.length} convertidas a cerradas`,
+  );
+  return qs;
+}
+
+/**
+ * Acota cuántas preguntas salen obligatorias.
+ *
+ * Es el mismo problema que `rebalancearTipos` y con la misma causa: se le pide al
+ * modelo que marque solo lo imprescindible y marca casi todo. Medido contra el
+ * prompt real de las 176 TES: 54 obligatorias sobre 75 preguntas. Una encuesta
+ * que se abandona en la pregunta 12 porque las otras 53 no se pueden dejar en
+ * blanco no es una encuesta, y el autor ve el formulario lleno de asteriscos y
+ * no entiende de dónde han salido.
+ *
+ * El tope es del 25% de las respondibles, con un mínimo de 3, y se conservan las
+ * primeras del formulario: los datos de identificación van al principio por
+ * convención, así que "las primeras que se salvan" y "las que de verdad hacen
+ * falta" apuntan al mismo sitio. Las secciones de opinión, que son la mayoría,
+ * se quedan al final y son las que se relajan.
+ *
+ * Lo que NO se toca aquí es `long_text`. Convertir una escala de opinión en
+ * cerrada tiene sentido porque la escala es el tipo por defecto y esconde
+ * preguntas de opción múltiple; convertir una pregunta abierta en cerrada
+ * destroyaría el único hueco del formulario donde el entrevistado dice algo que
+ * nadie adivinó. Por eso este tope no aplica a los textos: se aplica a la
+ * obligatoriedad, que sí es una decisión de forma y no de contenido.
+ *
+ * Exportada para poder probarla sin llamar al proveedor. Ver qa/ai-types.js.
+ */
+export function acotarObligatorias(qs) {
+  const respondibles = qs.filter((q) => !STATIC_FIELD_TYPES.includes(q.type));
+  const obligatorias = respondibles.filter((q) => q.required);
+  const tope = Math.max(3, Math.ceil(respondibles.length * 0.25));
+  if (obligatorias.length <= tope) return qs;
+
+  /* En el orden del formulario, que es el orden en que las va a ver el
+     entrevistado: se quedan las de arriba y se relajan las de abajo. */
+  const seQuedan = new Set(obligatorias.slice(0, tope));
+  let relajadas = 0;
+  for (const q of obligatorias) {
+    if (seQuedan.has(q)) continue;
+    q.required = false;
+    relajadas++;
+  }
+
+  console.warn(
+    `[ai.service] ${obligatorias.length} obligatorias reducidas a ${tope}: ${relajadas} ya son opcionales`,
+  );
+  return qs;
+}
+
+/* Con `response_format: json_object` la raíz siempre es un objeto, así que una
+   lista pedida como tal vuelve envuelta. Los modelos no se ponen de acuerdo en
+   la clave —"questions", "items", "results", "data"…— y a veces devuelven un
+   objeto numerado sin clave. Esto acepta todas esas formas en vez de dar por
+   vacía una respuesta que sí traía las preguntas. Exportada para probarla sin
+   llamar al proveedor. */
+const CLAVES_LISTA = ["questions", "items", "results", "result", "data", "entries", "list", "preguntas", "respuestas"];
+
+export function extraerLista(data) {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== "object") return [];
+
+  for (const clave of CLAVES_LISTA) {
+    if (Array.isArray(data[clave])) return data[clave];
+  }
+
+  const valores = Object.values(data);
+  /* Objeto numerado: {"1": {...}, "2": {...}}. */
+  if (valores.length && valores.every((v) => v && typeof v === "object" && !Array.isArray(v))) {
+    return valores;
+  }
+
+  /* Último recurso: el primer array que aparezca en cualquier valor. */
+  return valores.find(Array.isArray) || [];
+}
+
+async function typeQuestions(tanda, prompt, language) {
+  const es = language === "es";
+  const mapa = new Map();
+
+  try {
+    const data = await generateJson(
+      `For each of these ${tanda.length} survey questions, say what type it is and how it is set up. You are NOT writing the questions: they are already written. Do not repeat their text, do not change their wording, and do not add or remove questions.
+
+${tanda.map((e, i) => `${i + 1} ${e.texto}`).join("\n")}
+
+Context of the whole survey, so you can tell a demographic question from an opinion one: ${prompt}
+
+Types — use the full catalog, never a generic text field when a specific one fits
+- One possible answer: "radio". Several possible answers: "checkbox". A long list to pick from: "dropdown".
+- Attitude, agreement, confidence, perceived importance on a named scale (Likert 1-5) → "score_rating", and ALWAYS give it a "scale" with "min", "max" and BOTH end labels filled in with real words, e.g. { "min": 1, "max": 5, "minLabel": "Strongly disagree", "maxLabel": "Strongly agree" }. The end labels must be non-empty strings, never "". Painted as numbers.
+- Quality of a service, product or experience as stars → "quality_rating", with a "scale" (usually 1 to 5). Painted with traffic-light colors, so use it only when more really means better.
+- Any other numeric score from 1 to 5 (or 1 to 10) → "score_rating", with a "scale" and end labels when the meaning is not obvious.
+- Never use "rating": it only exists for forms created before, and anything you label "rating" cannot be created again in the builder.
+- "Order these by importance" / "rank the top N" → "rank".
+- Opinion with no fixed answers → "long_text". A name or something short → "short_text".
+- A number, an age, a year → "number". An email → "email". A phone → "phone". A date → "date". A time of day → "time". An address → "address". A file to attach → "file".
+- A link the respondent should VISIT (an official page, a participation site) is NOT a question: it goes inside a closing message ("More information at https://…"). Only use "url" when the respondent must TYPE an address of their own.
+- Cuban province → "province"; Cuban municipality → "municipality" with "dependsOn": "province". Gender → "gender". Cuban schooling or education level → "education_level". Never replace those with a generic text field or a plain "dropdown".
+- Yes/no fact → "yes_no". Never use a scale for a fact.
+- Follow-ups like "If you answered Yes, specify which" or an email after offering updates: write them as a plain short_text/email right after the question they depend on, starting with "If you answered Yes" (or the "Other, which one?" wording). They are wired to show conditionally on their own.
+
+How to choose, which matters more than the list above
+A questionnaire is not a wall of scales. Measured on a real 75-question survey: 41 came back as "rating" and 30 as "long_text", with only 2 closed questions in the whole thing. That is unusable — nothing is countable, so nothing can be tabulated.
+- Scales ("rating", "quality_rating", "score_rating" combined) are for a judgement ON A SCALE: agreement, quality, satisfaction, confidence, frequency, importance, how much. They only fit when the answer is genuinely "more or less". If the answer is a fact, a category or a yes/no, it is NOT a scale.
+- Prefer "radio" or "checkbox" whenever there is a realistic list of answers: which measures they know, which sectors affect them, what worried them, where they get information, whether they work in the state sector. Closed questions are what make a survey analysable.
+- Prefer "long_text" only for the genuinely open ones — expectations, suggestions, reasons — and a handful of them. As a rule of thumb for a batch: at most a quarter scales and at most a third "long_text"; the rest should be "radio", "checkbox" or "dropdown".
+- Repeat the same judgement from different angles instead of re-typing it: one scale per idea, and the rest of that idea as a "checkbox" of its parts.
+
+Return one entry per question, all of them, in the same order, with the "num" of the line it comes from.
+- "description": only when it helps whoever answers it (a definition, a "think about the last year" cue). Usually leave it empty. Never repeat the question.
+- "options": leave empty. They are filled in afterwards.
+- "required": true only for the questions the survey cannot be read without.
+- "placeholder": a short example of what to write, for the open text types only. Empty otherwise.
+- Everything the respondent reads in ${es ? "Spanish" : "English"}.`,
+      {
+        schemaHint: `{ "questions": [{ "num": string, "type": one of [${FIELD_TYPE_LIST}], "description": string, "required": boolean, "placeholder": string, "options": string[], "scale": { "min": number, "max": number, "minLabel": string, "maxLabel": string }, "dependsOn": string }] }`,
+      },
+    );
+
+    /* El proveedor está en `json_object`, así que nunca puede devolver un array
+       en la raíz: lo envuelve. La clave no siempre es la misma ("questions",
+       "items", "results"…) y a veces ni siquiera hay clave: es un objeto
+       numerado. Sin desempaquetar, la respuesta era válida y el mapa salía
+       vacío, que es justo el "vino con 0 tipadas" de los logs. */
+    const lista = extraerLista(data);
+
+    /* Si salió vacío, mostrar el raw para diagnosticar el formato del modelo */
+    if (!lista.length) {
+      const rawPreview = JSON.stringify(data).slice(0, 500);
+      console.warn(
+        `[ai.service] typeQuestions: extraerLista devolvió 0 elementos. Raw JSON: ${rawPreview}`
+      );
+    }
+
+    for (const item of lista) {
+      if (!item?.num) continue;
+      mapa.set(String(item.num).trim(), {
+        type: item.type,
+        description: item.description || "",
+        required: item.required,
+        placeholder: item.placeholder || "",
+        scale: item.scale,
+        dependsOn: item.dependsOn,
+      });
+    }
+    if (mapa.size < tanda.length) {
+      console.warn(
+        `[ai.service] una tanda de ${tanda.length} vino con ${mapa.size} tipadas; las demás quedan como texto libre`,
+      );
+    }
+  } catch (err) {
+    console.error(
+      `[ai.service] no se pudieron tipar ${tanda.length} pregunta(s), quedan como texto libre: ${err.message}`,
+    );
+  }
+
+  return mapa;
+}
+
+/**
+ * El índice de la encuesta, en una llamada aparte y en texto plano.
+ *
+ * Es la misma idea que sacar las opciones del json: contra este proveedor lo
+ * corto y sin anidar vuelve entero y lo largo y anidado se degrada. Aquí además
+ * hay un motivo de estrategia: al no tener que emitir el json entero, el modelo
+ * puede dedicar toda su atención a enumerar. La medición que motivó esto dio 21
+ * preguntas cuando el índice por sí solo cabe en diez líneas.
+ *
+ * Si la llamada falla o no devuelve nada legible, se sigue adelante sin índice:
+ * es una mejora, no un requisito. Peor sería dejar de generar porque un paso
+ * opcional falló.
+ */
+const MAX_APARTADOS = 40;
+
+export async function planOutline(prompt, language = "en") {
+  const es = language === "es";
+  try {
+    const raw = await generateText(
+      `Escribe el índice de la encuesta que hay que construir a partir de esta petición:
+
+${prompt}
+
+Reglas:
+- UNA línea por SECCIÓN, nunca por pregunta. El título de una línea es un tema del que cabe un puñado de preguntas, no una pregunta concreta. Nada de "¿Conoce usted las medidas?": eso es una pregunta, no una sección.
+- Solo dos niveles: "1." para las secciones y "1.1" para las subsecciones. Nada de un tercer nivel.
+- Si la petición trae sus apartados ya numerados o con título ("1. …", "2. …"), consérvalos con el MISMO nombre y en el mismo orden: no los renombres, no los fusiones y no los reordenas. La auditoría comprueba esos nombres palabra por palabra, y "Cierre" convertido en "Despedida" cuenta como apartado perdido.
+- Apunta a 8-15 secciones. Si la petición nombra un número de elementos ("23 ejes", "176 medidas"), agrúpalos en suficientes secciones para que la encuesta sirva: 8-15 secciones, no 4. Si los elementos vienen listados uno por uno, uno por línea; si solo vienen en prosa, reparte los que nombres en 8-15 secciones temáticas.
+- No escribas una sección de introducción ni de objetivos: eso va aparte, en el formulario, y no es una sección.
+- No escribas secciones para los mensajes de apertura o cierre (bienvenida, agradecimiento, enlaces a visitar): van solos al principio o al final como mensaje, no son secciones.
+- No escribas secciones para las instrucciones dirigidas a ti (qué lenguaje usar, qué tipos de pregunta poner, barra de progreso, enlaces a mostrar): son órdenes de construcción, no temas sobre los que preguntar.
+- Solo el índice: nada de preguntas, nada de tipos de pregunta, nada de explicaciones.
+- Cada título va en ${es ? "español" : "inglés"}.
+
+Responde solo con la lista:
+1. ...
+2. ...
+2.1 ...`,
+      {
+        systemPrompt:
+          "Eres un diseñador de encuestas. Devuelves solo un índice de secciones numerado, sin explicaciones.",
+      },
+    );
+
+    const lineas = String(raw)
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .map((l) => l.match(/^(\d+(?:\.\d+)*)[.)\s\-–—:]+\s*(\S.*)$/))
+      .filter(Boolean)
+      .slice(0, MAX_APARTADOS)
+      .map((m) => ({ num: m[1], titulo: m[2].replace(/^[-–—*•]\s*/, "").trim() }))
+      .filter((s) => s.titulo.length > 1);
+
+    /* Si el índice vino vacío pero el modelo respondió algo, el formato no casó.
+       Se muestra el raw para poder ajustar el parser sin adivinar. */
+    if (!lineas.length && raw.trim()) {
+      console.warn(
+        `[ai.service] planOutline: el modelo respondió ${raw.trim().length} caracteres pero ninguna línea casó con el formato esperado`
+      );
+    }
+
+    console.warn(
+      `[ai.service] indice de ${lineas.length} apartado(s) para la generacion` +
+        (lineas.length === 0 ? " (vacio: se sigue sin indice)" : ""),
+    );
+    return lineas;
+  } catch (err) {
+    console.error(`[ai.service] no se pudo planear el indice: ${err.message}`);
+    return [];
+  }
+}
+
+/**
+ * Los dos párrafos de cabecera, en su propia llamada y en texto plano.
+ *
+ * Es el bloque que el modelo lleva tres mediciones seguidas emitiendo cero: dentro
+ * del json, y con la instrucción de "empieza por un paragraph" al principio del
+ * prompt, salió siempre un cuestionario que empezaba directamente por la primera
+ * sección. No es que las ignorase por descuido, es que el json entero le da
+ * motivos para priorizar lo que está en medio, y lo primero es lo primero que se
+ * queda fuera cuando hay 60 preguntas que escribir.
+ *
+ * En texto plano, con una clave delante de cada uno, sale a la primera: son dos
+ * párrafos y no hay nada más que hacer. La clave es lo que hace fiable el
+ * parseo, porque un párrafo puede ocupar varias líneas y separarlos por líneas
+ * vacías sería adivinar.
+ */
+export async function planPreliminares(prompt, language = "en") {
+  const es = language === "es";
+  const idioma = es ? "español" : "English";
+
+  try {
+    const raw = await generateText(
+      `A partir de esta petición de encuesta, escribe el título, la descripción y los dos textos con los que tiene que abrir el formulario. Todo en ${idioma}.
+
+${prompt}
+
+Reglas:
+- TITULO: el nombre del formulario, entre 4 y 10 palabras, sin punto final. Da igual que empiece por "Encuesta sobre", es lo que espera ver el listado.
+- DESCRIPCION: una frase de qué mide, para el listado de formularios. Nada de repetir el título.
+- INTRODUCCION: de 2 a 4 frases diciendo qué mide la encuesta, para quién es y, si procede, que es anónima y voluntaria. Es la prosa que se lee dentro del formulario, así que puede ser más explícita que la DESCRIPCION.
+- INSTRUCCIONES: de 2 a 4 frases diciendo cómo hay que rellenarlo o aplicarlo, y de cuánto se tarda aproximadamente.
+- Sin listas, sin numeración, sin etiquetas, sin markdown.
+- Escribe cada clave en su propia línea, en mayúsculas, y su texto detrás, en las líneas que hagan falta.
+
+Responde exactamente con esta forma:
+TITULO: <nombre>
+DESCRIPCION: <frase>
+INTRODUCCION: <párrafo>
+INSTRUCCIONES: <párrafo>`,
+      { systemPrompt: "Eres un diseñador de encuestas. Escribes prosa breve y clara, sin adornos." },
+    );
+
+    /* El texto de una clave va hasta la siguiente clave o hasta el final. Un
+       párrafo ocupa varias líneas, así que separarlos por líneas en blanco sería
+       adivinar: basta con mirar dónde empieza la clave que sigue. */
+    const leer = (clave, siguientes) => {
+      const m = String(raw).match(
+        new RegExp(
+          `${clave}\\s*[:\\-]\\s*([\\s\\S]*?)(?=\\n\\s*(?:${siguientes.join("|")})\\s*[:\\-]|$)`,
+          "i",
+        ),
+      );
+      return m?.[1].replace(/\s+/g, " ").trim() || "";
+    };
+
+    const resultado = {
+      titulo: leer("TITULO", ["DESCRIPCION", "INTRODUCCION", "INSTRUCCIONES"]),
+      descripcion: leer("DESCRIPCION", ["INTRODUCCION", "INSTRUCCIONES"]),
+      introduccion: leer("INTRODUCCION", ["INSTRUCCIONES"]),
+      instrucciones: leer("INSTRUCCIONES", []),
+    };
+
+    /* Sin introducción o sin instrucciones el formulario abre a pelo, que es
+       justo lo que se quería arreglar: en ese caso se descarta el bloque entero
+       en vez de dejar medio. El título sí se conserva aunque falte lo otro, que
+       es lo único que se ve en el listado. */
+    const faltan = ["introduccion", "instrucciones"].filter((k) => !resultado[k]);
+    if (faltan.length) {
+      console.warn(`[ai.service] textos de cabecera incompletos (${faltan.join(", ")})`);
+      return resultado.titulo ? { titulo: resultado.titulo, descripcion: resultado.descripcion } : null;
+    }
+    return resultado;
+  } catch (err) {
+    console.error(`[ai.service] no se pudieron escribir los textos de cabecera: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Los enunciados de todas las preguntas, en texto plano y por tandas.
+ *
+ * Esta es la pieza que decidió el resultado. Medido tres veces contra el mismo
+ * prompt de las 176 TES:
+ *
+ *   - 21 preguntas dejando que el json las contase (tope de 12 quitado)
+ *   - 30 preguntas con un índice de secciones inyectado
+ *   - 20 secciones con UNA pregunta cada una
+ *
+ * El tercer número es el que lo explica: cuando el modelo decide el reparto, hace
+ * una sección por pregunta. No le falta capacidad de emisión —escribió 30
+ * preguntas sin problema—, lo que no tiene es un reparto decidido, y ahí es donde
+ * se rinde: agrupa lo poco que escribió en un título por pregunta y da el trabajo
+ * por terminado.
+ *
+ * Por eso los enunciados se piden aquí y no en el json. En texto plano el modelo
+ * se las ve todas —es el mismo canal que sí devuelve las listas de opciones
+ * enteras— y lo que le llega al json ya no es un encargo de inventar una
+ * encuesta sino de teclear 60 enunciados dados, con su tipo y sus ajustes.
+ *
+ * Por tandas, y no de una vez, porque un lote de 60 enunciados son ~2.000
+ * tokens de salida contra los 8.192 de tope: cabe, pero por poco, y el día que
+ * la encuesta que viene sea el doble se corta por en medio sin avisar. Las
+ * tandas de 8 secciones salen cortas de sobra, y el reparto se lee igual de bien.
+ */
+const SECCIONES_POR_TANDA = 8;
+
+export async function planStems(indice, prompt, language = "en") {
+  if (!indice.length) return [];
+  const es = language === "es";
+
+  const tandas = [];
+  for (let i = 0; i < indice.length; i += SECCIONES_POR_TANDA) {
+    tandas.push(indice.slice(i, i + SECCIONES_POR_TANDA));
+  }
+
+  /* Los lotes van en paralelo: cada uno trae sus secciones y el contexto
+     completo, así que ninguno necesita lo que escriba otro. El orden se
+     conserva concatenando por índice de lote. */
+  const porLote = await mapLimit(tandas, async (tanda, k) => {
+    const listado = tanda.map((s) => `${s.num} ${s.titulo}`).join("\n");
+
+    try {
+      const raw = await generateText(
+        `Escribe los enunciados de las preguntas de estas secciones de una encuesta:
+
+${listado}
+
+Contexto de la encuesta completa, para saber de qué va: ${prompt}
+
+Reglas:
+- De 3 a 5 preguntas por sección, y las secciones que lo necesiten más, que no tienen por qué ser iguales.
+- Una línea por enunciado: el número de la sección a la que pertenece, una barra vertical, y el enunciado. El número es el de arriba, copiado tal cual: si la sección es "3" o "3.1", la línea empieza por ese mismo número, punto y barra, y no por otro. En el número de la sección no se añade nada.
+- El enunciado es lo que verá el entrevistado, escrito como una pregunta o una frase directa, en ${es ? "español" : "English"}.
+- Varía: preguntas de opción única, de opción múltiple, de escala de acuerdo o satisfacción, y de opinión abierta. No cinco opciones de cierre en fila.
+- Nada de las opciones de respuesta: eso se pone después. Solo el enunciado.
+- Las secciones sobre datos del entrevistado (edad, género, provincia, nivel educativo, ocupación) son de una pregunta cada una, porque ahí no hay nada que decidir.
+- No escribas el título de la sección ni repitas su número con otro formato: solo las líneas de los enunciados.
+
+Responde solo con la lista, sin explicaciones:
+3 | ¿Cree que las empresas estatales serán más eficientes?
+3 | ¿Qué cambiaría en su opinión con la nueva normativa?
+3.1 | ¿Ha oído hablar de la autonomía empresarial?`,
+        { systemPrompt: "Eres un diseñador de encuestas. Escribes enunciados de pregunta, nada más." },
+      );
+
+      const mios = [];
+      for (const linea of String(raw).split(/\r?\n/)) {
+        const m = linea.trim().match(/^(\d+(?:\.\d+)*)\s*\|\s*(.+?)\s*$/);
+        if (!m) continue;
+        const texto = m[2].replace(/^["'«“]|["'»”]$/g, "").trim();
+        if (texto.length < 5) continue;
+        mios.push({ seccion: m[1], texto });
+      }
+
+      /* Si el lote vino vacío pero el modelo devolvió algo no vacío, el problema
+         es el formato: el regex no casa con lo que escribió. Se muestra el raw
+         para poder ajustar el parser sin adivinar. */
+      if (!mios.length && raw.trim()) {
+        const preview = raw.trim().slice(0, 500);
+        console.warn(
+          `[ai.service] lote ${k + 1}: el modelo respondió ${raw.trim().length} caracteres pero ninguno casó con el formato esperado. Preview: ${preview}`
+        );
+      }
+
+      /* El recuento va con el del lote y no acumulado: en la versión anterior
+         imprimía el total de golpe, que iba de 8 a 16 a 24 y hacía parecer que
+         cada llamada escribía de más. */
+      console.warn(
+        `[ai.service] lote ${k + 1}: ${tanda.length} secciones -> ${mios.length} enunciados`,
+      );
+      return mios;
+    } catch (err) {
+      console.error(
+        `[ai.service] no se pudieron escribir los enunciados de un lote de ${tanda.length} secciones: ${err.message}`,
+      );
+      return [];
+    }
+  });
+
+  const enunciados = porLote.flat();
+
+  /* Es un buen número si está entre el techo de secciones*3 y *5. No es un
+     error si se queda por debajo, pero sí se avisa para ver qué pasó. */
+  if (indice.length > 0) {
+    const min = indice.length * 3;
+    const max = indice.length * 5;
+    if (enunciados.length < min) {
+      console.warn(
+        `[ai.service] enunciados cortos: ${enunciados.length} para ${indice.length} secciones (esperados >= ${min})`,
+      );
+    } else if (enunciados.length > max) {
+      console.warn(
+        `[ai.service] enunciados de más: ${enunciados.length} para ${indice.length} secciones (esperados <= ${max})`,
+      );
+    } else {
+      console.warn(`[ai.service] enunciados: ${enunciados.length} para ${indice.length} secciones (ok)`);
+    }
+  }
+  return enunciados;
+}
+
+/**
+ * Rellena los rótulos de los extremos de las escalas que salieron sin ellos.
+ *
+ * El modelo sí emite el objeto `scale` cuando se le pide — medido: 4 de 4
+ * escalas salieron con `"scale": {"min":1,"max":5,"minLabel":"","maxLabel":""}`
+ * — pero deja los dos rótulos vacíos. Es el mismo patrón frágil que con las
+ * opciones: dentro del json no escribe las cadenas, y fuera sí. Así que se
+ * piden aparte, igual que las opciones, y en el mismo formato de texto plano.
+ *
+ * Sin esto, las cuatro escalas de la encuesta de las 176 TES se habrían pintado
+ * como cinco estrellas sin rótulo: la pregunta queda sin sentido para quien la
+ * contesta, y es el autor quien tiene que adivinar qué quería medir.
+ */
+const ANCLAS_POR_TANDA = 8;
+
+async function fillScaleAnchors(form, language) {
+  const es = language === "es";
+  const huecos = form.questions.filter((q) => {
+    if (!RATING_TYPES.includes(q.type)) return false;
+    const s = normalizeScale(q.scale, q.description);
+    return !s.minLabel && !s.maxLabel;
+  });
+  if (huecos.length === 0) return form;
+
+  /* Las tandas van en paralelo (mutan preguntas distintas, así que no se
+     pisan) y cada una devuelve cuántas rotuló: el recuento se suma al final. */
+  const tandas = [];
+  for (let i = 0; i < huecos.length; i += ANCLAS_POR_TANDA) {
+    tandas.push(huecos.slice(i, i + ANCLAS_POR_TANDA));
+  }
+
+  const conteos = await mapLimit(tandas, async (tanda, k) => {
+    const listing = tanda
+      .map((q, j) => `Pregunta ${j + 1}: ${q.label}`)
+      .join("\n");
+
+    try {
+      const raw = await generateText(
+        `Nombra los dos extremos de la escala de estas preguntas, en ${es ? "español" : "English"}.
+
+${listing}
+
+Reglas:
+- El primer rótulo es el extremo BAJO de la escala (lo peor, lo más en desacuerdo, lo menos informado) y el segundo el extremo ALTO (lo mejor, lo más de acuerdo, lo más informado).
+- Deben ser opuestos entre sí y de la misma longitud corta: de dos a cuatro palabras.
+- Nada de números, nada de "opción 1", nada de explicaciones.
+
+Responde con una línea por pregunta: el número, una barra, el rótulo bajo, otra barra y el rótulo alto.
+
+ 1 | Muy en desacuerdo | Muy de acuerdo`,
+        {
+          systemPrompt:
+            "Eres un diseñador de encuestas. Respondes solo con pares de rótulos, sin explicaciones.",
+        },
+      );
+
+      let marcadas = 0;
+      for (const [j, q] of tanda.entries()) {
+        const partes = String(raw)
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .map((l) => l.match(new RegExp(`^${j + 1}\\s*\\|\\s*([^|]+?)\\s*\\|\\s*([^|]+?)\\s*$`)))
+          .find(Boolean);
+        if (!partes) continue;
+        const minLabel = partes[1].trim();
+        const maxLabel = partes[2].trim();
+        if (!minLabel || !maxLabel) continue;
+        q.scale = { ...normalizeScale(q.scale, q.description), minLabel, maxLabel };
+        marcadas += 1;
+      }
+      return marcadas;
+    } catch (err) {
+      console.error(
+        `[ai.service] no se pudieron rellenar los extremos de un lote de ${tanda.length}: ${err.message}`,
+      );
+      return 0;
+    }
+  });
+
+  const filled = conteos.reduce((s, n) => s + n, 0);
+  if (filled > 0) {
+    console.warn(`[ai.service] ${filled}/${huecos.length} escalas con los extremos rotulados`);
+  }
+  return form;
+}
+
+/**
+ * Rellena las opciones de los campos de elección que no llegaron usables.
+ *
+ * El normalizador rescata la forma (un string CSV en vez de un array), pero no
+ * puede inventar las opciones que faltan: contra el proveedor real un desplegable
+ * llegó con `"options": "Muy Bueno"` — bien parseado y tan inútil como vacío.
+ *
+ * Por eso las opciones se piden aparte y EN TEXTO PLANO, no dentro del JSON.
+ * Medido contra qwen-coder-plus en las tres redacciones que se probaron con
+ * `{"fields":[{"options":[...]}]}` (schemaHint, prosa corta, ejemplo), las tres
+ * devolvieron un escalar. El mismo contenido como "1 | A | B | C" volvió las
+ * listas enteras y con el rango completo.
+ *
+ * Van en tandas de ocho y no en una sola llamada. El motivo es el mismo que
+ * justificó sacarlas del json: cuanto más se le pide a una respuesta, menos
+ * fiable es. Con una encuesta de 60 preguntas pueden quedar 25 campos de
+ * elección sin opciones, y pedir 25 líneas numeradas en un solo turno es
+ * exactamente el caso en el que el proveedor se queda a medias. Ocho por turno
+ * es un tamaño que ya se sabe que vuelve entero. Si aun así alguna queda
+ * inservible, se avisa por log y el frontend lo señala en el builder, en vez de
+ * dejar un desplegable vacío en silencio.
+ */
+const OPCIONES_POR_TANDA = 8;
+
+async function fillChoiceOptions(form, language) {
+  const huecos = choiceFieldsNeedingOptions(form.questions);
+  if (huecos.length === 0) return form;
+
+  const es = language === "es";
+
+  /* Igual que las anclas: tandas en paralelo sobre preguntas distintas y el
+     recuento se suma al final. */
+  const tandas = [];
+  for (let i = 0; i < huecos.length; i += OPCIONES_POR_TANDA) {
+    tandas.push(huecos.slice(i, i + OPCIONES_POR_TANDA));
+  }
+
+  const conteos = await mapLimit(tandas, async (tanda) => {
+    /* El numero de la linea es el de la tanda (1..8), no el indice global: es lo
+       que el modelo ve en la lista y es lo que hay que volver a pedir. */
+    const listing = tanda
+      .map((q, j) => {
+        const extra = q.description ? ` — ${q.description}` : "";
+        return `Pregunta ${j + 1}: ${q.label}${extra}`;
+      })
+      .join("\n");
+
+    try {
+      const raw = await generateText(
+        `Escribe las opciones de respuesta de estas preguntas de encuesta, en ${es ? "español" : "English"}. No expliques nada, solo las listas.
+
+${listing}
+
+Reglas:
+- Las opciones dependen de la pregunta, no son genéricas. Si la pregunta es "How did you hear about it?", las opciones son canales, no "Bien / Mal / Regular".
+- Cubre el rango completo, no solo la respuesta obvia ni solo los extremos.
+- Entre 3 y 10 por pregunta, segun lo que la pregunta necesite. Una lista de dos es pobre; una de quince es un formulario que nadie termina.
+- Si la pregunta pide ORDENAR algo, las opciones son las cosas a ordenar, y no llevan "otro".
+- No repitas una opción dentro de la misma lista.
+
+Responde con una línea por pregunta, el número delante y las opciones separadas por " | ":
+
+1 | Muy bueno | Bueno | Regular | Malo`,
+        {
+          systemPrompt:
+            "Eres un diseñador de formularios. Respondes solo con listas de opciones, sin explicaciones.",
+        },
+      );
+
+      const groups = parseFlatOptionGroups(raw);
+
+      let reparadas = 0;
+      for (const [j, q] of tanda.entries()) {
+        const labels = coerceOptionLabels(groups[j + 1]);
+        if (labels.length < MIN_CHOICE_OPTIONS) continue;
+        q.options = labels.map((label) => ({ id: nanoid(8), label, value: "" }));
+        reparadas += 1;
+      }
+      return reparadas;
+    } catch (err) {
+      /* La reparacion es un extra, nunca un motivo para tirar la forma entera. */
+      console.error(
+        `[ai.service] no se pudieron reparar las opciones de un lote de ${tanda.length}: ${err.message}`,
+      );
+      return 0;
+    }
+  });
+
+  const filled = conteos.reduce((s, n) => s + n, 0);
+  if (filled > 0) {
+    console.warn(
+      `[ai.service] ${filled}/${huecos.length} campos de eleccion rellenados en la segunda pasada`,
+    );
+  }
+  const left = choiceFieldsNeedingOptions(form.questions);
+  if (left.length > 0) {
+    console.error(
+      `[ai.service] ${left.length} campo(s) de eleccion siguen sin opciones suficientes: ` +
+        left.map((q) => `"${q.label}" (${q.type}, ${q.options?.length ?? 0})`).join(", "),
+    );
+  }
+
+  return form;
+}
+
+/**
+ * Cablea la lógica condicional que el modelo escribe en prosa pero no en datos.
+ *
+ * Dos patrones que salen siempre y que sin esto se quedan en texto muerto:
+ *  - la puerta de consentimiento ("¿Acepta participar…?"): un No tiene que
+ *    cerrar la encuesta con agradecimiento, no dejar un sí/no más;
+ *  - la pregunta que cuelga de otra ("Si respondió Sí, especifique cuál",
+ *    "¿Cuál? (solo si marcó Otro)", el correo tras ofrecerse a informar):
+ *    sin `visibleIf` se muestra siempre y pide un dato que no toca.
+ *
+ * Es determinista y posterior al montaje porque necesita los `id` finales y las
+ * opciones ya rellenas para saber contra qué valor comparar ("Sí", "Otro"…).
+ * Solo toca preguntas de texto/correo que siguen a una cerrada; lo demás lo
+ * decide el autor en el constructor.
+ *
+ * Exportada para probarla sin llamar al proveedor, como las demás reglas.
+ */
+export function aplicarLogicaCondicional(form) {
+  const qs = form.questions;
+  if (!Array.isArray(qs)) return;
+  let puertas = 0;
+  let condiciones = 0;
+
+  const anteriorRespondible = (idx) => {
+    for (let i = idx - 1; i >= 0; i--) {
+      const q = qs[i];
+      if (q && !STATIC_FIELD_TYPES.includes(q.type)) return q;
+    }
+    return null;
+  };
+  const primeraOpcionSi = (q) => {
+    const etiquetas = (q.options || []).map((o) => o.label);
+    /* `\b` no sirve aquí: en JS es ASCII y tras "í" no hay frontera ("Sí," no
+       casa). La frontera se escribe a mano, en Unicode. */
+    const esSi = (l) => /^\s*s[ií](?![\p{L}\p{N}])/iu.test(l);
+    return (
+      etiquetas.find(esSi) ||
+      etiquetas.find((l) => /\byes\b/i.test(l)) ||
+      (q.type === "yes_no" ? "Sí" : null)
+    );
+  };
+
+  qs.forEach((q, idx) => {
+    if (!q || STATIC_FIELD_TYPES.includes(q.type)) return;
+
+    if (q.type === "yes_no" && !q.isConsentGate &&
+        /participar|voluntaria|consent|agree to participate|acepta participar/i.test(q.label || "")) {
+      q.isConsentGate = true;
+      puertas++;
+    }
+
+    if (q.visibleIf || !["short_text", "long_text", "email"].includes(q.type)) return;
+    const prev = anteriorRespondible(idx);
+    if (!prev) return;
+
+    const texto = `${q.label || ""} ${q.description || ""}`;
+    const cuelgaDeSi = /^(si|if)\b/i.test((q.label || "").trim()) || /s[oó]lo si|only if/i.test(texto);
+    const pideOtro = /otr[oa]\b|other\b|cu[aá]l\b|especifique|specify|which one/i.test(texto);
+    const etiquetasPrev = (prev.options || []).map((o) => o.label);
+    const opcionOtro = etiquetasPrev.find((l) => /otr[oa]\b|other\b/i.test(l));
+
+    if (q.type === "email") {
+      /* El correo casi siempre es "déjemelo si quiere que le informe": solo
+         tiene sentido si la anterior (sí/no o lista) trae un Sí. */
+      const si = primeraOpcionSi(prev);
+      if ((prev.type === "yes_no" || prev.type === "radio") && si) {
+        q.visibleIf = { questionId: prev.id, operator: "equals", value: si };
+        condiciones++;
+      }
+      return;
+    }
+
+    if (cuelgaDeSi) {
+      const si = primeraOpcionSi(prev);
+      if (!si) return;
+      q.visibleIf = {
+        questionId: prev.id,
+        operator: prev.type === "checkbox" ? "includes" : "equals",
+        value: si,
+      };
+      condiciones++;
+      return;
+    }
+
+    if (pideOtro && opcionOtro) {
+      q.visibleIf = {
+        questionId: prev.id,
+        operator: prev.type === "checkbox" ? "includes" : "equals",
+        value: opcionOtro,
+      };
+      condiciones++;
+    }
+  });
+
+  if (puertas || condiciones) {
+    console.warn(`[ai.service] logica condicional: ${puertas} puerta(s) de consentimiento, ${condiciones} pregunta(s) condicional(es)`);
+  }
+}
+
+/**
+ * Una pregunta `url` que en realidad es un enlace para VISITAR ("para más
+ * información, visite https://…") no pide ningún dato: es un mensaje con la
+ * dirección dentro, que el formulario pinta como enlace en pestaña nueva.
+ * Sin esto, quien responde se encuentra una caja pidiéndole que ESCRIBA una
+ * URL, que es justo lo contrario de lo que el prompt pedía.
+ *
+ * Solo se convierte cuando el enunciado lo dice (visite, más información…) y
+ * trae la dirección: una pregunta que de verdad pide una URL ("su sitio web")
+ * se queda como está.
+ *
+ * Exportada para probarla sin llamar al proveedor, como las demás reglas.
+ */
+export function convertirEnlacesInformativos(form) {
+  const qs = form.questions;
+  if (!Array.isArray(qs)) return;
+  let convertidas = 0;
+
+  for (const q of qs) {
+    if (!q || q.type !== "url") continue;
+    const texto = `${q.label || ""} ${q.description || ""}`;
+    if (!/https?:\/\//i.test(texto)) continue;
+    if (!/visite|más información|mas informacion|more information|visit us|conozca más|sitio oficial|official (page|site|website)/i.test(texto)) continue;
+    /* El texto se copia ANTES de limpiar: si no, el mensaje sale vacío. */
+    const contenido = [q.label, q.description].filter(Boolean).join(" ").trim();
+    q.type = "message";
+    q.label = "";
+    q.content = contenido;
+    q.description = "";
+    q.required = false;
+    q.options = [];
+    convertidas++;
+  }
+
+  if (convertidas) {
+    console.warn(`[ai.service] ${convertidas} enlace(s) informativo(s) como mensaje, no como pregunta`);
+  }
+}
+
+/**
+ * Garantiza que el consentimiento informado quede CONSTRUIDO, no mencionado.
+ *
+ * El caso que lo motivó: un prompt con 8 apartados numerados donde el 2 era
+ * "Introducción y consentimiento informado". El generador escribía los
+ * párrafos de cabecera y a veces hasta la pregunta de consentimiento, pero la
+ * auditoría seguía avisando "(1 / 8)": sus palabras ("introducción",
+ * "consentimiento", "informado") no aparecían en ningún rótulo, porque la
+ * pregunta —cuando existía— decía solo "¿Acepta participar…?". Y cuando ni
+ * existía, peor: el formulario pedía datos sin puerta de consentimiento.
+ *
+ * Por eso esto no toca el prompt (pedirlo no bastó) sino el resultado: si el
+ * prompt pide consentimiento y el formulario no trae ni la cabecera con esas
+ * palabras ni la pregunta, se insertan tras los párrafos de introducción —
+ * la sección con el nombre del apartado y el sí/no como puerta de salida.
+ * Si la pregunta ya existe, solo se le marca la puerta y se añade la cabecera
+ * que falte; nunca se duplica nada.
+ *
+ * Exportada para probarla sin llamar al proveedor, como las demás reglas.
+ */
+export function asegurarConsentimiento(form, prompt, language = "en") {
+  if (typeof prompt !== "string") return;
+  if (!/consentimiento|informed consent|acepta participar|participar[\s\S]{0,60}voluntaria|voluntary/i.test(prompt)) return;
+  const qs = form?.questions;
+  if (!Array.isArray(qs)) return;
+  const es = language === "es";
+
+  const esConsent = (q) =>
+    q && !STATIC_FIELD_TYPES.includes(q.type) &&
+    /participar|consentimiento|informed consent|acepta participar/i.test(q.label || "");
+  const tienePalabras = qs.some(
+    (q) => q && /consentimiento/i.test(q.label || "") && /informad[oa]/i.test(q.label || ""),
+  );
+
+  const pregunta = qs.find(esConsent);
+  if (pregunta) pregunta.isConsentGate = true;
+  if (pregunta && tienePalabras) return;
+
+  /* El título de la cabecera sale del propio prompt para que la auditoría lo
+     reconozca palabra por palabra; si no viene con ese nombre, el de siempre. */
+  const m = prompt.match(
+    /^[ \t]*(?:\d{1,2}[.)]\s+)?(Introducci[oó]n\s+y\s+consentimiento\s+informado[^\n:]*)/im,
+  );
+  const titulo =
+    (m && m[1].trim()) || (es ? "Introducción y consentimiento informado" : "Introduction and informed consent");
+
+  /* Tras los párrafos de cabecera: la introducción ya dijo de qué va esto y la
+     puerta va justo antes de la primera pregunta de verdad. */
+  let pos = 0;
+  while (
+    pos < qs.length &&
+    (qs[pos]?.type === "paragraph" || qs[pos]?.type === "message")
+  )
+    pos++;
+
+  const nuevos = [];
+  if (!tienePalabras) {
+    nuevos.push({ type: "section", label: titulo, content: "", required: false, options: [] });
+  }
+  if (!pregunta) {
+    nuevos.push({
+      type: "yes_no",
+      label: es
+        ? "¿Acepta participar en esta encuesta de forma voluntaria?"
+        : "Do you agree to take part in this survey voluntarily?",
+      placeholder: "",
+      description: es
+        ? "Su participación es voluntaria y anónima. Los datos se usarán solo para análisis agregado."
+        : "Your participation is voluntary and anonymous. Data will only be used for aggregate analysis.",
+      helpText: "",
+      required: true,
+      isConsentGate: true,
+    });
+  }
+  if (!nuevos.length) return;
+
+  const completos = nuevos.map((q) => ({
+    id: nanoid(10),
+    type: q.type,
+    label: q.label || "",
+    placeholder: "",
+    description: q.description || "",
+    helpText: "",
+    required: Boolean(q.required),
+    defaultValue: "",
+    options: [],
+    content: q.content || "",
+    scale: null,
+    validation: {},
+    visibleIf: null,
+    isConsentGate: q.isConsentGate === true && q.type === "yes_no",
+  }));
+  qs.splice(pos, 0, ...completos);
+  qs.forEach((q, i) => {
+    if (q && typeof q.order === "number") q.order = i;
+  });
+  console.warn(
+    `[ai.service] consentimiento asegurado: ${completos.length} bloque(s) insertado(s) ("${titulo.slice(0, 50)}")`,
+  );
+}
+
+/**
+ * Garantiza el mensaje de cierre cuando el prompt lo pide ("al final muestra
+ * un agradecimiento y un enlace a …").
+ *
+ * Sin esto pasaban dos cosas malas: el enlace se pedía como pregunta `url`
+ * (una caja para que el entrevistado ESCRIBA una dirección) o no aparecía en
+ * ningún sitio. Si el formulario ya termina con un mensaje que agradece o trae
+ * un enlace, no se toca; si no, se añade al final un mensaje con el
+ * agradecimiento y la primera dirección del prompt, que el formulario pinta
+ * como enlace en pestaña nueva.
+ *
+ * Exportada para probarla sin llamar al proveedor, como las demás reglas.
+ */
+export function asegurarCierre(form, prompt, language = "en") {
+  if (typeof prompt !== "string") return;
+  if (
+    !/al\s+final|mensaje\s+(final|de\s+cierre|de\s+agradecimiento)|closing\s+message|thank\s*you\s+message|mensaje\s+de\s+agradecimiento/i.test(
+      prompt,
+    )
+  )
+    return;
+  const qs = form?.questions;
+  if (!Array.isArray(qs) || !qs.length) return;
+  const es = language === "es";
+
+  /* Los últimos bloques ya cierran si agradecen o traen un enlace. */
+  const ultimos = qs.slice(-3);
+  const yaCierra = ultimos.some((q) => {
+    if (!q) return false;
+    const texto = `${q.content || ""} ${q.label || ""}`;
+    return /gracias|thank|https?:\/\//i.test(texto) && ["message", "paragraph", "section", "heading"].includes(q.type);
+  });
+  if (yaCierra) return;
+
+  const url = (prompt.match(/https?:\/\/[^\s<>"')]+/i) || [])[0]?.replace(/[.,;:!?]+$/, "") || "";
+  const gracias = es ? "Gracias por su tiempo y colaboración." : "Thank you for your time and collaboration.";
+  const contenido = url
+    ? `${gracias} ${es ? "Para más información, visite:" : "For more information, visit:"} ${url}`
+    : gracias;
+
+  qs.push({
+    id: nanoid(10),
+    type: "message",
+    label: "",
+    placeholder: "",
+    description: "",
+    helpText: "",
+    required: false,
+    defaultValue: "",
+    options: [],
+    content: contenido,
+    scale: null,
+    validation: {},
+    visibleIf: null,
+    isConsentGate: false,
+    order: qs.length,
+  });
+  console.warn("[ai.service] cierre asegurado: mensaje final con agradecimiento" + (url ? " y enlace" : ""));
+}
+
+export async function generateValidation({ label, type, description = "", language = "en" }) {
+  if (!label || !type)
+    throw ApiError.badRequest("Field label and type are required");
+
+  /* Con el sitio en español, el mensaje de error sugerido ("message") tiene que
+     salir en español: se fuerza con la instrucción y el `systemPrompt`, igual que
+     en `summarizeForm`. Sin esto el modelo respondía siempre en inglés. */
+  const es = language === "es";
+
+  const schemaHint = `{
+"minLength": number | null,
+"maxLength": number | null,
+"min": number | null,
+"max": number | null,
+"pattern": string,
+"message": string
+}`;
+
+  const data = await generateJson(
+    `Suggest sensible validation rules for a form field.
+Field label: "${label}". Field type: "${type}". ${description ? `Context: ${description}.` : ""}
+Provide a regex pattern when it improves data quality (e.g. phone, postal code), reasonable length/number bounds, and a friendly, specific error "message". Use null for rules that do not apply
+${es ? 'Escribe el valor de CADA campo —sobre todo el mensaje de error "message"— en español; no dejes ningún texto en inglés.' : "Write every value in English."}`,
+    {
+      schemaHint,
+      systemPrompt: es
+        ? 'Eres un asistente de validación de formularios. Respondes únicamente con el objeto JSON solicitado, sin explicaciones, y SIEMPRE en español.'
+        : undefined,
+    },
+  );
+
+  return {
+    minLength: numberOrNull(data.minLength),
+    maxLength: numberOrNull(data.maxLength),
+    min: numberOrNull(data.min),
+    max: numberOrNull(data.max),
+    pattern: typeof data.pattern === "string" ? data.pattern : "",
+    message: typeof data.message === "string" ? data.message : "",
+  };
+}
+
+export async function improveQuestion({ label, type = "short_text" }) {
+  if (!label?.trim())
+    throw ApiError.badRequest("Provide the question to improve");
+
+  const schemaHint = `{
+"improved": string,
+"clarity": string,
+"followUps": string[]
+}`;
+
+  const data = await generateJson(
+    `Improve this ${type} survey/form question for clarity, neutrality and engagement: "${label}".
+Return the rewritten question as "improved", a one-sentence note on what you improved as "clarity", and 2-3 relevant follow-up questions as "followUps".`,
+    { schemaHint },
+  );
+
+  return {
+    improved: data.improved || label,
+    clarity: data.clarity || "",
+    followUps: Array.isArray(data.followUps) ? data.followUps.slice(0, 3) : [],
+  };
+}
+
+export async function summarizeForm(form, language = "en") {
+  if (!form?.questions?.length) {
+    throw ApiError.badRequest("Add some questions before generating a summary");
+  }
+
+  const es = language === "es";
+
+  const outline = form.questions
+    .map((q, i) => `${i + 1}. [${q.type}]${q.required ? " *" : ""} ${q.label}`)
+    .join("\n");
+
+  const schemaHint = `{
+"purpose": string,
+"audience": string,
+"completionTime": string,
+"suggestions": string[]
+}`;
+
+  const data = await generateJson(
+    `Analyse this form titled "${form.title}".
+Questions:\n${outline}\n
+Return its likely "purpose", the target "audience", an estimated "completionTime" (e.g. "2-3 minutes"), and 3-4 concrete "suggestions" to improve completion rate and data quality.
+${es ? 'Escribe el valor de CADA campo —incluido completionTime, p. ej. "2-3 minutos"— en español; no dejes ningun texto en ingles.' : "Write every value in English."}`,
+    {
+      schemaHint,
+      systemPrompt: es
+        ? "Analizas formularios y respondes unicamente con el objeto JSON solicitado, sin explicaciones, y SIEMPRE en español."
+        : undefined,
+    },
+  );
+
+  return {
+    purpose: data.purpose || "",
+    audience: data.audience || "",
+    completionTime: data.completionTime || "",
+    suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
+  };
+}
+
+function numberOrNull(v) {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
+
+export { generateText };

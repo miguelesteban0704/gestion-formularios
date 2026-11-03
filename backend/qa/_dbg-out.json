@@ -1,0 +1,13 @@
+{
+  "P4": {
+    "clave": "Orientación",
+    "valorCorta": "Puedes seleccionar más de una opción entre: rapidez en la atención, am",
+    "largo": 185
+  },
+  "P5": {
+    "clave": "Orientación",
+    "valorCorta": "Selecciona una sola opción entre: Sí, No o Tal vez.",
+    "largo": 51
+  },
+  "cola_entre": "rapidez en la atención, amabilidad del personal, claridad de"
+}

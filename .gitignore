@@ -1,0 +1,60 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependency directories
+node_modules
+
+# Build outputs
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Secrets and local certificates (never commit)
+.env
+.env.*
+certs/
+
+# Temporary diagnostic artifacts / copies
+package-lock copy.json
+public/prism-*.html
+Encuesta_Premium_*/
+
+# AI probe outputs (single-use, regenerated)
+qa/.generado.json
+qa/.generado-servicio.json
+qa/.gen.txt
+
+# Agent workspace artifacts (do not commit)
+.agents/
+.archify/
+.opencode/
+.superpowers/
+graphify-out/
+
+# Scratch / probe files
+_partc.py
+errors.txt
+logs.txt
+fix_report.md
+ai.service.js.backup
+ai-form-builder-flow.svg
+ai-form-builder-flujo.html
+architecture.html
+architecture.md

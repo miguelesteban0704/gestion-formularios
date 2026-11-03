@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formularios publicados · Card System — Design Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300..800&family=Fraunces:wght@400..700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   FORMULARIOS PUBLICADOS → CARD SYSTEM
+   Design sheet · tokens mapeados a src/index.css
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none !important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:#0B101B;color:#E7ECF4;
+  font-family:"DM Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(1200px 700px at 15% -5%,rgba(0,210,255,.10),transparent 60%),
+                   radial-gradient(1000px 600px at 95% 10%,rgba(79,125,232,.10),transparent 55%);
+  background-attachment:fixed;
+}
+svg{display:block}
+button{font-family:inherit}
+
+/* ---------- Sheet toolbar ---------- */
+.sheet-bar{
+  position:sticky;top:0;z-index:200;height:58px;display:flex;align-items:center;gap:18px;
+  padding:0 22px;background:rgba(11,16,27,.82);backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.sheet-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;letter-spacing:-.01em}
+.sheet-logo .mark{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+  background:linear-gradient(140deg,#00D2FF,#0097b8);color:#04212B;font-weight:800;font-size:12px;
+  box-shadow:0 6px 18px -6px rgba(0,210,255,.7)}
+.sheet-logo .sub{color:#7C879B;font-weight:500;font-size:13px}
+.sheet-sep{width:1px;height:22px;background:rgba(255,255,255,.12)}
+.sheet-title{font-size:13.5px;font-weight:600;color:#AEB8CA;letter-spacing:-.005em}
+.sheet-title b{color:#F1F5FB;font-weight:700}
+.sheet-tools{margin-left:auto;display:flex;gap:8px;align-items:center}
+.tool{
+  display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:9px;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);color:#C4CDDD;
+  font-size:12.5px;font-weight:600;cursor:pointer;transition:.18s cubic-bezier(.16,1,.3,1)
+}
+.tool:hover{background:rgba(255,255,255,.10);color:#fff;border-color:rgba(255,255,255,.2)}
+.tool[aria-pressed="true"]{background:rgba(0,210,255,.16);border-color:rgba(0,210,255,.45);color:#7EE9FF}
+.tool .ic{width:15px;height:15px}
+
+/* ---------- Canvas / frames ---------- */
+.canvas{padding:34px 26px 110px;display:flex;flex-direction:column;gap:46px;align-items:center}
+.frame{width:100%;max-width:1500px}
+.frame.split{display:flex;gap:34px;align-items:flex-start;max-width:1500px}
+.frame.split .frame-col{flex:1 1 0;min-width:0}
+.frame-label{display:flex;align-items:center;gap:10px;margin-bottom:11px;padding-left:2px;
+  font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:#8792A6}
+.frame-label .num{color:#00D2FF;font-variant-numeric:tabular-nums}
+.frame-label .w{color:#5C6880;font-weight:600;letter-spacing:.08em;text-transform:none;font-size:11.5px}
+.frame-label .tag{margin-left:auto;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#93A0B5}
+.scaler{position:relative;width:100%}
+.artboard{
+  width:var(--aw);transform-origin:top left;overflow:hidden;border-radius:16px;
+  background:var(--app-bg);position:relative;
+  box-shadow:0 0 0 1px rgba(255,255,255,.07),0 40px 80px -40px rgba(0,0,0,.9),0 8px 24px -12px rgba(0,0,0,.6);
+}
+.guides{position:absolute;inset:0 80px;display:none;pointer-events:none;z-index:60}
+.guides i{flex:1;background:rgba(0,210,255,.06);border-left:1px solid rgba(0,210,255,.28);border-right:1px solid rgba(0,210,255,.28)}
+body.show-guides .artboard[data-vp="desktop"] .guides{display:flex}
+
+/* ============================================================
+   TOKENS (light = default) · mapeados a index.css
+   ============================================================ */
+.artboard{
+  --app-bg:#F4F6FA; --surface:#FFFFFF; --surface-2:#F1F4F9; --surface-3:#E7ECF3;
+  --border:#E2E8F0; --border-strong:#D2DAE6;
+  --fg:#0B1220; --fg-2:#334155; --fg-muted:#667085;
+  --brand:#00D2FF; --brand-600:#00b5db; --brand-700:#0097b8; --brand-800:#007a94;
+  --success:#0e9384; --warning:#d4a43a; --danger:#d14343; --info:#4f7de8; --slate:#64748B;
+  --ink:#0F172A;
+  --shadow-soft:0 1px 2px rgba(16,24,40,.05);
+  --shadow-card:0 1px 2px rgba(16,24,40,.05),0 12px 28px -16px rgba(16,24,40,.28);
+  --shadow-pop:0 12px 40px -8px rgba(16,24,40,.22);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --r-card:22px; --r-md:14px;
+  color-scheme:light;
+}
+.artboard.dark{
+  --app-bg:#0A0F1A; --surface:#111A2B; --surface-2:#162134; --surface-3:#1D2A41;
+  --border:#24304A; --border-strong:#31405E;
+  --fg:#E9EEF7; --fg-2:#C3CFE0; --fg-muted:#8FA0BA;
+  --brand-700:#5FE3FF; --brand-800:#8CEEFF;
+  --ink:#0A0F1A;
+  --shadow-soft:0 1px 2px rgba(0,0,0,.5);
+  --shadow-card:0 1px 0 rgba(255,255,255,.05) inset,0 18px 40px -22px rgba(0,0,0,.85);
+  --shadow-pop:0 1px 0 rgba(255,255,255,.07) inset,0 26px 60px -24px rgba(0,0,0,.95);
+  color-scheme:dark;
+}
+
+/* ============================================================
+   APP CHROME (topbar + page header)
+   ============================================================ */
+.topbar{height:58px;display:flex;align-items:center;gap:16px;padding:0 80px;
+  background:var(--surface);border-bottom:1px solid var(--border);position:relative;z-index:20}
+.topbar .brandmark{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14.5px;color:var(--fg);letter-spacing:-.01em}
+.topbar .brandmark .m{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+  background:linear-gradient(140deg,var(--brand),var(--brand-700));color:#04212B;font-size:12px;font-weight:800}
+.crumbs{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--fg-muted);font-weight:500}
+.crumbs .sl{color:var(--border-strong)}
+.crumbs b{color:var(--fg-2);font-weight:600}
+.topbar .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:700;
+  background:linear-gradient(140deg,#0F172A,#334155);color:#fff;box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--border)}
+
+.page{padding:36px 80px 46px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--brand-700);
+  display:flex;align-items:center;gap:8px}
+.eyebrow::before{content:"";width:16px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--brand),var(--brand-700))}
+h1.display{
+  margin:10px 0 0;font-family:"Fraunces",Georgia,serif;font-optical-sizing:auto;
+  font-weight:600;font-size:37px;line-height:1.08;letter-spacing:-.022em;color:var(--fg);
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap
+}
+.count-badge{
+  min-width:36px;height:30px;padding:0 11px;display:inline-grid;place-items:center;border-radius:10px;
+  background:var(--ink);color:#fff;font-family:"DM Sans",sans-serif;font-size:13.5px;font-weight:700;
+  font-variant-numeric:tabular-nums;letter-spacing:.01em;box-shadow:0 6px 16px -8px rgba(15,23,42,.7)
+}
+.dark .count-badge{background:rgba(255,255,255,.12);color:#EAF6FF;box-shadow:none;
+  border:1px solid rgba(255,255,255,.12)}
+.page-sub{margin:9px 0 0;font-size:14.5px;color:var(--fg-muted);max-width:62ch}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 17px;
+  border-radius:13px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;
+  transition:.2s var(--ease);white-space:nowrap}
+.btn .ic{width:17px;height:17px}
+.btn-primary{background:linear-gradient(180deg,#121B2C,#0B1220);color:#fff;
+  box-shadow:0 10px 24px -12px rgba(11,18,32,.9),inset 0 1px 0 rgba(255,255,255,.14)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 16px 32px -14px rgba(11,18,32,.95),inset 0 1px 0 rgba(255,255,255,.2)}
+.btn-ghost{background:var(--surface);border-color:var(--border);color:var(--fg-2);box-shadow:var(--shadow-soft)}
+.btn-ghost:hover{border-color:var(--border-strong);color:var(--fg);background:var(--surface-2)}
+.btn-quiet{background:transparent;border-color:transparent;color:var(--fg-muted);height:36px;font-size:13.5px}
+.btn-quiet:hover{background:var(--surface-2);color:var(--fg)}
+
+/* ============================================================
+   CONTROL PANEL · search + filters + chips
+   ============================================================ */
+.panel{
+  position:relative;z-index:30;margin-top:26px;display:flex;flex-wrap:wrap;gap:11px;align-items:center;
+  background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:15px;
+  box-shadow:var(--shadow-card)
+}
+.search{position:relative;flex:1 1 340px;min-width:260px}
+.search .ic-lead{position:absolute;left:15px;top:50%;transform:translateY(-50%);width:17px;height:17px;
+  color:var(--fg-muted);pointer-events:none;transition:color .2s}
+.search input{
+  width:100%;height:46px;border-radius:14px;border:1px solid var(--border);background:var(--surface-2);
+  padding:0 76px 0 42px;font:500 14.5px/1 "DM Sans",sans-serif;color:var(--fg);transition:.2s var(--ease)
+}
+.search input::placeholder{color:var(--fg-muted);font-weight:400}
+.search input:focus{outline:none;border-color:var(--brand-600);background:var(--surface);
+  box-shadow:0 0 0 4px rgba(0,210,255,.16)}
+.search input:focus+.ic-lead,.search.filled .ic-lead{color:var(--brand-700)}
+.search .clear{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:28px;height:28px;
+  border-radius:9px;border:0;background:transparent;color:var(--fg-muted);display:none;place-items:center;cursor:pointer}
+.search .clear:hover{background:var(--surface-3);color:var(--fg)}
+.search .clear .ic{width:15px;height:15px}
+.search.filled .clear{display:grid}
+.search .k{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10.5px;font-weight:700;
+  color:var(--fg-muted);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 6px;pointer-events:none}
+.search.filled .k{display:none}
+
+.dd{position:relative}
+.dd-btn{display:inline-flex;align-items:center;gap:9px;height:46px;padding:0 13px;border-radius:14px;
+  background:var(--surface-2);border:1px solid var(--border);color:var(--fg-2);font-size:13.5px;font-weight:600;
+  cursor:pointer;transition:.18s var(--ease);white-space:nowrap}
+.dd-btn:hover{border-color:var(--border-strong);color:var(--fg);background:var(--surface)}
+.dd-btn .ic{width:16px;height:16px;color:var(--fg-muted);transition:transform .2s var(--ease)}
+.dd-btn .lbl{color:var(--fg-muted);font-weight:600}
+.dd-btn .val{color:var(--fg);font-weight:700}
+.dd.open .dd-btn{border-color:var(--brand-600);box-shadow:0 0 0 4px rgba(0,210,255,.15);background:var(--surface)}
+.dd.open .dd-btn .ic-chev{transform:rotate(180deg)}
+.dd-n{min-width:19px;height:19px;padding:0 5px;border-radius:6px;display:inline-grid;place-items:center;
+  background:color-mix(in srgb,var(--brand-700) 22%,transparent);
+  color:var(--brand-800);font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}
+.dd-panel{position:absolute;top:calc(100% + 8px);left:0;min-width:264px;background:var(--surface);
+  border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-pop);padding:7px;
+  opacity:0;visibility:hidden;transform:translateY(-6px) scale(.985);transform-origin:top left;
+  transition:.18s var(--ease);z-index:50}
+.dd.open .dd-panel{opacity:1;visibility:visible;transform:none}
+.dd-panel .hd{display:flex;align-items:center;justify-content:space-between;padding:7px 9px 8px;
+  font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-muted)}
+.dd-panel .hd button{border:0;background:none;color:var(--brand-700);font-size:11.5px;font-weight:700;cursor:pointer;padding:2px 4px;border-radius:6px}
+.dd-panel .hd button:hover{background:var(--surface-2)}
+.opt{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:10px;cursor:pointer;
+  font-size:13.5px;color:var(--fg-2);font-weight:500;transition:.14s}
+.opt:hover{background:var(--surface-2);color:var(--fg)}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.box{width:17px;height:17px;border-radius:5.5px;border:1.5px solid var(--border-strong);background:var(--surface);
+  display:grid;place-items:center;flex:none;transition:.16s var(--ease)}
+.box .ic{width:11px;height:11px;color:#fff;opacity:0;transform:scale(.6);transition:.16s var(--ease);stroke-width:3.2}
+.opt input:checked+.box,.cb input:checked+.box{background:var(--brand-700);border-color:var(--brand-700)}
+.opt input:checked+.box .ic,.cb input:checked+.box .ic{opacity:1;transform:none}
+.opt input:focus-visible+.box{box-shadow:0 0 0 3px rgba(0,210,255,.3)}
+.opt .dotc{width:7px;height:7px;border-radius:50%;flex:none}
+.opt .cnt{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--fg-muted);font-variant-numeric:tabular-nums}
+.dd-sep{height:1px;background:var(--border);margin:6px 4px}
+
+.grow{margin-left:auto;display:flex;align-items:center;gap:10px}
+.vdiv{width:1px;height:26px;background:var(--border)}
+.seg{display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:3px;gap:2px}
+.seg button{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 11px;border:0;border-radius:9px;
+  background:transparent;color:var(--fg-muted);font-size:12.5px;font-weight:700;cursor:pointer;transition:.18s var(--ease)}
+.seg button .ic{width:15px;height:15px}
+.seg button:hover{color:var(--fg)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:var(--shadow-soft);
+  box-shadow:0 1px 2px rgba(16,24,40,.10),inset 0 0 0 1px var(--border)}
+.dd.right .dd-panel{left:auto;right:0;transform-origin:top right}
+
+/* chips activas */
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%;padding-top:3px;
+  border-top:1px dashed var(--border);margin-top:2px}
+.chips:empty,.chips.hidden{display:none}
+.chips .lab{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--fg-muted);margin-right:2px}
+.fchip{display:inline-flex;align-items:center;gap:7px;height:29px;padding:0 5px 0 11px;border-radius:999px;
+  background:color-mix(in srgb,var(--brand-700) 11%,transparent);border:1px solid color-mix(in srgb,var(--brand-700) 30%,transparent);
+  color:var(--brand-800);font-size:12.5px;font-weight:600;animation:chipIn .22s var(--ease)}
+.fchip b{font-weight:700}
+.fchip button{width:19px;height:19px;border:0;border-radius:50%;background:transparent;color:inherit;
+  display:grid;place-items:center;cursor:pointer;opacity:.7}
+.fchip button:hover{background:color-mix(in srgb,var(--brand-700) 20%,transparent);opacity:1}
+.fchip button .ic{width:11px;height:11px;stroke-width:2.6}
+.chips .clear-all{border:0;background:none;color:var(--fg-muted);font-size:12.5px;font-weight:700;
+  cursor:pointer;padding:5px 8px;border-radius:8px;text-decoration:underline;text-underline-offset:3px}
+.chips .clear-all:hover{color:var(--danger);background:color-mix(in srgb,var(--danger) 9%,transparent)}
+@keyframes chipIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+
+/* ============================================================
+   META BAR · resultados / orden / selección
+   ============================================================ */
+.metabar{display:flex;align-items:center;gap:14px;margin:22px 2px 13px;flex-wrap:wrap}
+.meta-left{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--fg-muted);font-weight:500}
+.meta-left b{color:var(--fg);font-weight:700;font-variant-numeric:tabular-nums}
+.meta-left .ent{display:inline-flex;align-items:center;gap:6px;color:var(--fg-2);font-weight:600}
+.meta-right{margin-left:auto;display:flex;align-items:center;gap:9px}
+.selbar{display:none;align-items:center;gap:12px;width:100%;padding:11px 15px;border-radius:14px;
+  background:color-mix(in srgb,var(--brand-700) 10%,transparent);border:1px solid color-mix(in srgb,var(--brand-700) 30%,transparent);
+  animation:chipIn .2s var(--ease)}
+.selbar.on{display:flex}
+.selbar .n{font-size:13.5px;font-weight:800;color:var(--brand-800);font-variant-numeric:tabular-nums}
+.selbar .sp{margin-left:auto;display:flex;gap:8px}
+.selbar .mini{height:30px;padding:0 11px;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border);color:var(--fg-2);transition:.16s}
+.selbar .mini:hover{border-color:var(--border-strong);color:var(--fg)}
+.selbar .mini.x{background:transparent;border-color:transparent;color:var(--fg-muted)}
+
+/* sort dropdown reutiliza .dd (btn 38px) */
+.dd.sort .dd-btn{height:38px;border-radius:12px;background:var(--surface)}
+.dd.sort .dd-btn{padding:0 11px}
+.dd.sort .dd-btn .ic-chev{width:14px;height:14px}
+.sort-opt{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;cursor:pointer;
+  font-size:13.5px;font-weight:600;color:var(--fg-2)}
+.sort-opt:hover{background:var(--surface-2);color:var(--fg)}
+.sort-opt .ic{width:15px;height:15px;opacity:0;color:var(--brand-700)}
+.sort-opt[aria-selected="true"]{color:var(--fg);background:color-mix(in srgb,var(--brand-700) 9%,transparent)}
+.sort-opt[aria-selected="true"] .ic{opacity:1}
+.sort-opt .idx{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;background:var(--surface-2);
+  color:var(--fg-muted);font-size:10.5px;font-weight:800}
+.sort-opt[aria-selected="true"] .idx{background:color-mix(in srgb,var(--brand-700) 20%,transparent);color:var(--brand-800)}
+
+/* ============================================================
+   LISTA + HEADER DE COLUMNAS (estilo B)
+   ============================================================ */
+.list{display:flex;flex-direction:column;gap:14px;position:relative}
+.thead{display:none}
+.list[data-style="b"]{gap:0;background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;box-shadow:var(--shadow-card);overflow:hidden}
+.list[data-style="b"] .thead{
+  display:grid;grid-template-columns:minmax(0,1fr) 214px auto auto auto;align-items:center;
+  padding:11px 18px;background:var(--surface-2);border-bottom:1px solid var(--border)}
+.th{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--fg-muted);cursor:pointer;user-select:none;transition:color .16s;
+  border:0;background:none;text-align:left;width:auto}
+.sort-opt{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;cursor:pointer;
+  font-size:13.5px;font-weight:600;color:var(--fg-2);border:0;background:none;width:100%;text-align:left;
+  font-family:inherit;transition:.14s}
+.th:hover{color:var(--fg)}
+.th.c{justify-content:flex-end;padding-left:20px}
+.th.s{justify-content:flex-start;padding-left:20px}
+.th .sa{display:flex;flex-direction:column;gap:1px;opacity:.45;transition:.16s}
+.th .sa svg{width:9px;height:9px;stroke-width:2.6}
+.th:hover .sa{opacity:.8}
+.th[data-active="true"]{color:var(--brand-800)}
+.th[data-active="true"] .sa{opacity:1;color:var(--brand-700)}
+.th[data-dir="asc"] .sa svg:last-child,.th[data-dir="desc"] .sa svg:first-child{opacity:.25}
+
+/* ============================================================
+   CARD · componente individual
+   ============================================================ */
+.card{
+  position:relative;display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto auto;
+  grid-template-areas:"main metrics status actions" "entity metrics status actions";
+  column-gap:26px;row-gap:5px;align-items:center;
+  padding:17px 20px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-card);box-shadow:var(--shadow-card);
+  transition:box-shadow .24s var(--ease),border-color .2s,transform .24s var(--ease),background .2s;
+  animation:cardIn .34s var(--ease) both
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.card::before{content:"";position:absolute;left:-1px;top:16px;bottom:16px;width:3px;border-radius:0 4px 4px 0;
+  background:linear-gradient(180deg,var(--brand),var(--brand-700));opacity:0;transition:opacity .22s var(--ease)}
+.card:hover{border-color:color-mix(in srgb,var(--brand-700) 42%,var(--border));
+  box-shadow:var(--shadow-pop);transform:translateY(-2px)}
+.card:hover::before{opacity:.55}
+.card.sel{border-color:color-mix(in srgb,var(--brand-700) 65%,var(--border));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--brand-700) 5%,transparent),var(--surface) 55%);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-700) 16%,transparent),var(--shadow-card)}
+.card.sel::before{opacity:1}
+
+.fc-main{grid-area:main;display:flex;gap:13px;align-items:flex-start;min-width:0}
+.cb{position:relative;flex:none;margin-top:2px;cursor:pointer;display:block}
+.cb input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.cb .box{width:19px;height:19px;border-radius:6.5px}
+.cb input:focus-visible+.box{box-shadow:0 0 0 3px rgba(0,210,255,.35)}
+.fc-text{min-width:0}
+.fc-title{display:inline-flex;align-items:center;gap:7px;font-size:16.5px;font-weight:600;letter-spacing:-.012em;
+  color:var(--fg);text-decoration:none;line-height:1.32;cursor:pointer;
+  text-decoration-color:color-mix(in srgb,var(--brand-700) 55%,transparent);
+  text-underline-offset:3px;transition:color .18s}
+.fc-title .arr{width:14px;height:14px;opacity:0;transform:translate(-4px,2px);color:var(--brand-700);
+  transition:.22s var(--ease);flex:none}
+.fc-title:hover{color:var(--brand-800);text-decoration:underline;text-decoration-thickness:1.5px}
+.fc-title:hover .arr{opacity:1;transform:none}
+.fc-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;
+  font-size:12.5px;color:var(--fg-muted);font-weight:500}
+.fc-meta .mono{font-variant-numeric:tabular-nums;letter-spacing:.02em;color:var(--fg-muted);font-weight:600}
+.fc-meta .sd{width:3px;height:3px;border-radius:50%;background:var(--border-strong);flex:none}
+.fc-entity{grid-area:entity;min-width:0}
+.e-pill{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 10px 0 8px;border-radius:9px;
+  background:var(--surface-2);border:1px solid var(--border);color:var(--fg-2);font-size:12.5px;font-weight:600;
+  max-width:100%;transition:.18s}
+.e-pill .ic{width:14px;height:14px;color:var(--brand-700);flex:none}
+.e-pill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card:hover .e-pill{border-color:var(--border-strong);background:var(--surface-3)}
+
+.fc-metrics{grid-area:metrics;display:flex;gap:9px}
+.metric{display:flex;align-items:center;gap:9px;min-width:162px;padding:8px 11px 8px 9px;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);
+  transition:.2s var(--ease)}
+.metric .mi{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;
+  background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--c)}
+.metric .mi .ic{width:15px;height:15px}
+.metric .mt{min-width:0}
+.metric .mv{font-size:15.5px;font-weight:700;line-height:1.15;color:var(--fg);font-variant-numeric:tabular-nums;
+  letter-spacing:-.01em}
+.metric .ml{font-size:9.5px;font-weight:800;letter-spacing:.075em;text-transform:uppercase;color:var(--fg-muted);
+  white-space:nowrap;margin-top:1px}
+.metric .mr{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none}
+.delta{font-size:10.5px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;letter-spacing:.01em}
+.delta.up{color:var(--success)} .delta.down{color:var(--danger)}
+.meter{width:54px;height:5px;border-radius:99px;background:var(--surface-3);overflow:hidden;box-shadow:inset 0 1px 2px rgba(16,24,40,.10)}
+.meter i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--brand-700),var(--brand));
+  animation:meterIn .7s var(--ease) both}
+@keyframes meterIn{from{width:0}}
+.meter.v{background:color-mix(in srgb,var(--success) 18%,var(--surface-3))}
+.meter.v i{background:linear-gradient(90deg,var(--success),#3FC7B4)}
+.spark{overflow:visible}
+.metric .pct{font-size:10.5px;font-weight:800;color:var(--fg-muted);font-variant-numeric:tabular-nums}
+
+.fc-status{grid-area:status;display:flex;justify-content:flex-end}
+.chip{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 12px;border-radius:999px;
+  font-size:12.5px;font-weight:700;letter-spacing:-.005em;white-space:nowrap;
+  background:color-mix(in srgb,var(--c) 12%,var(--surface));
+  border:1px solid color-mix(in srgb,var(--c) 34%,transparent);
+  color:color-mix(in srgb,var(--c) 76%,var(--fg));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55)}
+.dark .chip,.glass .chip{box-shadow:inset 0 1px 0 rgba(255,255,255,.07)}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:var(--c);flex:none;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 26%,transparent)}
+
+.fc-actions{grid-area:actions;display:flex;align-items:center;gap:5px;padding-left:4px}
+.iconbtn{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;border:1px solid transparent;
+  background:transparent;color:var(--fg-muted);cursor:pointer;transition:.18s var(--ease)}
+.iconbtn .ic{width:17px;height:17px}
+.iconbtn:hover{background:var(--surface-2);border-color:var(--border);color:var(--fg);
+  box-shadow:var(--shadow-soft)}
+.iconbtn:active{transform:scale(.94);transition-duration:90ms}
+.iconbtn.accent:hover{background:color-mix(in srgb,var(--brand-700) 12%,transparent);
+  border-color:color-mix(in srgb,var(--brand-700) 34%,transparent);color:var(--brand-800)}
+.iconbtn[aria-expanded="true"]{background:var(--surface-3);border-color:var(--border-strong);color:var(--fg)}
+.menuwrap{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 7px);width:200px;background:var(--surface);
+  border:1px solid var(--border);border-radius:15px;box-shadow:var(--shadow-pop);padding:6px;z-index:70;
+  transform-origin:top right;opacity:0;visibility:hidden;transform:translateY(-7px) scale(.97);
+  transition:.17s var(--ease)}
+.menu.open{opacity:1;visibility:visible;transform:none}
+.menu button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;border-radius:10px;
+  background:transparent;color:var(--fg-2);font-size:13.5px;font-weight:600;cursor:pointer;text-align:left;
+  transition:.14s}
+.menu button .ic{width:15.5px;height:15.5px;color:var(--fg-muted);flex:none}
+.menu button:hover{background:var(--surface-2);color:var(--fg)}
+.menu button:hover .ic{color:var(--fg)}
+.menu .sep{height:1px;background:var(--border);margin:5px 5px}
+.menu .danger,.menu .danger .ic{color:var(--danger)}
+.menu .danger:hover{background:color-mix(in srgb,var(--danger) 10%,transparent);color:var(--danger)}
+
+/* ---------- estilo B (filas interconectadas) ---------- */
+.list[data-style="b"] .card{
+  grid-template-columns:minmax(0,1fr) 214px auto auto auto;
+  grid-template-areas:"main entity metrics status actions";
+  column-gap:0;row-gap:0;padding:13px 18px;border:0;border-radius:0;box-shadow:none;background:transparent}
+.list[data-style="b"] .card+.card{border-top:1px solid var(--border)}
+.list[data-style="b"] .card::before{display:none}
+.list[data-style="b"] .card:hover{background:var(--surface-2);transform:none;box-shadow:none}
+.list[data-style="b"] .card.sel{background:color-mix(in srgb,var(--brand-700) 7%,transparent);
+  box-shadow:inset 3px 0 0 var(--brand-700)}
+.list[data-style="b"] .fc-entity{border-left:1px solid var(--border);padding-left:20px;align-self:stretch;
+  display:flex;align-items:center}
+.list[data-style="b"] .fc-metrics{border-left:1px solid var(--border);padding-left:20px;align-items:center;
+  display:grid;grid-template-columns:172px 172px;gap:9px}
+.list[data-style="b"] .fc-status{border-left:1px solid var(--border);padding-left:20px;align-items:center;
+  justify-content:flex-start}
+.list[data-style="b"] .fc-actions{border-left:1px solid var(--border);padding-left:14px}
+.list[data-style="b"] .metric{min-width:0;padding:6px 9px;background:transparent;border-color:transparent}
+.list[data-style="b"] .metric .mr{display:none}
+.list[data-style="b"] .metric .mi{width:26px;height:26px}
+.list[data-style="b"] .fc-title{font-size:15px}
+.list[data-style="b"] .fc-meta{margin-top:2px}
+.th.m{display:grid;grid-template-columns:172px 172px;gap:9px;padding-left:20px;border-left:1px solid var(--border);
+  align-self:stretch;align-items:center}
+.thc{display:flex;align-items:center;justify-content:flex-end;gap:6px;font:inherit;letter-spacing:inherit;
+  text-transform:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0;transition:color .16s}
+.thc:hover{color:var(--fg)}
+.thc[data-active="true"]{color:var(--brand-800)}
+.thc[data-active="true"] .sa{opacity:1;color:var(--brand-700)}
+.thc[data-dir="asc"] .sa svg:last-child,.thc[data-dir="desc"] .sa svg:first-child{opacity:.25}
+.th.blank{cursor:default}
+.th.blank:hover{color:var(--fg-muted)}
+
+/* ---------- vacío / paginación ---------- */
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:56px 24px 60px;
+  background:var(--surface);border:1px dashed var(--border-strong);border-radius:var(--r-card)}
+.empty .ei{width:54px;height:54px;border-radius:17px;display:grid;place-items:center;margin-bottom:6px;
+  background:color-mix(in srgb,var(--brand-700) 12%,transparent);color:var(--brand-700);
+  border:1px solid color-mix(in srgb,var(--brand-700) 26%,transparent)}
+.empty .ei .ic{width:25px;height:25px}
+.empty h3{margin:0;font-size:17px;font-weight:700;color:var(--fg);letter-spacing:-.01em}
+.empty p{margin:0;font-size:13.5px;color:var(--fg-muted)}
+.empty .btn{margin-top:12px}
+.morewrap{display:flex;justify-content:center;margin-top:22px}
+.morebtn{display:inline-flex;align-items:center;gap:10px;height:44px;padding:0 22px;border-radius:14px;
+  background:var(--surface);border:1px solid var(--border);color:var(--fg-2);font-size:14px;font-weight:700;
+  cursor:pointer;box-shadow:var(--shadow-soft);transition:.2s var(--ease)}
+.morebtn:hover{border-color:color-mix(in srgb,var(--brand-700) 45%,var(--border));color:var(--fg);
+  box-shadow:var(--shadow-card);transform:translateY(-1px)}
+.morebtn .n{min-width:23px;height:21px;padding:0 6px;border-radius:7px;display:grid;place-items:center;
+  background:var(--surface-2);border:1px solid var(--border);font-size:11.5px;font-weight:800;
+  font-variant-numeric:tabular-nums;color:var(--fg-muted)}
+.morebtn:hover .n{background:color-mix(in srgb,var(--brand-700) 14%,transparent);
+  border-color:color-mix(in srgb,var(--brand-700) 30%,transparent);color:var(--brand-800)}
+.morebtn .ic{width:15px;height:15px}
+.pager{display:flex;align-items:center;gap:6px;justify-content:center;margin-top:20px}
+.pager .pg{width:32px;height:32px;border-radius:10px;border:1px solid var(--border);background:var(--surface);
+  color:var(--fg-muted);font-size:13px;font-weight:700;display:grid;place-items:center;cursor:pointer}
+.pager .pg.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.dark .pager .pg.on{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2);color:#fff}
+.pager .pg:disabled{opacity:.45;cursor:not-allowed}
+.pager .gl{width:1px;height:18px;background:var(--border);margin:0 4px}
+.foot-note{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;font-size:12.5px;
+  color:var(--fg-muted)}
+.foot-note .ic{width:14px;height:14px;flex:none}
+.foot-note b{color:var(--fg-2);font-weight:700;font-variant-numeric:tabular-nums}
+
+/* ---------- toast ---------- */
+#toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,20px);z-index:500;display:flex;align-items:center;gap:11px;
+  padding:12px 17px 12px 13px;border-radius:14px;background:rgba(11,18,32,.94);color:#EAF1FA;
+  border:1px solid rgba(255,255,255,.12);box-shadow:0 24px 50px -20px rgba(0,0,0,.9);
+  font-size:13.5px;font-weight:600;opacity:0;visibility:hidden;transition:.26s var(--ease);backdrop-filter:blur(10px)}
+#toast.on{opacity:1;visibility:visible;transform:translate(-50%,0)}
+#toast .tk{width:26px;height:26px;border-radius:9px;display:grid;place-items:center;flex:none;
+  background:color-mix(in srgb,#0e9384 35%,transparent);color:#5EEAD4}
+#toast .tk .ic{width:15px;height:15px}
+#toast em{font-style:normal;color:#8FA3BE;font-weight:500}
+
+/* ============================================================
+   RESPONSIVE POR ARTBOARD (no por viewport)
+   ============================================================ */
+.artboard[data-vp="tablet"] .page{padding:30px 40px 40px}
+.artboard[data-vp="tablet"] .topbar{padding:0 40px}
+.artboard[data-vp="tablet"] .crumbs .hide-t{display:none}
+.artboard[data-vp="tablet"] .card{
+  grid-template-columns:minmax(0,1fr) auto auto;
+  grid-template-areas:"main status actions" "entity status actions" "metrics metrics metrics";
+  column-gap:18px;row-gap:11px;padding:18px 20px}
+.artboard[data-vp="tablet"] .fc-metrics{padding-top:3px}
+.artboard[data-vp="tablet"] .metric{flex:1 1 0;min-width:0}
+.artboard[data-vp="tablet"] .list[data-style="b"] .card{
+  grid-template-areas:"main status actions" "entity status actions" "metrics metrics metrics";
+  grid-template-columns:minmax(0,1fr) auto auto;padding:15px 18px}
+.artboard[data-vp="tablet"] .list[data-style="b"] .fc-entity{border-left:0;padding-left:0}
+.artboard[data-vp="tablet"] .list[data-style="b"] .fc-metrics{border-left:0;padding-left:0;
+  border-top:1px solid var(--border);padding-top:11px}
+.artboard[data-vp="tablet"] .list[data-style="b"] .thead{display:none}
+.artboard[data-vp="tablet"] h1.display{font-size:31px}
+.artboard[data-vp="tablet"] .page-head .btn{height:40px}
+
+.artboard[data-vp="mobile"] .topbar{padding:0 18px;height:54px;gap:10px}
+.artboard[data-vp="mobile"] .crumbs{display:none}
+.artboard[data-vp="mobile"] .page{padding:22px 18px 34px}
+.artboard[data-vp="mobile"] h1.display{font-size:26px;gap:10px}
+.artboard[data-vp="mobile"] .page-sub{font-size:13.5px}
+.artboard[data-vp="mobile"] .page-head{align-items:flex-start;flex-direction:column;gap:16px}
+.artboard[data-vp="mobile"] .page-head .btn{width:100%}
+.artboard[data-vp="mobile"] .panel{padding:12px;gap:9px;border-radius:18px}
+.artboard[data-vp="mobile"] .search{flex:1 1 100%}
+.artboard[data-vp="mobile"] .dd{flex:1 1 calc(50% - 5px)}
+.artboard[data-vp="mobile"] .dd-btn{width:100%;justify-content:space-between;height:44px}
+.artboard[data-vp="mobile"] .dd-panel{min-width:0;width:100%}
+.artboard[data-vp="mobile"] .grow{margin-left:0;flex:1 1 100%;justify-content:space-between;
+  padding-top:10px;border-top:1px solid var(--border)}
+.artboard[data-vp="mobile"] .grow .vdiv{display:none}
+.artboard[data-vp="mobile"] .metabar{margin:18px 0 12px}
+.artboard[data-vp="mobile"] .meta-right .hide-m{display:none}
+.artboard[data-vp="mobile"] .card{
+  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:"main main" "entity entity" "metrics metrics" "status actions";
+  column-gap:14px;row-gap:13px;padding:17px 17px 15px;border-radius:20px}
+.artboard[data-vp="mobile"] .fc-main{gap:11px}
+.artboard[data-vp="mobile"] .fc-title{font-size:15.5px}
+.artboard[data-vp="mobile"] .fc-metrics{gap:9px}
+.artboard[data-vp="mobile"] .metric{flex:1 1 0;min-width:0}
+.artboard[data-vp="mobile"] .metric .ml{font-size:9px}
+.artboard[data-vp="mobile"] .fc-status{justify-content:flex-start;align-items:center}
+.artboard[data-vp="mobile"] .fc-actions{padding-left:0;justify-content:flex-end}
+.artboard[data-vp="mobile"] .list[data-style="b"]{gap:0}
+.artboard[data-vp="mobile"] .list[data-style="b"] .card{
+  grid-template-areas:"main main" "entity entity" "metrics metrics" "status actions";
+  grid-template-columns:minmax(0,1fr) auto;padding:15px}
+.artboard[data-vp="mobile"] .list[data-style="b"] .fc-entity,
+.artboard[data-vp="mobile"] .list[data-style="b"] .fc-metrics,
+.artboard[data-vp="mobile"] .list[data-style="b"] .fc-status,
+.artboard[data-vp="mobile"] .list[data-style="b"] .fc-actions{border-left:0;padding-left:0}
+.artboard[data-vp="mobile"] .list[data-style="b"] .fc-metrics{border-top:1px solid var(--border);padding-top:12px}
+.artboard[data-vp="mobile"] .list[data-style="b"] .thead{display:none}
+.artboard[data-vp="mobile"] .selbar{flex-wrap:wrap}
+.artboard[data-vp="mobile"] .selbar .sp{margin-left:0;width:100%}
+.artboard[data-vp="mobile"] .empty{padding:40px 18px 44px}
+
+/* ============================================================
+   GLASS · frame 04 (dark alternativo)
+   ============================================================ */
+.artboard.glass{
+  --app-bg:#060A12;
+  --surface:rgba(255,255,255,.055); --surface-2:rgba(255,255,255,.075); --surface-3:rgba(255,255,255,.11);
+  --border:rgba(255,255,255,.105); --border-strong:rgba(255,255,255,.19);
+  --fg:#EDF2F9; --fg-2:#C8D3E3; --fg-muted:#94A3B8;
+  --brand-700:#5FE3FF; --brand-800:#8CEEFF; --ink:#0A0F1A;
+  --shadow-soft:0 1px 0 rgba(255,255,255,.05) inset;
+  --shadow-card:0 1px 0 rgba(255,255,255,.07) inset,0 20px 44px -24px rgba(0,0,0,.9);
+  --shadow-pop:0 1px 0 rgba(255,255,255,.1) inset,0 30px 64px -26px rgba(0,0,0,.95);
+  color-scheme:dark
+}
+.artboard.glass .blob{position:absolute;border-radius:50%;filter:blur(78px);pointer-events:none;z-index:0}
+.artboard.glass .b1{width:520px;height:520px;left:-140px;top:-180px;background:radial-gradient(circle,rgba(0,210,255,.55),transparent 65%);opacity:.55}
+.artboard.glass .b2{width:460px;height:460px;right:-120px;top:180px;background:radial-gradient(circle,rgba(126,108,192,.55),transparent 65%);opacity:.5}
+.artboard.glass .b3{width:520px;height:520px;left:38%;bottom:-260px;background:radial-gradient(circle,rgba(14,147,132,.5),transparent 65%);opacity:.45}
+.artboard.glass .topbar,.artboard.glass .panel,.artboard.glass .card,.artboard.glass .metric,
+.artboard.glass .e-pill,.artboard.glass .empty,.artboard.glass .list,
+.artboard.glass .dd-panel,.artboard.glass .menu,.artboard.glass .morebtn,
+.artboard.glass .seg,.artboard.glass .dd-btn,.artboard.glass .search input{
+  backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px)}
+.artboard.glass .topbar,.artboard.glass .panel,.artboard.glass .card,.artboard.glass .list,
+.artboard.glass .morebtn,.artboard.glass .seg,.artboard.glass .dd-btn{
+  background:rgba(255,255,255,.06)}
+.artboard.glass .topbar{background:rgba(8,12,22,.55)}
+.artboard.glass .panel{background:rgba(10,15,26,.5)}
+.artboard.glass .card{background:rgba(255,255,255,.055)}
+.artboard.glass .page,.artboard.glass .topbar,.artboard.glass .stage{position:relative;z-index:2}
+.artboard.glass .btn-primary{background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.07));
+  border:1px solid rgba(255,255,255,.2);box-shadow:0 12px 30px -16px rgba(0,0,0,.9)}
+.artboard.glass .count-badge{background:rgba(0,210,255,.18);color:#9BF0FF;border:1px solid rgba(0,210,255,.4);
+  box-shadow:0 8px 24px -12px rgba(0,210,255,.6)}
+.artboard.glass .search input{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12);color:#EDF2F9}
+.artboard.glass .search input::placeholder{color:#8FA0BA}
+.artboard.glass .metric{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.1)}
+.artboard.glass .avatar{box-shadow:0 0 0 2px rgba(10,15,26,.9),0 0 0 3.5px rgba(255,255,255,.18)}
+
+/* ============================================================
+   FRAME 05 · comparativa A vs B
+   ============================================================ */
+.sheet-sec{background:var(--surface);border:1px solid var(--border);border-radius:24px;
+  box-shadow:var(--shadow-card);padding:26px 28px 30px;position:relative;overflow:hidden}
+.sheet-sec+.sheet-sec{margin-top:24px}
+.sec-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:22px}
+.sec-idx{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:none;font-size:13px;
+  font-weight:800;background:linear-gradient(140deg,var(--brand),var(--brand-700));color:#04212B;
+  box-shadow:0 8px 20px -10px color-mix(in srgb,var(--brand-700) 70%,transparent)}
+.sec-head h3{margin:0;font-size:18px;font-weight:700;letter-spacing:-.015em;color:var(--fg)}
+.sec-head p{margin:4px 0 0;font-size:13.5px;color:var(--fg-muted);max-width:74ch}
+.sec-head .badge{margin-left:auto;flex:none;font-size:10.5px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;padding:5px 10px;border-radius:8px;background:var(--surface-2);
+  border:1px solid var(--border);color:var(--fg-muted);white-space:nowrap}
+.sec-head .badge.rec{background:color-mix(in srgb,var(--success) 13%,transparent);
+  border-color:color-mix(in srgb,var(--success) 34%,transparent);color:color-mix(in srgb,var(--success) 82%,var(--fg))}
+.pros{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.pro{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--fg-2);
+  background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:5px 10px}
+.pro .ic{width:13px;height:13px;color:var(--success)}
+
+/* ============================================================
+   FRAME 06 · variantes de métrica
+   ============================================================ */
+.mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.mcol{background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:20px}
+.mcol .mh{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.mcol .k{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:800;
+  background:var(--ink);color:#fff}
+.dark .mcol .k{background:rgba(255,255,255,.15)}
+.mcol .k.b{background:var(--brand-700);color:#04212B}
+.mcol .k.c{background:var(--success);color:#fff}
+.mcol .mh h4{margin:0;font-size:14.5px;font-weight:700;color:var(--fg);letter-spacing:-.01em}
+.mcol .mh small{display:block;font-size:11.5px;color:var(--fg-muted);font-weight:500}
+.mdemo{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px;
+  display:flex;align-items:center;justify-content:center;min-height:96px;box-shadow:var(--shadow-soft)}
+.mcol .note{margin-top:13px;font-size:12.5px;color:var(--fg-muted);line-height:1.55}
+.mcol .note code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;font-weight:600;
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1px 5px;color:var(--fg-2)}
+
+/* ============================================================
+   FRAME 07 · chips, estados, menú
+   ============================================================ */
+.chip-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.chip-lg{height:34px;padding:0 15px;font-size:13.5px;border-radius:999px}
+.states{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.state{background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:18px}
+.state .sh{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.state .sh .sw{width:9px;height:9px;border-radius:50%;background:var(--border-strong)}
+.state .sh h4{margin:0;font-size:12px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-muted)}
+.state .sh .k{margin-left:auto;font-size:11px;font-weight:700;color:var(--fg-muted);
+  font-family:ui-monospace,Menlo,monospace;background:var(--surface);border:1px solid var(--border);
+  border-radius:6px;padding:2px 7px}
+.state .sh .sw.h{background:var(--brand)} .state .sh .sw.s{background:var(--success)}
+.state .demo{position:relative}
+.state .demo .card{animation:none;margin:0}
+.state .demo .card.force-hover{border-color:color-mix(in srgb,var(--brand-700) 42%,var(--border));
+  box-shadow:var(--shadow-pop);transform:translateY(-2px)}
+.state .demo .card.force-hover::before{opacity:.55}
+.state .demo .card.force-hover .e-pill{border-color:var(--border-strong);background:var(--surface-3)}
+.state .demo .card.force-sel{border-color:color-mix(in srgb,var(--brand-700) 65%,var(--border));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--brand-700) 5%,transparent),var(--surface) 55%);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-700) 16%,transparent),var(--shadow-card)}
+.state .demo .card.force-sel::before{opacity:1}
+/* Demos estrechos del frame 07: solo título, estado y acciones. */
+.state .demo .card{
+  grid-template-columns:minmax(0,1fr) auto auto;
+  grid-template-areas:"main status actions" "main status actions";
+  column-gap:16px;padding:15px 16px}
+.state .demo .card .fc-entity,
+.state .demo .card .fc-metrics{display:none}
+.state .demo .card .fc-title{font-size:14.5px}
+.state .demo .card .fc-meta{flex-wrap:nowrap}
+.state .demo .card .fc-meta .sd,
+.state .demo .card .fc-meta>span:nth-of-type(3){display:none}
+.state .cap{margin-top:12px;font-size:12.5px;color:var(--fg-muted);line-height:1.55}
+.metric .meter.w{width:86px}
+.menu-demo{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start}
+.md-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-card);
+  padding:17px 20px;box-shadow:var(--shadow-card)}
+.md-card .menu{position:absolute;right:18px;top:64px;opacity:1;visibility:visible;transform:none}
+.md-side{background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:18px}
+.md-side h4{margin:0 0 12px;font-size:12px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-muted)}
+.btn-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ibtn-demo{display:flex;align-items:center;gap:9px;height:40px;padding:0 14px;border-radius:12px;
+  background:var(--surface);border:1px solid var(--border);color:var(--fg-2);font-size:13.5px;font-weight:700;
+  cursor:pointer;box-shadow:var(--shadow-soft)}
+.ibtn-demo:hover{border-color:var(--border-strong);color:var(--fg)}
+.ibtn-demo .ic{width:16px;height:16px}
+.ibtn-demo.brand{background:color-mix(in srgb,var(--brand-700) 12%,transparent);
+  border-color:color-mix(in srgb,var(--brand-700) 34%,transparent);color:var(--brand-800)}
+.ibtn-demo:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(0,210,255,.32)}
+.ibtn-demo:disabled{opacity:.45;cursor:not-allowed}
+.ibtn-demo.danger{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 30%,transparent)}
+
+/* ============================================================
+   FRAME 08 · tokens
+   ============================================================ */
+.tok-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:22px}
+.tok{grid-column:span 4;background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:20px}
+.tok.w6{grid-column:span 6} .tok.w8{grid-column:span 8} .tok.w12{grid-column:span 12}
+.tok h4{margin:0 0 4px;font-size:14.5px;font-weight:700;letter-spacing:-.01em;color:var(--fg)}
+.tok .sd{margin:0 0 16px;font-size:12.5px;color:var(--fg-muted)}
+.sw-row{display:flex;gap:7px;flex-wrap:wrap}
+.sw{flex:1 1 62px;min-width:62px}
+.sw i{display:block;height:46px;border-radius:11px;border:1px solid rgba(16,24,40,.10);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.sw span{display:block;margin-top:6px;font-size:10.5px;font-weight:700;color:var(--fg-muted);
+  font-family:ui-monospace,Menlo,monospace;letter-spacing:-.02em}
+.type-row{display:flex;align-items:baseline;gap:14px;padding:11px 0;border-bottom:1px dashed var(--border)}
+.type-row:last-child{border-bottom:0}
+.type-row .lbl{width:120px;flex:none;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--fg-muted);font-family:ui-monospace,Menlo,monospace}
+.type-row .spec{color:var(--fg);letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.type-row .meta{margin-left:auto;font-size:11px;color:var(--fg-muted);font-family:ui-monospace,Menlo,monospace;
+  white-space:nowrap;flex:none}
+.rad-row,.sh-row,.sp-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.rad{flex:1 1 76px;text-align:center}
+.rad i{display:block;height:56px;background:linear-gradient(140deg,color-mix(in srgb,var(--brand-700) 22%,var(--surface)),var(--surface));
+  border:1.5px solid color-mix(in srgb,var(--brand-700) 45%,transparent)}
+.rad span,.sh span,.sp span{display:block;margin-top:7px;font-size:10.5px;font-weight:700;color:var(--fg-muted);
+  font-family:ui-monospace,Menlo,monospace}
+.sh{flex:1 1 128px;text-align:center}
+.sh i{display:block;height:64px;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.sh.c1 i{box-shadow:var(--shadow-soft)} .sh.c2 i{box-shadow:var(--shadow-card)} .sh.c3 i{box-shadow:var(--shadow-pop)}
+.sp{flex:1 1 54px}
+.sp i{display:block;background:color-mix(in srgb,var(--brand-700) 40%,transparent);border-radius:4px}
+.sp.s1 i{height:8px}.sp.s2 i{height:16px}.sp.s3 i{height:24px}.sp.s4 i{height:32px}
+.sp.s5 i{height:40px}.sp.s6 i{height:48px}
+.eas{display:flex;gap:14px;flex-wrap:wrap}
+.eas .e{flex:1 1 190px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 15px}
+.eas .e b{display:block;font-size:13px;color:var(--fg);margin-bottom:3px}
+.eas .e code{font-size:11px;color:var(--fg-muted);font-family:ui-monospace,Menlo,monospace;word-break:break-all}
+.eas .e .bar{height:6px;border-radius:99px;margin-top:10px;background:linear-gradient(90deg,var(--brand-700),var(--brand))}
+
+/* reduced motion */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;
+    transition-duration:.001ms !important}
+}
+</style>
+</head>
+<body>
+
+<header class="sheet-bar">
+  <div class="sheet-logo"><span class="mark">F</span> FormularioIA <span class="sub">· Design Sheet</span></div>
+  <div class="sheet-sep"></div>
+  <div class="sheet-title"><b>Formularios publicados</b> — sistema de tarjetas de resultados</div>
+  <div class="sheet-tools">
+    <button class="tool" id="t-guides" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 3v18M9 3v18M15 3v18M20 3v18"/></svg>Guías de grid</button>
+    <button class="tool" id="t-theme" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Modo oscuro</button>
+  </div>
+</header>
+
+<main class="canvas">
+<!-- ══════════════ 01 · DESKTOP LIGHT ══════════════ -->
+<section class="frame">
+  <div class="frame-label"><span class="num">01</span> Desktop · 1440 <span class="w">Vista principal — Light mode</span><span class="tag">Card Style A · Interactivo</span></div>
+  <div class="scaler">
+    <div class="artboard" data-vp="desktop" data-themeable style="--aw:1440px">
+      <div class="guides"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="stage">
+        <div class="topbar">
+          <div class="brandmark"><span class="m">F</span>FormularioIA</div>
+          <nav class="crumbs"><span class="hide-t">Centro de control</span><span class="sl hide-t">/</span><b>Formularios públicos</b></nav>
+          <div class="right"><div class="avatar">MG</div></div>
+        </div>
+        <div class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Centro de control</div>
+              <h1 class="display">Formularios publicados <span class="count-badge" id="f1-count">10</span></h1>
+              <p class="page-sub" id="f1-summary">Supervisa formularios publicados, respuestas y alcance por entidad.</p>
+            </div>
+            <button class="btn btn-primary" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-plus"/></svg>Nuevo formulario</button>
+          </div>
+
+          <div class="panel">
+            <div class="search" id="f1-sw">
+              <svg class="ic-lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-search"/></svg>
+              <input id="f1-search" type="text" autocomplete="off" placeholder="Buscar por título o entidad…" aria-label="Buscar formularios">
+              <span class="k">⌘K</span>
+              <button class="clear" id="f1-clear" type="button" aria-label="Borrar búsqueda"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><use href="#i-x"/></svg></button>
+            </div>
+
+            <div class="dd" id="f1-dd-entity">
+              <button class="dd-btn" type="button" aria-expanded="false" aria-haspopup="true">
+                <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-building"/></svg>
+                <span class="lbl">Entidad</span><span class="val" id="f1-ent-val">Todas</span>
+                <span class="dd-n" id="f1-ent-n" hidden>0</span>
+                <svg class="ic ic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chev"/></svg>
+              </button>
+              <div class="dd-panel"><div class="hd"><span>Filtrar por entidad</span><button type="button" data-clear="entity">Limpiar</button></div><div id="f1-ent-opts"></div></div>
+            </div>
+
+            <div class="dd" id="f1-dd-status">
+              <button class="dd-btn" type="button" aria-expanded="false" aria-haspopup="true">
+                <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-filter"/></svg>
+                <span class="lbl">Estado</span><span class="val" id="f1-st-val">Todos</span>
+                <span class="dd-n" id="f1-st-n" hidden>0</span>
+                <svg class="ic ic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chev"/></svg>
+              </button>
+              <div class="dd-panel"><div class="hd"><span>Filtrar por estado</span><button type="button" data-clear="status">Limpiar</button></div><div id="f1-st-opts"></div></div>
+            </div>
+
+            <div class="grow">
+              <div class="vdiv"></div>
+              <div class="seg" role="group" aria-label="Densidad de la lista">
+                <button type="button" class="js-density" data-style="a" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><use href="#i-grid"/></svg>Espaciado</button>
+                <button type="button" class="js-density" data-style="b" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><use href="#i-rows"/></svg>Denso</button>
+              </div>
+              <div class="dd sort right" id="f1-dd-sort">
+                <button class="dd-btn" type="button" aria-expanded="false" aria-haspopup="listbox">
+                  <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sort"/></svg>
+                  <span class="lbl">Ordenar</span><span class="val" id="f1-sort-val">Más recientes</span>
+                  <svg class="ic ic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chev"/></svg>
+                </button>
+                <div class="dd-panel" role="listbox" aria-label="Ordenar por">
+                  <div class="hd"><span>Criterio</span></div>
+                  <button class="sort-opt" role="option" data-sort="recent" aria-selected="true"><span class="idx">1</span>Más recientes<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><use href="#i-check"/></svg></button>
+                  <button class="sort-opt" role="option" data-sort="responses" aria-selected="false"><span class="idx">2</span>Más respuestas<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><use href="#i-check"/></svg></button>
+                  <button class="sort-opt" role="option" data-sort="views" aria-selected="false"><span class="idx">3</span>Más vistas<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><use href="#i-check"/></svg></button>
+                  <button class="sort-opt" role="option" data-sort="title" aria-selected="false"><span class="idx">4</span>Título A → Z<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><use href="#i-check"/></svg></button>
+                  <button class="sort-opt" role="option" data-sort="oldest" aria-selected="false"><span class="idx">5</span>Más antiguos<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><use href="#i-check"/></svg></button>
+                </div>
+              </div>
+            </div>
+            <div class="chips" id="f1-chips"></div>
+          </div>
+
+          <div class="metabar">
+            <div class="meta-left">
+              <span><b id="f1-total">10</b> resultados</span>
+              <span aria-hidden="true">·</span>
+              <span class="ent"><svg class="ic" style="width:15px;height:15px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-building"/></svg><span id="f1-ent-label">Todas las entidades</span></span>
+              <span aria-hidden="true">·</span>
+              <span class="hide-m">Actualizado hace 2 min</span>
+            </div>
+            <div class="meta-right"><span class="pro hide-m"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-clock"/></svg>Sincronización automática</span></div>
+            <div class="selbar" id="f1-selbar">
+              <span class="n"><b id="f1-seln">0</b> seleccionados</span>
+              <div class="sp">
+                <button class="mini" type="button">Exportar selección</button>
+                <button class="mini" type="button">Duplicar</button>
+                <button class="mini x" type="button" id="f1-selclear">Limpiar selección</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="list" id="f1-list" data-style="a" data-live="1">
+            <div class="thead">
+              <button class="th" type="button" data-sort="title">Formulario<span class="sa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-up"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-down"/></svg></span></button>
+              <button class="th s" type="button" data-sort="entity">Entidad<span class="sa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-up"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-down"/></svg></span></button>
+              <div class="th m">
+                <button class="thc" type="button" data-sort="responses">Respuestas<span class="sa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-up"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-down"/></svg></span></button>
+                <button class="thc" type="button" data-sort="views">Vistas<span class="sa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-up"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-down"/></svg></span></button>
+              </div>
+              <span class="th s">Estado</span>
+              <span class="th blank"></span>
+            </div>
+          </div>
+
+          <div class="empty" id="f1-empty" hidden>
+            <span class="ei"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-inbox"/></svg></span>
+            <h3>Sin resultados</h3>
+            <p>Prueba con otro término de búsqueda o ajusta los filtros activos.</p>
+            <button class="btn btn-ghost" type="button" id="f1-reset">Limpiar filtros y búsqueda</button>
+          </div>
+
+          <div class="morewrap" id="f1-morewrap">
+            <button class="morebtn" id="f1-more" type="button">Cargar más<span class="n" id="f1-more-n">4</span></button>
+          </div>
+          <div class="foot-note"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-clock"/></svg>Los datos se sincronizan automáticamente cada 60 segundos</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 02 · TABLET  +  03 · MOBILE ══════════════ -->
+<div class="frame split">
+  <div class="frame-col">
+    <div class="frame-label"><span class="num">02</span> Tablet · 832 <span class="w">Reflow intermedio</span></div>
+    <div class="scaler">
+      <div class="artboard" data-vp="tablet" data-themeable style="--aw:832px">
+        <div class="stage">
+          <div class="topbar">
+            <div class="brandmark"><span class="m">F</span>FormularioIA</div>
+            <nav class="crumbs"><span class="hide-t">Centro de control</span><span class="sl hide-t">/</span><b>Formularios públicos</b></nav>
+            <div class="right"><div class="avatar">MG</div></div>
+          </div>
+          <div class="page">
+            <div class="page-head">
+              <div>
+                <div class="eyebrow">Centro de control</div>
+                <h1 class="display">Formularios publicados <span class="count-badge">10</span></h1>
+                <p class="page-sub">Supervisa formularios publicados, respuestas y alcance por entidad.</p>
+              </div>
+              <button class="btn btn-primary" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-plus"/></svg>Nuevo formulario</button>
+            </div>
+            <div class="panel">
+              <div class="search">
+                <svg class="ic-lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-search"/></svg>
+                <input type="text" autocomplete="off" placeholder="Buscar por título o entidad…" aria-label="Buscar formularios">
+                <span class="k">⌘K</span>
+              </div>
+              <div class="dd">
+                <button class="dd-btn" type="button" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-building"/></svg><span class="lbl">Entidad</span><span class="val">Todas</span><svg class="ic ic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chev"/></svg></button>
+                <div class="dd-panel"><div class="hd"><span>Filtrar por entidad</span></div><div data-opts="entity"></div></div>
+              </div>
+              <div class="dd">
+                <button class="dd-btn" type="button" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-filter"/></svg><span class="lbl">Estado</span><span class="val">Todos</span><svg class="ic ic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chev"/></svg></button>
+                <div class="dd-panel"><div class="hd"><span>Filtrar por estado</span></div><div data-opts="status"></div></div>
+              </div>
+              <div class="grow">
+                <div class="seg" role="group" aria-label="Densidad">
+                  <button type="button" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><use href="#i-grid"/></svg>Espaciado</button>
+                  <button type="button" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><use href="#i-rows"/></svg>Denso</button>
+                </div>
+              </div>
+            </div>
+            <div class="metabar">
+              <div class="meta-left"><span><b>10</b> resultados</span><span aria-hidden="true">·</span><span class="ent"><svg class="ic" style="width:15px;height:15px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-building"/></svg>Todas las entidades</span></div>
+            </div>
+            <div class="list" id="f2-list" data-style="a"></div>
+            <div class="morewrap"><button class="morebtn" type="button">Cargar más<span class="n">5</span></button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="frame-col">
+    <div class="frame-label"><span class="num">03</span> Mobile · 390 <span class="w">Apilado compacto</span></div>
+    <div class="scaler">
+      <div class="artboard" data-vp="mobile" data-themeable style="--aw:390px">
+        <div class="stage">
+          <div class="topbar">
+            <div class="brandmark"><span class="m">F</span>FormularioIA</div>
+            <div class="right"><div class="avatar">MG</div></div>
+          </div>
+          <div class="page">
+            <div class="page-head">
+              <div>
+                <div class="eyebrow">Centro de control</div>
+                <h1 class="display">Formularios publicados <span class="count-badge">10</span></h1>
+                <p class="page-sub">Supervisa formularios publicados, respuestas y alcance por entidad.</p>
+              </div>
+              <button class="btn btn-primary" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-plus"/></svg>Nuevo formulario</button>
+            </div>
+            <div class="panel">
+              <div class="search">
+                <svg class="ic-lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-search"/></svg>
+                <input type="text" autocomplete="off" placeholder="Buscar formularios…" aria-label="Buscar formularios">
+              </div>
+              <div class="dd">
+                <button class="dd-btn" type="button" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-building"/></svg><span class="lbl">Entidad</span><span class="val">Todas</span><svg class="ic ic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chev"/></svg></button>
+                <div class="dd-panel"><div class="hd"><span>Filtrar por entidad</span></div><div data-opts="entity"></div></div>
+              </div>
+              <div class="dd">
+                <button class="dd-btn" type="button" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-filter"/></svg><span class="lbl">Estado</span><span class="val">Todos</span><svg class="ic ic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chev"/></svg></button>
+                <div class="dd-panel"><div class="hd"><span>Filtrar por estado</span></div><div data-opts="status"></div></div>
+              </div>
+              <div class="grow">
+                <div class="seg" role="group" aria-label="Densidad">
+                  <button type="button" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><use href="#i-grid"/></svg>A</button>
+                  <button type="button" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><use href="#i-rows"/></svg>B</button>
+                </div>
+              </div>
+            </div>
+            <div class="metabar"><div class="meta-left"><span><b>10</b> resultados</span></div></div>
+            <div class="list" id="f3-list" data-style="a"></div>
+            <div class="morewrap"><button class="morebtn" type="button">Cargar más<span class="n">6</span></button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ 04 · DARK GLASS ══════════════ -->
+<section class="frame">
+  <div class="frame-label"><span class="num">04</span> Desktop · 1440 <span class="w">Alternativa oscura — glassmorphism</span><span class="tag">Dark mode</span></div>
+  <div class="scaler">
+    <div class="artboard glass" data-vp="desktop" style="--aw:1440px">
+      <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
+      <div class="guides"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="stage">
+        <div class="topbar">
+          <div class="brandmark"><span class="m">F</span>FormularioIA</div>
+          <nav class="crumbs"><span class="hide-t">Centro de control</span><span class="sl hide-t">/</span><b>Formularios públicos</b></nav>
+          <div class="right"><div class="avatar">MG</div></div>
+        </div>
+        <div class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Centro de control</div>
+              <h1 class="display">Formularios publicados <span class="count-badge">10</span></h1>
+              <p class="page-sub">Supervisa formularios publicados, respuestas y alcance por entidad.</p>
+            </div>
+            <button class="btn btn-primary" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-plus"/></svg>Nuevo formulario</button>
+          </div>
+          <div class="panel">
+            <div class="search filled">
+              <svg class="ic-lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-search"/></svg>
+              <input type="text" autocomplete="off" value="satisfacción" aria-label="Buscar formularios">
+              <button class="clear" type="button" aria-label="Borrar búsqueda"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><use href="#i-x"/></svg></button>
+            </div>
+            <div class="dd">
+              <button class="dd-btn" type="button" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-building"/></svg><span class="lbl">Entidad</span><span class="val">2 seleccionadas</span><span class="dd-n">2</span><svg class="ic ic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chev"/></svg></button>
+              <div class="dd-panel"><div class="hd"><span>Filtrar por entidad</span></div><div data-opts="entity"></div></div>
+            </div>
+            <div class="dd">
+              <button class="dd-btn" type="button" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-filter"/></svg><span class="lbl">Estado</span><span class="val">Todos</span><svg class="ic ic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chev"/></svg></button>
+              <div class="dd-panel"><div class="hd"><span>Filtrar por estado</span></div><div data-opts="status"></div></div>
+            </div>
+            <div class="grow">
+              <div class="vdiv"></div>
+              <div class="seg" role="group" aria-label="Densidad">
+                <button type="button" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><use href="#i-grid"/></svg>Espaciado</button>
+                <button type="button" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><use href="#i-rows"/></svg>Denso</button>
+              </div>
+            </div>
+            <div class="chips">
+              <span class="lab">Filtros activos</span>
+              <span class="fchip"><b>Entidad:</b> Ayuntamiento de Madrid<button type="button" aria-label="Quitar filtro"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><use href="#i-x"/></svg></button></span>
+              <span class="fchip"><b>Entidad:</b> Servicio Vasco de Salud<button type="button" aria-label="Quitar filtro"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><use href="#i-x"/></svg></button></span>
+              <button class="clear-all" type="button">Limpiar todo</button>
+            </div>
+          </div>
+          <div class="metabar">
+            <div class="meta-left"><span><b>6</b> resultados</span><span aria-hidden="true">·</span><span class="ent"><svg class="ic" style="width:15px;height:15px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-building"/></svg>2 entidades seleccionadas</span></div>
+            <div class="meta-right"><span class="hide-m" style="font-size:13.5px;font-weight:600;color:var(--fg-muted)">Ordenar: Más recientes</span></div>
+          </div>
+          <div class="list" id="f4-list" data-style="a"></div>
+          <div class="pager">
+            <button class="pg" type="button" disabled aria-label="Página anterior"><svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chev-l"/></svg></button>
+            <button class="pg on" type="button" aria-current="page">1</button>
+            <button class="pg" type="button">2</button>
+            <span class="gl"></span>
+            <button class="pg" type="button" aria-label="Página siguiente"><svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-chev-r"/></svg></button>
+          </div>
+          <div class="foot-note">Página 1 de 2 · mostrando 6 de 10 formularios</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 05 · CARD STYLE A vs B ══════════════ -->
+<section class="frame">
+  <div class="frame-label"><span class="num">05</span> Componente · Card Style A vs B <span class="w">Comparativa de densidad</span></div>
+  <div class="scaler">
+    <div class="artboard" data-vp="sheet" style="--aw:1440px">
+      <div class="stage" style="padding:34px 44px 44px">
+        <div class="sheet-sec">
+          <div class="sec-head">
+            <span class="sec-idx">A</span>
+            <div><h3>Premium &amp; Spaced</h3><p>Tarjetas individuales, aireadas y elevadas: radio de 22 px, sombra difusa en reposo y lift + borde cian al pasar el cursor. Ideal cuando cada formulario necesita contexto propio (entidad, fecha, tendencias).</p></div>
+            <span class="badge rec">Recomendado</span>
+          </div>
+          <div class="list" id="f5a" data-style="a"></div>
+          <div class="pros">
+            <span class="pro"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Escaneo jerárquico</span>
+            <span class="pro"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Espacio para sparklines</span>
+            <span class="pro"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Objetivos táctiles cómodos</span>
+            <span class="pro"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Estados hover / selected nítidos</span>
+          </div>
+        </div>
+
+        <div class="sheet-sec">
+          <div class="sec-head">
+            <span class="sec-idx">B</span>
+            <div><h3>Interconnected Row</h3><p>Filas contiguas sobre una sola superficie, separadas por divisores verticales de 1 px y cabecera ordenable. Prioriza la densidad: más formularios por pantalla y lectura columna a columna tipo tabla.</p></div>
+            <span class="badge">Alta densidad</span>
+          </div>
+          <div class="list" id="f5b" data-style="b">
+            <div class="thead">
+              <button class="th" type="button">Formulario<span class="sa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-up"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-down"/></svg></span></button>
+              <button class="th s" type="button">Entidad<span class="sa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-up"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-down"/></svg></span></button>
+              <div class="th m">
+                <button class="thc" type="button">Respuestas<span class="sa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-up"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-down"/></svg></span></button>
+                <button class="thc" type="button">Vistas<span class="sa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-up"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-down"/></svg></span></button>
+              </div>
+              <span class="th s">Estado</span>
+              <span class="th blank"></span>
+            </div>
+          </div>
+          <div class="pros">
+            <span class="pro"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>+60 % de formularios visibles</span>
+            <span class="pro"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Sorting en cabecera</span>
+            <span class="pro"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Comparación vertical directa</span>
+            <span class="pro"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Sparklines ocultas: solo cifras</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 06 · MÉTRICAS A / B / C ══════════════ -->
+<section class="frame">
+  <div class="frame-label"><span class="num">06</span> Componente · Métricas <span class="w">Tres opciones de visualización</span></div>
+  <div class="scaler">
+    <div class="artboard" data-vp="sheet" style="--aw:1440px">
+      <div class="stage" style="padding:34px 44px 44px">
+        <div class="mgrid" id="f6-grid"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 07 · CHIPS · ESTADOS · MENÚ ══════════════ -->
+<section class="frame">
+  <div class="frame-label"><span class="num">07</span> Componente · Estados e interacción <span class="w">Chips, estados de tarjeta y kebab menu</span></div>
+  <div class="scaler">
+    <div class="artboard" data-vp="sheet" style="--aw:1440px">
+      <div class="stage" style="padding:34px 44px 44px">
+
+        <div class="sheet-sec">
+          <div class="sec-head">
+            <span class="sec-idx">1</span>
+            <div><h3>Chips de estado</h3><p>Tinte de color al 12 % sobre superficie, borde al 34 %, texto compuesto con el color base y un punto con halo. Gradiente sutil de bisel superior para dar volumen sin ruido.</p></div>
+            <span class="badge">4 estados</span>
+          </div>
+          <div class="chip-row">
+            <span class="chip chip-lg" style="--c:var(--success)"><span class="dot"></span>Público</span>
+            <span class="chip chip-lg" style="--c:var(--warning)"><span class="dot"></span>Borrador</span>
+            <span class="chip chip-lg" style="--c:var(--slate)"><span class="dot"></span>Archivado</span>
+            <span class="chip chip-lg" style="--c:var(--info)"><span class="dot"></span>Pendiente</span>
+            <span class="chip chip-lg" style="--c:var(--danger)"><span class="dot"></span>Con incidencias</span>
+          </div>
+          <div class="pros">
+            <span class="pro">Público → <code style="font-family:ui-monospace,Menlo,monospace">--success #0e9384</code></span>
+            <span class="pro">Borrador → <code style="font-family:ui-monospace,Menlo,monospace">--warning #d4a43a</code></span>
+            <span class="pro">Archivado → <code style="font-family:ui-monospace,Menlo,monospace">--slate #64748B</code></span>
+            <span class="pro">Pendiente → <code style="font-family:ui-monospace,Menlo,monospace">--info #4f7de8</code></span>
+          </div>
+        </div>
+
+        <div class="sheet-sec">
+          <div class="sec-head">
+            <span class="sec-idx">2</span>
+            <div><h3>Estados de la tarjeta</h3><p>Default: borde neutro y sombra suave. Hover: elevación a <code style="font-family:ui-monospace,Menlo,monospace">--shadow-pop</code>, borde teñido de cian, lift de 2 px y barra de acento izquierda al 55 %. Selected: anillo de foco de 3 px, fondo con tinte de marca y barra completa.</p></div>
+            <span class="badge">3 estados</span>
+          </div>
+          <div class="states">
+            <div class="state"><div class="sh"><span class="sw"></span><h4>Default</h4><span class="k">rest</span></div><div class="demo" id="f7-s1"></div><p class="cap">Reposo. Superficie plana, borde <code style="font-family:ui-monospace,Menlo,monospace">--border</code> y sombra de contacto mínima.</p></div>
+            <div class="state"><div class="sh"><span class="sw h"></span><h4>Hover</h4><span class="k">:hover</span></div><div class="demo" id="f7-s2"></div><p class="cap">Elevación + tinte cian en borde + translate −2 px. La entidad responde también con un borde más marcado.</p></div>
+            <div class="state"><div class="sh"><span class="sw s"></span><h4>Selected</h4><span class="k">aria-checked</span></div><div class="demo" id="f7-s3"></div><p class="cap">Checkbox marcado, anillo de 3 px y barra de acento completa. Persiste tras hover.</p></div>
+          </div>
+        </div>
+
+        <div class="sheet-sec">
+          <div class="sec-head">
+            <span class="sec-idx">3</span>
+            <div><h3>Acciones y menú de opciones</h3><p>Botón de descarga con acento de marca en hover y menú kebab de cuatro acciones con separador y opción destructiva en rojo. Transición de apertura con origen en la esquina superior derecha.</p></div>
+            <span class="badge">Download + Kebab</span>
+          </div>
+          <div class="menu-demo">
+            <div class="md-card">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+                <div>
+                  <div class="fc-title">Encuesta de satisfacción ciudadana 2026</div>
+                  <div class="fc-meta"><span class="mono">#f_82c1</span><span class="sd"></span><span>Creado 12 sep 2026</span><span class="sd"></span><span>Actualizado hace 2 h</span></div>
+                  <div style="margin-top:9px"><span class="e-pill"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-building"/></svg><span>Ayuntamiento de Madrid</span></span></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex:none">
+                  <span class="chip" style="--c:var(--success)"><span class="dot"></span>Público</span>
+                  <span class="iconbtn accent" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-download"/></svg></span>
+                  <span class="iconbtn" aria-expanded="true" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24"><use href="#i-dots"/></svg></span>
+                </div>
+              </div>
+              <div class="menu open" style="position:absolute;right:18px;top:70px">
+                <button type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-pencil"/></svg>Editar formulario</button>
+                <button type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-share"/></svg>Compartir enlace</button>
+                <button type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-copy"/></svg>Duplicar</button>
+                <span class="sep"></span>
+                <button type="button" class="danger"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trash"/></svg>Eliminar</button>
+              </div>
+            </div>
+            <div class="md-side">
+              <h4>Grupo de acciones</h4>
+              <div class="btn-row">
+                <button class="ibtn-demo" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-download"/></svg>Descargar CSV</button>
+                <button class="ibtn-demo brand" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-share"/></svg>Compartir</button>
+                <button class="ibtn-demo" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-copy"/></svg>Duplicar</button>
+                <button class="ibtn-demo danger" type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trash"/></svg>Eliminar</button>
+                <button class="ibtn-demo" type="button" disabled><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bolt"/></svg>Auto-envío</button>
+              </div>
+              <h4 style="margin-top:22px">Iconografía</h4>
+              <p style="margin:0;font-size:12.5px;color:var(--fg-muted);line-height:1.6">Trazo único de <b>1.7 px</b>, terminaciones redondas, caja de 24 px y tamaño derivado de token (14 / 15 / 17 px). Los iconos decorativos llevan <code style="font-family:ui-monospace,Menlo,monospace">aria-hidden</code>; los botones de icono, nombre accesible.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 08 · TOKENS ══════════════ -->
+<section class="frame">
+  <div class="frame-label"><span class="num">08</span> Design tokens <span class="w">Mapeados a src/index.css — listo para Figma</span><span class="tag">Token-ready</span></div>
+  <div class="scaler">
+    <div class="artboard" data-vp="sheet" style="--aw:1440px">
+      <div class="stage" style="padding:34px 44px 44px">
+        <div class="tok-grid">
+
+          <div class="tok w8">
+            <h4>Color · paleta</h4>
+            <p class="sd">Escala de marca cian + acentos semánticos + neutros azul profundo. Cada valor tiene su variable CSS en <code style="font-family:ui-monospace,Menlo,monospace">index.css</code>.</p>
+            <div class="sw-row" style="margin-bottom:14px">
+              <div class="sw"><i style="background:#ebfbff"></i><span>50</span></div>
+              <div class="sw"><i style="background:#ccf6ff"></i><span>100</span></div>
+              <div class="sw"><i style="background:#94ecff"></i><span>200</span></div>
+              <div class="sw"><i style="background:#61e3ff"></i><span>300</span></div>
+              <div class="sw"><i style="background:#2edaff"></i><span>400</span></div>
+              <div class="sw"><i style="background:#00D2FF"></i><span>500</span></div>
+              <div class="sw"><i style="background:#00b5db"></i><span>600</span></div>
+              <div class="sw"><i style="background:#0097b8"></i><span>700</span></div>
+              <div class="sw"><i style="background:#007a94"></i><span>800</span></div>
+              <div class="sw"><i style="background:#005c70"></i><span>900</span></div>
+              <div class="sw"><i style="background:#003b47"></i><span>950</span></div>
+            </div>
+            <div class="sw-row" style="margin-bottom:14px">
+              <div class="sw"><i style="background:#0e9384"></i><span>success</span></div>
+              <div class="sw"><i style="background:#d4a43a"></i><span>warning</span></div>
+              <div class="sw"><i style="background:#d14343"></i><span>danger</span></div>
+              <div class="sw"><i style="background:#4f7de8"></i><span>info</span></div>
+              <div class="sw"><i style="background:#bfa23a"></i><span>gold</span></div>
+              <div class="sw"><i style="background:#64748B"></i><span>slate</span></div>
+            </div>
+            <div class="sw-row">
+              <div class="sw"><i style="background:#0B1220"></i><span>ink</span></div>
+              <div class="sw"><i style="background:#1E293B"></i><span>900</span></div>
+              <div class="sw"><i style="background:#334155"></i><span>700</span></div>
+              <div class="sw"><i style="background:#667085"></i><span>muted</span></div>
+              <div class="sw"><i style="background:#94A3B8"></i><span>400</span></div>
+              <div class="sw"><i style="background:#CBD5E1"></i><span>300</span></div>
+              <div class="sw"><i style="background:#E2E8F0"></i><span>border</span></div>
+              <div class="sw"><i style="background:#F1F5F9"></i><span>surface-2</span></div>
+              <div class="sw"><i style="background:#F8FAFC"></i><span>surface</span></div>
+            </div>
+          </div>
+
+          <div class="tok">
+            <h4>Tipografía</h4>
+            <p class="sd">Pareja variable del proyecto: <b>DM Sans</b> (UI) + <b>Fraunces</b> (display, solo títulos).</p>
+            <div class="type-row"><span class="lbl">display</span><span class="spec" style="font-family:Fraunces,serif;font-weight:600;font-size:30px">Formularios</span><span class="meta">Fraunces 600 · 37/1.08</span></div>
+            <div class="type-row"><span class="lbl">section</span><span class="spec" style="font-family:Fraunces,serif;font-weight:600;font-size:21px">Premium &amp; Spaced</span><span class="meta">Fraunces 600 · 18/1.3</span></div>
+            <div class="type-row"><span class="lbl">card title</span><span class="spec" style="font-weight:600;font-size:17px">Encuesta de satisfacción</span><span class="meta">DM Sans 600 · 16.5</span></div>
+            <div class="type-row"><span class="lbl">body</span><span class="spec" style="font-size:14.5px;color:var(--fg-muted)">Supervisa formularios publicados y respuestas.</span><span class="meta">DM Sans 400 · 14.5</span></div>
+            <div class="type-row"><span class="lbl">label</span><span class="spec" style="font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-muted)">Respuestas</span><span class="meta">DM Sans 800 · 10.5</span></div>
+            <div class="type-row"><span class="lbl">numeral</span><span class="spec" style="font-weight:700;font-size:19px;font-variant-numeric:tabular-nums">1.204 · 248</span><span class="meta">tabular-nums</span></div>
+          </div>
+
+          <div class="tok">
+            <h4>Radios</h4>
+            <p class="sd">Escala del proyecto; la tarjeta usa <code style="font-family:ui-monospace,Menlo,monospace">--card-radius</code>.</p>
+            <div class="rad-row">
+              <div class="rad"><i style="border-radius:10px"></i><span>10 btn</span></div>
+              <div class="rad"><i style="border-radius:14px"></i><span>14 md</span></div>
+              <div class="rad"><i style="border-radius:20px"></i><span>20 list</span></div>
+              <div class="rad"><i style="border-radius:22px"></i><span>22 card</span></div>
+              <div class="rad"><i style="border-radius:999px"></i><span>pill</span></div>
+            </div>
+          </div>
+
+          <div class="tok">
+            <h4>Sombras</h4>
+            <p class="sd">Difusas y de bajo contraste: separan sin ensuciar.</p>
+            <div class="sh-row">
+              <div class="sh c1"><i></i><span>--shadow-soft</span></div>
+              <div class="sh c2"><i></i><span>--shadow-card</span></div>
+              <div class="sh c3"><i></i><span>--shadow-pop</span></div>
+            </div>
+          </div>
+
+          <div class="tok">
+            <h4>Espaciado</h4>
+            <p class="sd">Ritmo de 4/8 px aplicado a gaps de tarjeta, panel y tarjetas apiladas.</p>
+            <div class="sp-row">
+              <div class="sp s1"><i></i><span>8</span></div>
+              <div class="sp s2"><i></i><span>16</span></div>
+              <div class="sp s3"><i></i><span>24</span></div>
+              <div class="sp s4"><i></i><span>32</span></div>
+              <div class="sp s5"><i></i><span>40</span></div>
+              <div class="sp s6"><i></i><span>48</span></div>
+            </div>
+          </div>
+
+          <div class="tok w12">
+            <h4>Movimiento</h4>
+            <p class="sd">Curvas y duraciones heredadas del proyecto. Respeta <code style="font-family:ui-monospace,Menlo,monospace">prefers-reduced-motion</code>.</p>
+            <div class="eas">
+              <div class="e"><b>--ease-premium</b><code>cubic-bezier(.16, 1, .3, 1) — 240 ms</code><span class="bar" style="transition:width .6s"></span></div>
+              <div class="e"><b>--ease-spring</b><code>cubic-bezier(.34, 1.56, .64, 1)</code><span class="bar" style="opacity:.7"></span></div>
+              <div class="e"><b>Transiciones de tarjeta</b><code>hover 240 ms · press 90 ms · ui 160 ms</code><span class="bar" style="opacity:.45"></span></div>
+              <div class="e"><b>Entrada de tarjeta</b><code>cardIn · translateY(10px) → 0 · 340 ms</code><span class="bar" style="background:linear-gradient(90deg,var(--success),#3FC7B4)"></span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<div id="toast" role="status" aria-live="polite">
+  <span class="tk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+  <span id="toast-msg"></span>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="currentColor" stop-opacity=".26"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
+    </linearGradient>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24"><path d="M4 21V7l8-4 8 4v14"/><path d="M2 21h20"/><rect x="9.5" y="13.5" width="5" height="7.5" rx="1"/><path d="M8 9.5h2M14 9.5h2M8 12h2M14 12h2"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.6" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path d="m21 16-4 4-4-4M17 20V4M3 8l4-4 4 4M7 4v16"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-arr" viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-rows" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z"/></symbol>
+  </defs>
+</svg>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ────────────────────────────────────────────────────────────────
+     DATASET · 10 formularios (entidades reales del catálogo)
+     ──────────────────────────────────────────────────────────────── */
+  const FORMS = [
+    { id: "f_82c1", title: "Encuesta de satisfacción ciudadana 2026", entity: "Ministerio de Salud Pública", status: "public", created: "12 sep 2026", sort: "2026-09-12", updated: "hace 2 h", responses: 1204, views: 2480, rDelta: "+8%", rUp: true, vDelta: "+3%", vUp: true, mR: 64, mV: 52, spark: [4, 6, 8, 7, 9, 12, 11, 14] },
+    { id: "f_47b8", title: "Registro para cursos de formación", entity: "Ministerio de Educación", status: "public", created: "4 sep 2026", sort: "2026-09-04", updated: "hace 1 d", responses: 3412, views: 5180, rDelta: "+12%", rUp: true, vDelta: "+6%", vUp: true, mR: 81, mV: 67, spark: [7, 9, 10, 12, 11, 15, 16, 18] },
+    { id: "f_9d03", title: "Solicitud de ayudas y subvenciones", entity: "Ministerio de Economía y Finanzas", status: "public", created: "28 ago 2026", sort: "2026-08-28", updated: "hace 3 d", responses: 875, views: 3140, rDelta: "-4%", rUp: false, vDelta: "+9%", vUp: true, mR: 47, mV: 74, spark: [9, 8, 7, 8, 6, 6, 5, 4] },
+    { id: "f_2e6a", title: "Trámites de empadronamiento", entity: "Asamblea Municipal del Poder Popular", status: "public", created: "21 ago 2026", sort: "2026-08-21", updated: "hace 5 h", responses: 4912, views: 8304, rDelta: "+5%", rUp: true, vDelta: "+2%", vUp: true, mR: 88, mV: 91, spark: [10, 11, 13, 12, 14, 16, 15, 17] },
+    { id: "f_5c74", title: "Quejas y sugerencias de servicios", entity: "Ministerio de Transporte", status: "public", created: "15 ago 2026", sort: "2026-08-15", updated: "hace 6 d", responses: 639, views: 2210, rDelta: "-2%", rUp: false, vDelta: "+1%", vUp: true, mR: 38, mV: 44, spark: [6, 7, 5, 6, 7, 6, 4, 5] },
+    { id: "f_88a9", title: "Presupuestos participativos 2026", entity: "Gobierno Provincial", status: "pending", created: "9 ago 2026", sort: "2026-08-09", updated: "hace 1 d", responses: 154, views: 730, rDelta: "+31%", rUp: true, vDelta: "+18%", vUp: true, mR: 22, mV: 28, spark: [2, 3, 3, 5, 4, 6, 7, 9] },
+    { id: "f_3b17", title: "Evaluación de la atención al ciudadano", entity: "Contraloría General de la República", status: "public", created: "1 ago 2026", sort: "2026-08-01", updated: "hace 2 d", responses: 2018, views: 3970, rDelta: "+7%", rUp: true, vDelta: "+4%", vUp: true, mR: 72, mV: 60, spark: [5, 7, 8, 8, 10, 12, 11, 13] },
+    { id: "f_10d5", title: "Encuesta de clima laboral", entity: "Banco Central de Cuba (BCC)", status: "draft", created: "20 jul 2026", sort: "2026-07-20", updated: "hace 4 d", responses: 0, views: 0, rDelta: "—", rUp: true, vDelta: "—", vUp: true, mR: 0, mV: 0, spark: [0, 0, 0, 0, 0, 0, 0, 0] },
+    { id: "f_7f02", title: "Transparencia informativa y rendición", entity: "Ministerio de Información y Comunicación Social", status: "archived", created: "12 jul 2026", sort: "2026-07-12", updated: "hace 9 d", responses: 487, views: 1205, rDelta: "—", rUp: true, vDelta: "—", vUp: true, mR: 33, mV: 41, spark: [3, 4, 4, 3, 5, 4, 4, 3] },
+    { id: "f_6e38", title: "Encuesta de percepción de seguridad", entity: "Ministerio del Interior", status: "public", created: "5 jul 2026", sort: "2026-07-05", updated: "hace 3 h", responses: 1530, views: 4060, rDelta: "+11%", rUp: true, vDelta: "+8%", vUp: true, mR: 69, mV: 76, spark: [6, 8, 7, 9, 11, 12, 14, 15] },
+  ];
+
+  const STATUS_META = {
+    public:   { label: "Público",       color: "var(--success)" },
+    draft:    { label: "Borrador",      color: "var(--warning)" },
+    archived: { label: "Archivado",     color: "var(--slate)" },
+    pending:  { label: "Pendiente",     color: "var(--info)" },
+  };
+
+  const SORT_META = {
+    recent:    { label: "Más recientes",  by: (a, b) => (b.sort > a.sort ? 1 : -1) },
+    responses: { label: "Más respuestas", by: (a, b) => b.responses - a.responses },
+    views:     { label: "Más vistas",     by: (a, b) => b.views - a.views },
+    title:     { label: "Título A → Z",   by: (a, b) => a.title.localeCompare(b.title, "es") },
+    oldest:    { label: "Más antiguos",   by: (a, b) => (a.sort > b.sort ? 1 : -1) },
+  };
+
+  const ENTITY_TINT = [
+    "#0097b8", "#0e9384", "#4f7de8", "#d4a43a", "#d14343",
+    "#64748B", "#7c3aed", "#db2777", "#ea580c", "#16a34a",
+  ];
+
+  /* ─────────────── estado global de la lista principal ─────────────── */
+  const S = {
+    q: "",
+    ent: [],
+    st: [],
+    sort: "recent",
+    dir: "desc",
+    style: "a",
+    page: 1,
+    perPage: 6,
+    sel: new Set(),
+  };
+
+  const $  = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+  const fmt = (n) => new Intl.NumberFormat("es").format(Number(n) || 0);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function ics(name) {
+    const common = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
+    if (name === "i-dots") return `<svg class="ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><use href="#i-dots"/></svg>`;
+    return `<svg class="ic" ${common}><use href="#${name}"/></svg>`;
+  }
+
+  function sparkSVG(data, color, w = 54, h = 20) {
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    const pts = data.map((v, i) => {
+      const x = data.length > 1 ? (i / (data.length - 1)) * w : w;
+      const y = h - 2 - ((v - min) / range) * (h - 7);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    const line = `M${pts.join(" L")}`;
+    return `
+      <svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="color:${color}" aria-hidden="true">
+        <defs>
+          <linearGradient id="spg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="currentColor" stop-opacity=".30"/>
+            <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="${line} L${w},${h} L0,${h} Z" fill="url(#spg)"/>
+        <polyline points="${pts.join(" ")}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+  }
+
+  function metricHTML({ icon, color, val, label, delta, up, meter, pct, spark, wide }) {
+    const mr = delta || meter || pct
+      ? `<div class="mr">
+          ${delta ? `<span class="delta ${up ? "up" : "down"}">${delta}</span>` : ""}
+          ${meter ? `<span class="meter ${wide ? "w" : ""}"><i style="width:${meter}%"></i></span>` : ""}
+          ${pct ? `<span class="pct">${pct}</span>` : ""}
+        </div>`
+      : "";
+    return `<div class="metric" style="--c:${color}">
+      ${spark ? `<span class="mi" style="color:${color}">${ics(icon)}</span>` : `<span class="mi">${ics(icon)}</span>`}
+      <div class="mt"><div class="mv">${val}</div><div class="ml">${label}</div></div>
+      ${spark || ""}
+      ${mr}
+    </div>`;
+  }
+
+  function cardHTML(f, opts = {}) {
+    const st = STATUS_META[f.status];
+    const sel = opts.sel ? " sel" : "";
+    const check = opts.noCheck
+      ? ""
+      : `<label class="cb"><input type="checkbox" ${opts.sel ? "checked" : ""} aria-label="Seleccionar ${esc(f.title)}"><span class="box">${ics("i-check")}</span></label>`;
+    const statusRow = opts.noStatus
+      ? ""
+      : `<div class="fc-status"><span class="chip" style="--c:${st.color}"><span class="dot"></span>${st.label}</span></div>`;
+    const actions = opts.noActions
+      ? ""
+      : `<div class="fc-actions">
+          <button class="iconbtn accent" type="button" data-act="export" aria-label="Exportar CSV de ${esc(f.title)}">${ics("i-download")}</button>
+          <div class="menuwrap">
+            <button class="iconbtn" type="button" data-menu aria-expanded="false" aria-label="Más opciones de ${esc(f.title)}">${ics("i-dots")}</button>
+            <div class="menu" role="menu">
+              <button type="button" role="menuitem" data-act="edit">${ics("i-pencil")}Editar formulario</button>
+              <button type="button" role="menuitem" data-act="share">${ics("i-share")}Compartir enlace</button>
+              <button type="button" role="menuitem" data-act="duplicate">${ics("i-copy")}Duplicar</button>
+              <span class="sep"></span>
+              <button type="button" role="menuitem" class="danger" data-act="delete">${ics("i-trash")}Eliminar</button>
+            </div>
+          </div>
+        </div>`;
+    const metrics = opts.noMetrics
+      ? ""
+      : `<div class="fc-metrics">
+          ${metricHTML({ icon: "i-chat", color: "var(--success)", val: fmt(f.responses), label: "Respuestas", delta: f.rDelta, up: f.rUp, meter: opts.compact ? 0 : f.mR })}
+          ${metricHTML({ icon: "i-eye", color: "var(--info)", val: fmt(f.views), label: "Vistas", delta: f.vDelta, up: f.vUp, meter: opts.compact ? 0 : f.mV })}
+        </div>`;
+    return `<article class="card${sel}" data-id="${f.id}">
+      <div class="fc-main">
+        ${check}
+        <div class="fc-text">
+          <a class="fc-title" href="#form-${f.id}">${esc(f.title)}${ics("i-arr")}</a>
+          <div class="fc-meta">
+            <span class="mono">#${f.id.replace("f_", "")}</span><span class="sd"></span>
+            <span>Creado ${f.created}</span><span class="sd"></span>
+            <span>Actualizado ${f.updated}</span>
+          </div>
+        </div>
+      </div>
+      <div class="fc-entity"><span class="e-pill">${ics("i-building")}<span>${esc(f.entity)}</span></span></div>
+      ${metrics}
+      ${statusRow}
+      ${actions}
+    </article>`;
+  }
+
+  /* ─────────────── filtros ─────────────── */
+  function filtered() {
+    const q = S.q.trim().toLowerCase();
+    let list = FORMS.slice();
+    if (q) list = list.filter((f) => f.title.toLowerCase().includes(q) || f.entity.toLowerCase().includes(q));
+    if (S.ent.length) list = list.filter((f) => S.ent.includes(f.entity));
+    if (S.st.length) list = list.filter((f) => S.st.includes(f.status));
+    const m = SORT_META[S.sort] || SORT_META.recent;
+    list.sort((a, b) => { const r = m.by(a, b); return S.dir === "desc" ? r : -r; });
+    return list;
+  }
+
+  function theadHTML() {
+    const th = (key, label, extra = "") =>
+      `<button class="th ${extra}" type="button" data-sort="${key}">${label}<span class="sa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-up"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-down"/></svg></span></button>`;
+    return `<div class="thead">
+      ${th("title", "Formulario")}
+      ${th("entity", "Entidad", "s")}
+      <div class="th m">
+        <button class="thc" type="button" data-sort="responses">Respuestas<span class="sa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-up"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-down"/></svg></span></button>
+        <button class="thc" type="button" data-sort="views">Vistas<span class="sa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-up"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><use href="#i-down"/></svg></span></button>
+      </div>
+      <span class="th s">Estado</span>
+      <span class="th blank" aria-hidden="true"></span>
+    </div>`;
+  }
+
+  function renderList(root, list, opts = {}) {
+    const el = typeof root === "string" ? $(root) : root;
+    el.querySelectorAll(".card").forEach((n) => n.remove());
+    if (opts.styleB) {
+      if (!el.querySelector(".thead")) el.insertAdjacentHTML("afterbegin", theadHTML());
+      el.dataset.style = "b";
+    } else {
+      el.dataset.style = "a";
+    }
+    list.forEach((f) => el.insertAdjacentHTML("beforeend", cardHTML(f, opts)));
+    return el;
+  }
+
+  function syncThead() {
+    const ls = $("#f1-list");
+    ls.querySelectorAll(".th[data-sort], .thc[data-sort]").forEach((b) => {
+      const active = b.dataset.sort === S.sort;
+      b.dataset.active = active ? "true" : "false";
+      if (active) b.dataset.dir = S.dir;
+      else delete b.dataset.dir;
+    });
+    const lbl = SORT_META[S.sort].label;
+    $("#f1-sort-val").textContent = (S.sort === "title" && S.dir === "asc") ? "Título Z → A" : lbl;
+    $$("#f1-dd-sort .sort-opt").forEach((o) => {
+      const on = o.dataset.sort === S.sort;
+      o.setAttribute("aria-selected", on ? "true" : "false");
+    });
+  }
+
+  function renderF1() {
+    const list = filtered();
+    const shown = list.slice(0, S.page * S.perPage);
+
+    const ls = renderList($("#f1-list"), shown, { styleB: S.style === "b" });
+    // Aplicamos la selección persistente sobre las tarjetas ya renderizadas
+    ls.querySelectorAll(".card").forEach((c) => {
+      const sel = S.sel.has(c.dataset.id);
+      c.classList.toggle("sel", sel);
+      const cb = c.querySelector("input[type=checkbox]");
+      if (cb) cb.checked = sel;
+    });
+
+    syncThead();
+    $("#f1-count").textContent = fmt(list.length);
+    $("#f1-total").textContent = fmt(list.length);
+
+    $("#f1-empty").hidden = list.length > 0;
+    const more = list.length - shown.length;
+    $("#f1-morewrap").style.display = more > 0 ? "" : "none";
+    $("#f1-more-n").textContent = fmt(more > 0 ? more : 0);
+
+    $("#f1-ent-label").textContent =
+      S.ent.length === 0 ? "Todas las entidades"
+      : S.ent.length === 1 ? S.ent[0]
+      : `${S.ent.length} entidades seleccionadas`;
+
+    renderSel();
+    scaleBoards();
+  }
+
+  function renderSel() {
+    const n = S.sel.size;
+    $("#f1-seln").textContent = fmt(n);
+    $("#f1-selbar").classList.toggle("on", n > 0);
+  }
+
+  /* ─────────────── dropdowns de filtro ─────────────── */
+  const entityTint = (name) => {
+    const i = [...new Set(FORMS.map((f) => f.entity))].indexOf(name);
+    return ENTITY_TINT[i % ENTITY_TINT.length];
+  };
+
+  function buildEntityOpts() {
+    const names = [...new Set(FORMS.map((f) => f.entity))];
+    const counts = names.map((n) => ({ n, c: FORMS.filter((f) => f.entity === n).length }));
+    $("#f1-ent-opts").innerHTML = counts
+      .map(({ n, c }) => `
+        <label class="opt"><input type="checkbox" value="${esc(n)}" ${S.ent.includes(n) ? "checked" : ""}>
+          <span class="box">${ics("i-check")}</span>
+          <span class="dotc" style="background:${entityTint(n)}"></span>
+          <span>${esc(n)}</span><span class="cnt">${c}</span></label>`)
+      .join("");
+  }
+
+  function buildStatusOpts() {
+    const keys = Object.keys(STATUS_META);
+    const counts = keys.map((k) => ({ k, c: FORMS.filter((f) => f.status === k).length }));
+    $("#f1-st-opts").innerHTML = counts
+      .map(({ k, c }) => `
+        <label class="opt"><input type="checkbox" value="${k}" ${S.st.includes(k) ? "checked" : ""}>
+          <span class="box">${ics("i-check")}</span>
+          <span class="dotc" style="background:${STATUS_META[k].color}"></span>
+          <span>${STATUS_META[k].label}</span><span class="cnt">${c}</span></label>`)
+      .join("");
+  }
+
+  function syncDdLabels() {
+    const ev = S.ent.length;
+    $("#f1-ent-val").textContent = ev === 0 ? "Todas" : ev === 1 ? S.ent[0] : `${ev} seleccionadas`;
+    $("#f1-ent-n").textContent = ev;
+    $("#f1-ent-n").hidden = ev === 0;
+    const sv = S.st.length;
+    $("#f1-st-val").textContent = sv === 0 ? "Todos" : sv === 1 ? STATUS_META[S.st[0]].label : `${sv} seleccionados`;
+    $("#f1-st-n").textContent = sv;
+    $("#f1-st-n").hidden = sv === 0;
+  }
+
+  function renderChips() {
+    const chips = $("#f1-chips");
+    const parts = [];
+    if (S.ent.length) S.ent.forEach((n) => parts.push(`<span class="fchip"><b>Entidad:</b> ${esc(n)}<button type="button" data-chip="ent" data-value="${esc(n)}" aria-label="Quitar filtro de ${esc(n)}">${ics("i-x")}</button></span>`));
+    if (S.st.length) S.st.forEach((k) => parts.push(`<span class="fchip"><b>Estado:</b> ${STATUS_META[k].label}<button type="button" data-chip="st" data-value="${k}" aria-label="Quitar filtro de ${STATUS_META[k].label}">${ics("i-x")}</button></span>`));
+    chips.innerHTML = parts.length
+      ? `<span class="lab">Filtros activos</span>${parts.join("")}<button class="clear-all" type="button" id="f1-clearall">Limpiar todo</button>`
+      : "";
+  }
+
+  function applyFilters() {
+    S.page = 1;
+    if (S.q) $("#f1-sw").classList.add("filled");
+    else $("#f1-sw").classList.remove("filled");
+    syncDdLabels();
+    renderChips();
+    renderF1();
+  }
+
+  /* ─────────────── selección / menús / toast ─────────────── */
+  function toast(msg) {
+    const t = $("#toast");
+    $("#toast-msg").textContent = msg;
+    $("#toast-msg").innerHTML = msg;
+    t.classList.add("on");
+    clearTimeout(t._h);
+    t._h = setTimeout(() => t.classList.remove("on"), 2600);
+  }
+
+  /* ─────────────── scaler de artboards ─────────────── */
+  function scaleBoards() {
+    $$(".scaler").forEach((wrap) => {
+      const b = wrap.querySelector(".artboard");
+      if (!b) return;
+      const aw = parseFloat(b.style.getPropertyValue("--aw")) || b.offsetWidth;
+      const avail = wrap.clientWidth;
+      const s = Math.min(1, avail / aw);
+      b.style.transform = `scale(${s})`;
+      b.style.transformOrigin = "top left";
+      wrap.style.height = `${Math.round(b.offsetHeight * s)}px`;
+    });
+  }
+
+  /* ─────────────── eventos ─────────────── */
+  function bindEvents() {
+    /* toolbar de la hoja */
+    $("#t-guides").addEventListener("click", (e) => {
+      const on = document.body.classList.toggle("show-guides");
+      e.currentTarget.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    $("#t-theme").addEventListener("click", (e) => {
+      const on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+      $$('.artboard[data-themeable]').forEach((a) => a.classList.toggle("dark", on));
+      e.currentTarget.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+
+    /* búsqueda principal */
+    const si = $("#f1-search");
+    si.addEventListener("input", () => {
+      S.q = si.value;
+      $("#f1-sw").classList.toggle("filled", !!S.q);
+      S.page = 1;
+      renderF1();
+    });
+    $("#f1-clear").addEventListener("click", () => {
+      si.value = "";
+      S.q = "";
+      $("#f1-sw").classList.remove("filled");
+      S.page = 1;
+      renderF1();
+    });
+
+    /* apertura de dropdowns (solo interactivos) */
+    const closeDds = (keep) => $$(".dd").forEach((d) => { if (d !== keep) d.classList.remove("open"); });
+    $$("#f1-dd-entity, #f1-dd-status, #f1-dd-sort").forEach((d) => {
+      d.querySelector(".dd-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        const willOpen = !d.classList.contains("open");
+        closeDds(d);
+        d.classList.toggle("open", willOpen);
+        const btn = d.querySelector(".dd-btn");
+        btn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        if (willOpen && d.id === "f1-dd-entity") { buildEntityOpts(); syncDdLabels(); }
+        if (willOpen && d.id === "f1-dd-status") { buildStatusOpts(); syncDdLabels(); }
+      });
+    });
+    document.addEventListener("click", () => closeDds(null));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { closeDds(null); $$(".menu.open").forEach((m) => m.classList.remove("open")); }
+    });
+
+    /* opciones de entidad */
+    $("#f1-ent-opts").addEventListener("change", (e) => {
+      if (e.target.matches('input[type=checkbox]')) {
+        const v = e.target.value;
+        S.ent = e.target.checked ? [...new Set([...S.ent, v])] : S.ent.filter((x) => x !== v);
+        applyFilters();
+      }
+    });
+    /* opciones de estado */
+    $("#f1-st-opts").addEventListener("change", (e) => {
+      if (e.target.matches('input[type=checkbox]')) {
+        const v = e.target.value;
+        S.st = e.target.checked ? [...new Set([...S.st, v])] : S.st.filter((x) => x !== v);
+        applyFilters();
+      }
+    });
+    $("#f1-dd-entity [data-clear]").addEventListener("click", (e) => { e.stopPropagation(); S.ent = []; applyFilters(); closeDds(null); });
+    $("#f1-dd-status [data-clear]").addEventListener("click", (e) => { e.stopPropagation(); S.st = []; applyFilters(); closeDds(null); });
+    $("#f1-chips").addEventListener("click", (e) => {
+      const chip = e.target.closest("[data-chip]");
+      if (chip) {
+        const key = chip.dataset.chip;
+        const val = chip.dataset.value;
+        if (key === "ent") S.ent = S.ent.filter((x) => x !== val);
+        else S.st = S.st.filter((x) => x !== val);
+        applyFilters();
+      } else if (e.target.closest("#f1-clearall")) {
+        S.ent = []; S.st = []; applyFilters();
+      }
+    });
+
+    /* orden */
+    $("#f1-dd-sort").addEventListener("click", (e) => {
+      const opt = e.target.closest(".sort-opt");
+      if (!opt) return;
+      S.sort = opt.dataset.sort;
+      S.dir = "desc";
+      syncThead();
+      renderF1();
+      closeDds(null);
+    });
+
+    /* cabecera ordenable */
+    $("#f1-list").addEventListener("click", (e) => {
+      const th = e.target.closest(".th[data-sort], .thc[data-sort]");
+      if (!th) return;
+      if (S.sort === th.dataset.sort) S.dir = S.dir === "desc" ? "asc" : "desc";
+      else { S.sort = th.dataset.sort; S.dir = "desc"; }
+      syncThead();
+      renderF1();
+    });
+
+    /* densidad A/B */
+    $$(".js-density, .seg button[class]").forEach((b) => {
+      b.addEventListener("click", () => {
+        const seg = b.closest(".seg");
+        const art = b.closest(".artboard");
+        const style = b.dataset.style;
+        if (!art || !seg || !style) return;
+        seg.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", "false"));
+        b.setAttribute("aria-pressed", "true");
+        const ls = art.querySelector(".list");
+        if (ls) ls.dataset.style = style;
+        if (art === $("#f1-list").closest(".artboard")) { S.style = style; renderF1(); return; }
+        scaleBoards();
+      });
+    });
+
+    /* selección y menús dentro de la lista principal */
+    $("#f1-list").addEventListener("change", (e) => {
+      const cb = e.target.closest("input[type=checkbox]");
+      if (!cb) return;
+      const card = cb.closest(".card");
+      if (cb.checked) S.sel.add(card.dataset.id);
+      else S.sel.delete(card.dataset.id);
+      card.classList.toggle("sel", cb.checked);
+      renderSel();
+    });
+
+    $("#f1-list").addEventListener("click", (e) => {
+      const menuBtn = e.target.closest("[data-menu]");
+      if (menuBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const wrap = menuBtn.closest(".menuwrap");
+        const menu = wrap.querySelector(".menu");
+        const open = !menu.classList.contains("open");
+        $$("#f1-list .menu.open").forEach((m) => m.classList.remove("open"));
+        $$("#f1-list [data-menu]").forEach((b) => b.setAttribute("aria-expanded", "false"));
+        menu.classList.toggle("open", open);
+        menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+        return;
+      }
+      const act = e.target.closest("[data-act]");
+      if (!act) return;
+      const card = act.closest(".card");
+      const title = card ? card.querySelector(".fc-title").textContent.trim() : "selección";
+      switch (act.dataset.act) {
+        case "export": toast(`CSV exportado · ${title}`); break;
+        case "edit": toast(`Editando · ${title}`); break;
+        case "share": toast(`Enlace copiado · ${title}`); break;
+        case "duplicate": toast(`Duplicado creado · ${title}`); break;
+        case "delete": toast(`Eliminado · ${title}`); break;
+      }
+      $$("#f1-list .menu.open").forEach((m) => m.classList.remove("open"));
+      $$("#f1-list [data-menu]").forEach((b) => b.setAttribute("aria-expanded", "false"));
+    });
+
+    /* acciones de la barra de selección */
+    $("#f1-selclear").addEventListener("click", () => { S.sel.clear(); renderF1(); });
+    $("#f1-selbar .mini:not(.x)").forEach((b) => {
+      b.addEventListener("click", () => {
+        const n = S.sel.size;
+        toast(`${b.textContent.trim()} · ${n} formularios`);
+      });
+    });
+
+    /* cargar más / reset */
+    $("#f1-more").addEventListener("click", () => { S.page += 1; renderF1(); });
+    $("#f1-reset").addEventListener("click", () => {
+      S.q = ""; S.ent = []; S.st = []; S.page = 1;
+      si.value = "";
+      $("#f1-sw").classList.remove("filled");
+      applyFilters();
+    });
+  }
+
+  /* ─────────────── frames estáticos ─────────────── */
+  function renderStatic() {
+    /* f2 (tablet) y f3 (mobile) */
+    FORMS.slice(0, 6).forEach((f) => {
+      $("#f2-list").insertAdjacentHTML("beforeend", cardHTML(f));
+      $("#f3-list").insertAdjacentHTML("beforeend", cardHTML(f));
+    });
+
+    /* f4 (dark): pagina 1 · 6 de 10 */
+    renderList($("#f4-list"), FORMS.slice(0, 6), { styleB: false });
+
+    /* f5: comparativa A vs B */
+    renderList($("#f5a"), FORMS.slice(0, 3), { styleB: false });
+    renderList($("#f5b"), FORMS.slice(0, 4), { styleB: true, noCheck: true });
+
+    /* f6: variantes de métrica */
+    const f6 = FORMS[0];
+    $("#f6-grid").innerHTML = `
+      <div class="mcol">
+        <div class="mh"><span class="k">A</span><div><h4>Valores numéricos</h4><small>Standard · por defecto</small></div></div>
+        <div class="mdemo" style="display:flex;gap:9px;flex-wrap:wrap">
+          ${metricHTML({ icon: "i-chat", color: "var(--success)", val: fmt(f6.responses), label: "Respuestas", delta: f6.rDelta, up: f6.rUp, meter: f6.mR })}
+          ${metricHTML({ icon: "i-eye", color: "var(--info)", val: fmt(f6.views), label: "Vistas", delta: f6.vDelta, up: f6.vUp, meter: f6.mV })}
+        </div>
+        <p class="note">Cifra en <code>tabular-nums</code> sobre tinte de icono; label en mayúsculas 9,5&nbsp;px. Variación relativa y barra de conversión de apoyo.</p>
+      </div>
+      <div class="mcol">
+        <div class="mh"><span class="k b">B</span><div><h4>Medidor porcentual</h4><small>Visual · métrica</small></div></div>
+        <div class="mdemo">
+          ${metricHTML({ icon: "i-chat", color: "var(--success)", val: fmt(f6.responses), label: "Respuestas", delta: f6.rDelta, up: f6.rUp, meter: f6.mR, pct: `${f6.mR}%`, wide: true })}
+        </div>
+        <p class="note">Medidor <code>--meter.w</code> de 86&nbsp;px con porcentaje adjunto. Ideal para conversión o completitud.</p>
+      </div>
+      <div class="mcol">
+        <div class="mh"><span class="k c">C</span><div><h4>Sparkline de tendencia</h4><small>Visual · serie</small></div></div>
+        <div class="mdemo" style="display:flex;gap:9px;flex-wrap:wrap">
+          ${metricHTML({ icon: "i-chat", color: "var(--success)", val: fmt(f6.responses), label: "Últimos 8 días", delta: f6.rDelta, up: f6.rUp, spark: sparkSVG(f6.spark, "var(--brand-700)", 60, 22) })}
+          ${metricHTML({ icon: "i-eye", color: "var(--info)", val: fmt(f6.views), label: "Alcance", delta: f6.vDelta, up: f6.vUp, spark: sparkSVG(f6.spark.map((x) => x + 2), "var(--info)", 60, 22) })}
+        </div>
+        <p class="note">Mini sparkline SVG con gradiente de área (<code>preserveAspectRatio=none</code>), étnico y ligero.</p>
+      </div>`;
+
+    /* f7: estados de la tarjeta */
+    const force = (extra) => cardHTML(FORMS[0], { noCheck: true, noMetrics: true, noStatus: false, noActions: false, sel: false }).replace('<article class="card', `<article class="card ${extra}`);
+    $("#f7-s1").innerHTML = cardHTML(FORMS[1], { noCheck: true, noMetrics: true });
+    $("#f7-s2").innerHTML = force("force-hover");
+    $("#f7-s3").innerHTML = force("force-sel");
+  }
+
+  /* ─────────────── init ─────────────── */
+  document.addEventListener("DOMContentLoaded", () => {
+    bindEvents();
+    buildEntityOpts();
+    buildStatusOpts();
+    syncDdLabels();
+    renderChips();
+    renderF1();
+    renderStatic();
+    window.addEventListener("resize", scaleBoards);
+    setTimeout(scaleBoards, 60);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+import axios from "axios";
+import { env } from "../config/env.js";
+import { ApiError } from "../utils/ApiError.js";
+
+const client = axios.create({
+  baseURL: env.ollama.apiUrl.replace(/\/$/, ""),
+  timeout: env.ollama.timeoutMs,
+});
+
+function buildPrompt(prompt, schemaHint = "") {
+  return `${prompt}
+
+${schemaHint ? `Return ONLY valid minified JSON matching this shape:\n${schemaHint}` : ""}
+Do not include markdown code fences or any prose. Output JSON only.`;
+}
+
+export async function generateJson(prompt, { schemaHint = "" } = {}) {
+  const text = await requestModel(buildPrompt(prompt, schemaHint), true);
+  return parseJson(text);
+}
+
+export async function generateText(prompt) {
+  return requestModel(prompt, false);
+}
+
+async function requestModel(prompt, json) {
+  try {
+    const { data } = await client.post("/api/generate", {
+      model: env.ollama.model,
+      prompt,
+      stream: false,
+      ...(json ? { format: "json" } : {}),
+      options: { temperature: 0.7 },
+    });
+
+    const text = data?.response?.trim();
+    if (!text) throw new Error("Ollama returned an empty response");
+    return text;
+  } catch (err) {
+    const detail = err.response?.data?.error || err.message;
+    throw ApiError.internal(
+      `Ollama request failed. Check that Ollama is running and model '${env.ollama.model}' is available: ${detail}`,
+    );
+  }
+}
+
+function parseJson(raw) {
+  let cleaned = raw.trim()
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/, "")
+    .trim();
+
+  const firstBrace = cleaned.search(/[{[]/);
+  const lastBrace = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  }
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    throw ApiError.internal("AI returned malformed JSON. Please try again.");
+  }
+}
