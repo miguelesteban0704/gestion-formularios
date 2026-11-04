@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Mail, KeyRound, ArrowLeft, Send } from "lucide-react";
+import { z } from "zod";
 import { accessApi, localAuthApi } from "../services/index.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
@@ -74,7 +75,7 @@ export default function LocalLogin() {
     let cancelado = false;
     setChecking(true);
 
-/* El portal del super_admin es FIJO. El login va a /formularios-con-ia-loginadmin,
+    /* El portal del super_admin es FIJO. El login va a /formularios-con-ia-loginadmin,
      * nunca a una URL dinámica generada por azar. La página LocalLogin ya no
      * redirige; solo verifica y muestra el formulario. */
     accessApi
@@ -109,7 +110,7 @@ export default function LocalLogin() {
   }, [resetToken]);
 
   /* El aviso de puerta equivocada aparece como alerta en esquina superior derecha.
-     Cuando un usuario que no es super admin intenta loguearse en esta puerta. */
+   * Cuando un usuario que no es super admin intenta loguearse en esta puerta. */
   useEffect(() => {
     if (doorError) {
       toast.error(
@@ -129,23 +130,7 @@ export default function LocalLogin() {
   }, [doorError, isSpanish]);
 
   /* Los errores de submit solo se muestran como toast (alerta de dialogo),
-     nunca como banner dentro de la tarjeta de autenticación. */
-
-  const goMode = (next) => {
-    setMode(next);
-  };
-
-  if (checking) {
-    return (
-      <SuperAdminStage
-        eyebrow={language === "es" ? "Acceso" : "Access"}
-        title={rt("loginWithAccount")}
-        role="Super Admin"
-        verifying
-      />
-    );
-  }
-  if (!portalOk) return <NotFound />;
+   * nunca como banner dentro de la tarjeta de autenticación. */
 
   const submitLogin = async (e) => {
     e.preventDefault();
@@ -179,18 +164,77 @@ export default function LocalLogin() {
     }
   };
 
+  const goMode = (next) => {
+    setMode(next);
+  };
+
+  /* Schema de validación de correo para el modo forgot (doble refinado):
+   * 1. Formato de email obligatorio y válido
+   * 2. Validación simplificada para SuperAdmin (sin expectedEmail del backend) */
+  const emailSchema = z
+    .string()
+    .min(1, isSpanish ? "Correo obligatorio" : "Email required")
+    .refine(
+      (value) => {
+        // Validate email format
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+      },
+      isSpanish ? "Introduce una dirección de correo válida" : "Introduce a valid email address"
+    )
+    .refine(
+      (value) => {
+        // SuperAdmin no tiene expectedEmail del backend como AccessLogin,
+        // asi que solo validamos el formato. El segundo refine siempre pasa.
+        return true;
+      },
+      isSpanish ? "Introduce una dirección de correo válida" : "Introduce a valid email address"
+    );
+
+  const validateEmail = (valueToValidate) => {
+    const result = emailSchema.safeParse(valueToValidate);
+    const err = result.success ? "" : result.error.issues[0]?.message || "";
+    setEmailError(err);
+    return result.success;
+  };
+
+  /* Validez del email en tiempo real (formato).
+     Se calcula en el render para desbloquear el botón en cuanto el usuario escribe
+     el correo correcto, sin depender de emailTouched. */
+  const isEmailValid = emailSchema.safeParse(email).success;
+
+  const [emailError, setEmailError] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
+
+  const handleEmailChange = (event) => {
+    const value = event.target.value;
+    setEmail(value);
+    validateEmail(value);
+  };
+
+  /* El error de formato solo se muestra una vez el usuario sale del campo
+     (blur) o al enviar, no mientras está escribiendo el dominio. */
+  const handleEmailBlur = () => {
+    setEmailTouched(true);
+    validateEmail(email);
+  };
+
+  /* `onChange` también se dispara al pegar (paste) en React, así que la
+     validación es instantánea tanto al escribir como al pegar. */
+  const handleEmailPaste = () => {
+    setEmailTouched(true);
+    validateEmail(email);
+  };
+
   const submitForgot = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const data = await localAuthApi.forgot(email);
-      // En dev el backend devuelve el código (y `mailed` si hubo envío real);
-      // en producción nunca lo trae: el usuario lo recibe por correo.
-      const sent = data?.code || null;
-      setDevCode(sent);
-      setMailed(Boolean(data?.mailed));
-      /* En dev el código se rellena solo; el formulario compartido lo recibe como
-         `initialCode` cuando se monta. */
+      /* `localAuthApi.forgot` responde igual exista o no el correo: nunca
+         revela si una dirección está registrada (seguridad). */
+      await localAuthApi.forgot(email);
+      /* Mostramos la alerta de éxito informando que, si el correo está
+         registrado, se enviaron las instrucciones. */
+      setMailed(true);
       setMode("reset");
     } catch (err) {
       toast.error(err.message);
@@ -198,6 +242,18 @@ export default function LocalLogin() {
       setBusy(false);
     }
   };
+
+  if (checking) {
+    return (
+      <SuperAdminStage
+        eyebrow={language === "es" ? "Acceso" : "Access"}
+        title={rt("loginWithAccount")}
+        role="Super Admin"
+        verifying
+      />
+    );
+  }
+  if (!portalOk) return <NotFound />;
 
   if (mode === "reset") {
     return (
@@ -268,8 +324,21 @@ export default function LocalLogin() {
         }
       >
         <form onSubmit={submitForgot} className="space-y-3">
-          <SaField label={rt("emailOrUser")} icon={Mail} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="correo@ejemplo.com" />
-          <Button type="submit" loading={busy} className={BTN_PREMIUM}>
+          <SaField
+            label={isSpanish ? "Correo electrónico" : "Email"}
+            icon={Mail}
+            type="email"
+            value={email}
+            onChange={handleEmailChange}
+            onBlur={handleEmailBlur}
+            onPaste={handleEmailPaste}
+            required
+            autoComplete="email"
+            placeholder={isSpanish ? "correo@ejemplo.com" : "name@example.com"}
+            error={emailError}
+            touched={emailTouched}
+          />
+          <Button type="submit" loading={busy} disabled={busy || !isEmailValid} className={BTN_PREMIUM}>
             <Send className="h-4 w-4" strokeWidth={1.5} /> {language === "es" ? "Enviar código" : "Send code"}
           </Button>
           <button type="button" onClick={() => goMode("login")} className="flex w-full items-center justify-center gap-1.5 text-sm text-muted transition hover:text-fg">
@@ -294,8 +363,25 @@ export default function LocalLogin() {
       }
     >
       <form onSubmit={submitLogin} className="space-y-3">
-        <SaField label={rt("emailOrUser")} icon={Mail} value={identifier} onChange={(e) => setIdentifier(e.target.value)} required autoComplete="username" placeholder="correo@ejemplo.com" />
-        <SaField label={rt("password")} icon={KeyRound} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" placeholder="••••••••" />
+        <SaField
+          label={rt("emailOrUser")}
+          icon={Mail}
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
+          required
+          autoComplete="username"
+          placeholder={isSpanish ? "correo@ejemplo.com" : "name@example.com"}
+        />
+        <SaField
+          label={rt("password")}
+          icon={KeyRound}
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          autoComplete="current-password"
+          placeholder="••••••••"
+        />
         <Button type="submit" loading={busy} className={BTN_PREMIUM}>
           <KeyRound className="h-4 w-4" strokeWidth={1.5} /> {rt("signIn")}
         </Button>
