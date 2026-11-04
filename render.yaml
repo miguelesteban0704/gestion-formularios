@@ -29,7 +29,6 @@ services:
         value: 8000
       - key: NODE_TLS_REJECT_UNAUTHORIZED
         value: "0"
-      # Conecta automáticamente la base de datos creada arriba
       - key: DATABASE_URL
         fromDatabase:
           name: gestion-formularios-db
@@ -38,7 +37,6 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
-      # Render asignará la URL del frontend automáticamente
       - key: CLIENT_URL
         value: https://gestion-formularios-frontend.onrender.com
       - key: FRONTEND_URL
@@ -69,15 +67,14 @@ services:
   # ┌─────────────────────────────────────────────────────────────────┐
   # │ FRONTEND — Sitio estático (Vite build)                          │
   # └─────────────────────────────────────────────────────────────────┘
-  - type: web               # Cambiado de 'static' a 'web'
-    runtime: static         # Añadido 'runtime: static'
+  - type: web
+    runtime: static
     name: gestion-formularios-frontend
     rootDir: frontend/AIFormBuilder
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     plan: free
-    region: oregon
+    # region: oregon   <-- LÍNEA ELIMINADA
     envVars:
-      # Render asignará la URL del backend automáticamente
       - key: VITE_API_URL
         value: https://gestion-formularios-backend.onrender.com/api
