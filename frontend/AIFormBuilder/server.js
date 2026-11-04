@@ -1,8 +1,12 @@
 import express from "express";
 import path from "path";
+import { fileURLToPath } from "url";
 import fs from "fs";
 
 const app = express();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Buscar dist/ en varias ubicaciones posibles (por compatibilidad con Render)
 const possibleDistPaths = [
