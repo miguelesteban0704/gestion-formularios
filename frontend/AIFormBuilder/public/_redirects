@@ -1,0 +1,5 @@
+# Redirige los archivos de assets a su ruta real (evita la reescritura masiva)
+/assets/*  /assets/:splat  200
+
+# Redirige todo lo demás a index.html para que React Router tome el control
+/*    /index.html   200
