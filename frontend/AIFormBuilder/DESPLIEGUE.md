@@ -53,6 +53,14 @@ El fallo tiene dos caras y conviene verlas las dos:
 
 ## 2. Configuración por servidor
 
+### Render (frontend y API separados)
+
+El sitio estático debe compilarse con `VITE_API_URL` apuntando al dominio del
+servicio backend, terminado en `/api` (como en `.env.production` y `render.yaml`).
+La app conserva ese host: no se debe reemplazar por el dominio del navegador,
+porque el frontend estático puede responder con `index.html` para una ruta
+`/api` y hacer que la app interprete HTML como una respuesta de la API.
+
 ### nginx
 
 ```nginx

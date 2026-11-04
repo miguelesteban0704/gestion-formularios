@@ -8,6 +8,7 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
+    "qa:api-base": "node qa/api-base.js",
     "preview": "vite preview",
     "qa:brand": "node qa/brand-audit.js",
     "qa:routes": "node qa/routes.js",

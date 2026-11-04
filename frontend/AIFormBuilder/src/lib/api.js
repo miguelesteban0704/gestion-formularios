@@ -131,19 +131,10 @@ const ENV_API_URL = import.meta.env.VITE_API_URL || "/api";
 function resolveApiBase() {
   if (typeof window === "undefined") return ENV_API_URL;
   try {
-    const envUrl = new URL(ENV_API_URL, window.location.origin);
-    const currentHost = window.location.hostname;
-    const currentProtocol = window.location.protocol;
-    if (currentHost && (envUrl.hostname !== currentHost || envUrl.protocol !== currentProtocol)) {
-      envUrl.hostname = currentHost;
-      envUrl.protocol = currentProtocol;
-      return envUrl.toString().replace(/\/$/, "");
-    }
-    /* Una base RELATIVA (`/api`, la de por defecto con el proxy de Vite) no lleva
-       ni host ni puerto: se devuelve tal cual para que las llamadas salgan por
-       el mismo origen que la web y no dependan de un segundo certificado. */
-    if (!ENV_API_URL.startsWith("/")) return envUrl.toString().replace(/\/$/, "");
-    return ENV_API_URL;
+    /* La base relativa usa el origen actual; la absoluta conserva el host
+       configurado porque frontend y backend pueden desplegarse por separado. */
+    if (ENV_API_URL.startsWith("/")) return ENV_API_URL;
+    return new URL(ENV_API_URL, window.location.origin).toString().replace(/\/$/, "");
   } catch {
     return ENV_API_URL;
   }
