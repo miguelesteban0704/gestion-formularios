@@ -26,7 +26,14 @@ import settingsRoutes from "./routes/settings.routes.js";
 
 const app = express();
 app.set("trust proxy", 1);
-const allowedOrigins = env.clientUrl.split(",").map((origin) => origin.trim()).filter(Boolean);
+const allowedOrigins = env.clientUrl
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+// En produccion, siempre permitir el origen del frontend de Render
+if (env.nodeEnv === "production") {
+  allowedOrigins.push("https://gestion-formularios.onrender.com");
+}
 
 // Patrón para IPs de red local (mismo subnet / LAN)
 const localNetPattern = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/;
