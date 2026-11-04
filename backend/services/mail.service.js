@@ -50,10 +50,15 @@ async function getTransporter() {
   }
 
   if (env.mailProvider === "smtp") {
-    const port = Number(env.smtpPort) || 587;
-    // MAIL_SECURE permite forzar TLS implícito; si no se define, se infiere del
-    // puerto (465 = TLS implícito).
-    const secure = env.mailSecure === null ? port === 465 : env.mailSecure === true;
+    // En producción, usar puerto 587 con TLS STARTTLS es más compatible
+    // que el puerto 465 con SSL implícito, especialmente desde IPs outside
+    // the US como Cuba. En desarrollo se mantiene la configuración actual.
+    const isProduction = env.nodeEnv === "production";
+    const port = isProduction ? Number(env.smtpPort) || 587 : Number(env.smtpPort) || 465;
+    // En producción, forzar TLS (STARTTLS) en lugar de SSL implícito
+    const secure = isProduction
+      ? env.mailSecure !== false // Si no se especifica explicitamente false, usar TLS
+      : env.mailSecure === null ? port === 465 : env.mailSecure === true;
     transporter = nodemailer.createTransport({
       host: env.smtpHost,
       port,
