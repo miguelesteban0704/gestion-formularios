@@ -20,7 +20,7 @@ services:
     rootDir: backend
     buildCommand: npm install
     startCommand: npm start
-    plan: free
+    plan: free                     # ✅ El backend SÍ mantiene su plan free
     region: oregon
     envVars:
       - key: NODE_ENV
@@ -73,8 +73,7 @@ services:
     rootDir: frontend/AIFormBuilder
     buildCommand: npm install && npm run build
     staticPublishPath: dist
-    plan: free
-    # region: oregon   <-- LÍNEA ELIMINADA
+    # ❌ plan: free eliminado (los sitios estáticos no usan planes)
     envVars:
       - key: VITE_API_URL
         value: https://gestion-formularios-backend.onrender.com/api
