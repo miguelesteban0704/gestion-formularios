@@ -4,6 +4,9 @@ import tailwindcss from "@tailwindcss/vite";
 import fs from "fs";
 import path from "path";
 
+// Verificamos si los certificados existen (solo estarán en tu entorno local)
+const hasCerts = fs.existsSync("./certs/192.168.5.105+2-key.pem");
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -17,10 +20,11 @@ export default defineConfig({
     },
   },
   server: {
-    https: {
+    // Si los certificados existen, usa HTTPS. Si estamos en Render (build), usa HTTP normal.
+    https: hasCerts ? {
       key: fs.readFileSync("./certs/192.168.5.105+2-key.pem"),
       cert: fs.readFileSync("./certs/192.168.5.105+2.pem"),
-    },
+    } : false,
     host: "0.0.0.0",
     port: 5173,
     open: true,
