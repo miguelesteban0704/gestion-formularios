@@ -154,21 +154,29 @@ async function sendMail({
   }
 
   // APIMailer (por defecto)
+  console.log("--- INICIANDO ENVÍO DE CORREO ---");
+  console.log("MAIL_PROVIDER actual:", process.env.MAIL_PROVIDER || env.mailProvider || "(vacío)");
+  console.log("¿Existe API Key?:", !!process.env.APIMAILER_API_KEY);
+
   const mailer = getApiMailer();
-  console.log("[mail.service] Enviando por APIMailer a:", to);
-
-  const result = await mailer.send({
-    to,
-    subject,
-    body: html || text,
-  });
-
-  console.log("[mail.service] APIMailer respuesta:", JSON.stringify(result));
-
-  return {
-    messageId: result?.id || result?.data?.messageId || result?.messageId || "apimailer-ok",
-    preview: null,
-  };
+  try {
+    console.log("Llamando a mailer.send() de APIMailer para:", to);
+    const result = await mailer.send({
+      to,
+      subject,
+      body: html || text,
+    });
+    console.log("✅ APIMailer respondió con éxito:", JSON.stringify(result));
+    return {
+      messageId: result?.id || result?.data?.messageId || result?.messageId || "apimailer-ok",
+      preview: null,
+    };
+  } catch (error) {
+    console.error("🚨 ERROR CRÍTICO AL ENVIAR CORREO:", error);
+    console.error("Detalles del error:", JSON.stringify(error, null, 2));
+    console.error("Código:", error?.code, "Status:", error?.status, "Mensaje:", error?.message, "Response:", error?.response);
+    throw error;
+  }
 }
 
 export async function sendPasswordResetCode({
