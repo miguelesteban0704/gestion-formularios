@@ -17,7 +17,9 @@ mismo comportamiento visual que el entorno de desarrollo.
   sustituir la marca ni rediseñar el producto.
 - **Fuente de verdad:** los tokens de `src/index.css` (`--color-brand-*`,
   colores semánticos y `--glass-chroma`) junto con el tema y el acento dinámico
-  actuales.
+  actuales. Se conserva también el acento índigo fijo de las puertas y roles
+  gestionados (`MANAGED_ACCENT` en `src/lib/accent.js`); no se fuerza ese flujo
+  a usar el cyan personalizable del super_admin.
 - **Capas translúcidas:** mantener el lenguaje de cristal y los efectos
   existentes cuando sigan siendo legibles; ajustar tintes, opacidad, bordes y
   fondos cuando dificulten distinguir contenido o controles.
@@ -45,7 +47,8 @@ como color de datos y estados.
 1. Los modos claro, oscuro y sistema mantienen jerarquía legible para texto,
    controles, estados, bordes y capas superpuestas.
 2. El acento dinámico continúa propagándose a los componentes cuyo color depende
-   de la marca; los colores semánticos permanecen independientes.
+   de la marca; los colores semánticos permanecen independientes y el acento
+   índigo de los roles gestionados se mantiene diferenciado.
 3. Las superficies translúcidas no reducen la legibilidad del contenido que
    cubren ni vuelven ambiguos los límites de controles y diálogos.
 4. El texto normal alcanza contraste WCAG AA de al menos 4.5:1; texto grande y
