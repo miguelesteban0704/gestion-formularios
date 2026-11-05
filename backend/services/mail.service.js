@@ -15,12 +15,10 @@ import { welcomeEmail, resetEmail } from "./mail.templates.js";
 
 /**
  * Proveedor de correo transaccional.
- * Soporta SMTP y APIMailer, seleccionados por MAIL_PROVIDER:
- *  - "smtp": usa Nodemailer + SMTP (p. ej. Gmail en puerto 465 SSL/TLS).
- *  - vacío o cualquier otro valor: usa APIMailer (API HTTP, puerto 443).
+ * - MAIL_PROVIDER vacío o cualquier valor distinto de "smtp": usa APIMailer (por defecto).
+ * - MAIL_PROVIDER=smtp: usa Nodemailer + SMTP.
  *
- * APIMailer usa el remitente predeterminado del buzón conectado. Su nombre y
- * dirección se configuran en la cuenta de APIMailer.
+ * APIMailer gestiona el remitente desde su panel; el SDK solo acepta { to, subject, body }.
  */
 
 let apimailer = null;
@@ -28,12 +26,10 @@ let smtpTransport = null;
 
 export function isMailConfigured() {
   const provider = resolveMailProvider({ mailProvider: env.mailProvider });
-  const hasApiKey = Boolean(process.env.APIMAILER_API_KEY || env.apiMailerKey);
-  console.log("[mail.service] isMailConfigured → provider:", provider, "hasApiKey:", hasApiKey);
   if (provider === "smtp") {
     return Boolean(env.smtpHost && env.smtpUser && env.smtpPass);
   }
-  return hasApiKey;
+  return Boolean(process.env.APIMAILER_API_KEY || env.apiMailerKey);
 }
 
 function getApiMailer() {
@@ -70,7 +66,6 @@ function getSmtpTransport() {
 const RETRY_ATTEMPTS = 2;
 const RETRY_BASE_MS = 500;
 
-/** Reintenta una operación asíncrona (por defecto 2 intentos, backoff lineal). */
 async function withRetry(
   fn,
   { attempts = RETRY_ATTEMPTS, baseMs = RETRY_BASE_MS } = {},
@@ -92,11 +87,6 @@ async function withRetry(
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const LOGO_CID = "formularios-logo";
 
-/**
- * Imagen de marca del correo.
- * Para APIMailer se lee el archivo y se envía su contenido como Buffer.
- * Para SMTP/Nodemailer se usa path (lee desde disco).
- */
 function brandLogo() {
   const candidates = [
     env.mailLogoPath,
@@ -133,9 +123,6 @@ function brandLogo() {
   return { logoUrl: `${base}/favicon.png`, attachments: [] };
 }
 
-/**
- * Envía un correo usando el proveedor activo (APIMailer o SMTP/Nodemailer).
- */
 async function sendMail({
   to,
   subject,
@@ -170,16 +157,13 @@ async function sendMail({
     };
   }
 
-  // APIMailer (por defecto): solo envía to, subject, body.
-  // El SDK no acepta "from" ni "attachments"; el servidor de APIMailer gestiona el remitente.
+  // APIMailer (por defecto)
   const mailer = getApiMailer();
-  console.log("[mail.service] Enviando por APIMailer a:", to, "subject:", subject);
   const result = await mailer.send(createApiMailerPayload({
     to,
     subject,
     body: html || text,
   }));
-  console.log("[mail.service] APIMailer respuesta:", JSON.stringify(result));
 
   return {
     messageId: result?.id || result?.data?.messageId || result?.messageId || "apimailer-ok",
@@ -187,9 +171,6 @@ async function sendMail({
   };
 }
 
-/**
- * Envía el código de recuperación.
- */
 export async function sendPasswordResetCode({
   to,
   code,
@@ -220,9 +201,6 @@ export async function sendPasswordResetCode({
   };
 }
 
-/**
- * Envía los datos de acceso de una cuenta recién creada.
- */
 export async function sendWelcomeEmail({
   to,
   name,
@@ -262,10 +240,6 @@ export async function sendWelcomeEmail({
   };
 }
 
-/**
- * Correo de bienvenida unificado. NUNCA lanza: devuelve siempre
- * { sent, reason, to, preview? } para que el alta se complete aunque el correo falle.
- */
 export async function sendUserWelcomeEmail({
   to,
   mode = "activation",
@@ -304,7 +278,7 @@ export async function sendUserWelcomeEmail({
       ttlHours,
     });
 
-    const info = await withRetry(() =>
+    await withRetry(() =>
       sendMail({
         to,
         subject: rendered.subject,
@@ -318,8 +292,7 @@ export async function sendUserWelcomeEmail({
     result.reason = null;
     return result;
   } catch (error) {
-    console.error("[mail.service] Error al enviar correo:", error);
-    console.error("[mail.service] Error code:", error?.code, "status:", error?.status, "message:", error?.message);
+    console.error("[mail.service] Error al enviar correo:", error.message);
     result.reason = "error";
     try {
       result.error = safeMailErrorCode(error);
