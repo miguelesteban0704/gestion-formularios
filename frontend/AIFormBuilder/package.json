@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "qa:brand": "node qa/brand-audit.js",
     "qa:routes": "node qa/routes.js",
+    "qa:colors": "node qa/color-contrast.js",
     "qa:nav": "node qa/routes-probe.js",
     "qa:ai": "node qa/ai-options.js && node qa/ai-scale.js && node qa/ai-types.js && node qa/ai-audit.js",
     "qa:card": "node qa/card-text-probe.js",
