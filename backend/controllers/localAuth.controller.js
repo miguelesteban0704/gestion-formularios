@@ -319,7 +319,8 @@ export const localForgot = asyncHandler(async (req, res) => {
       mailed = true;
       if (preview) console.log(`[local-auth] correo de recuperación enviado · preview: ${preview}`);
     } catch (e) {
-      console.error("[local-auth] fallo al enviar correo de recuperación:", safeMailErrorCode(e));
+      console.error("[local-auth] fallo al enviar correo de recuperación:", e);
+      console.error("[local-auth] código:", e?.code, "mensaje:", e?.message, "status:", e?.status, "response:", e?.response);
     }
   }
   const recoveryLog = !mailed && recoveryCodeLogMessage({ nodeEnv: env.nodeEnv, email, code });

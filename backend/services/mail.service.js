@@ -159,16 +159,22 @@ async function sendMail({
 
   // APIMailer (por defecto)
   const mailer = getApiMailer();
-  const result = await mailer.send(createApiMailerPayload({
-    to,
-    subject,
-    body: html || text,
-  }));
-
-  return {
-    messageId: result?.id || result?.data?.messageId || result?.messageId || "apimailer-ok",
-    preview: null,
-  };
+  try {
+    const result = await mailer.send(createApiMailerPayload({
+      to,
+      subject,
+      body: html || text,
+    }));
+    console.log("[mail.service] APIMailer respuesta:", JSON.stringify(result));
+    return {
+      messageId: result?.id || result?.data?.messageId || result?.messageId || "apimailer-ok",
+      preview: null,
+    };
+  } catch (error) {
+    console.error("[mail.service] APIMailer error:", error);
+    console.error("[mail.service] APIMailer código:", error?.code, "status:", error?.status, "mensaje:", error?.message, "response:", error?.response);
+    throw error;
+  }
 }
 
 export async function sendPasswordResetCode({
