@@ -9,6 +9,7 @@ import "@fontsource-variable/fraunces";
 import "./index.css";
 import App from "./App.jsx";
 import { ConfirmProvider } from "./feedback/ConfirmProvider.tsx";
+import { AlertDialog } from "./components/ui/AlertDialog.tsx";
 import { AuthProvider } from "./contexts/AuthContext.jsx";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import { LanguageProvider } from "./contexts/LanguageContext.jsx";
@@ -34,6 +35,7 @@ createRoot(document.getElementById("root")).render(
                 <App />
                 {/* Capa de notificaciones: por encima de modales, por debajo del splash. */}
                 <Toaster position="top-right" />
+                <AlertDialog />
               </ConfirmProvider>
             </BrowserRouter>
           </AuthProvider>

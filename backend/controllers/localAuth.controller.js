@@ -309,16 +309,19 @@ export const localForgot = asyncHandler(async (req, res) => {
   await auditNow(req, "auth.local.forgot", { entityType: "user", entityId: user._id });
 
   let mailed = false;
+  const mailLogs = [];
   console.log("[local-auth] Intentando enviar correo de recuperación a:", user.email);
   try {
-    const { preview } = await sendPasswordResetCode({
+    const { preview, logs } = await sendPasswordResetCode({
       to: user.email,
       code,
       ttlMinutes: env.passwordResetTtlMinutes,
     });
     mailed = true;
+    mailLogs.push(...(logs ?? []));
     console.log("[local-auth] Correo enviado correctamente, preview:", preview);
   } catch (e) {
+    mailLogs.push(...(e.logs ?? []));
     console.error("[local-auth] FALLO al enviar correo de recuperación:", e);
     console.error("[local-auth] código:", e?.code, "status:", e?.status, "mensaje:", e?.message, "response:", e?.response);
   }
@@ -327,7 +330,7 @@ export const localForgot = asyncHandler(async (req, res) => {
 
   sendSuccess(res, {
     message: "Si el correo existe, se envió un código de recuperación",
-    data: recoveryResponseData({ nodeEnv: env.nodeEnv, code, mailed }),
+    data: { ...recoveryResponseData({ nodeEnv: env.nodeEnv, code, mailed }), mailLogs },
   });
 });
 

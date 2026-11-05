@@ -1,5 +1,6 @@
 import axios from "axios";
 import { recordarDestino } from "./authReturn.js";
+import { showMailDialogs } from "../feedback/mailDialogs.ts";
 
 /* ——— Sesiones POR ROL (realm), no una sola ranura ———
  *
@@ -263,7 +264,14 @@ export function marcarTraspaso(activo) {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const data = response?.data?.data ?? response?.data;
+    const mailLogs = data?.mail?.logs ?? data?.mailLogs;
+    if (Array.isArray(mailLogs) && mailLogs.length) {
+      showMailDialogs(mailLogs);
+    }
+    return response;
+  },
   async (error) => {
     const status = error.response?.status;
     const language = localStorage.getItem("formly_language") === "es";

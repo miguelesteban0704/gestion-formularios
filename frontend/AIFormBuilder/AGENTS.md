@@ -1797,6 +1797,32 @@ const estilo = flex({ direction: "column", gap: 12 }); // objeto de estilo
 > Orden: **mÃ¡s reciente primero**. Cada entrada lleva fecha, archivos, quÃ© cambiÃ³
 > y las puertas ejecutadas (ver Â§5).
 
+### 2026-11-05 — Correo: los diagnósticos de envío se muestran como alertas de diálogo en el frontend
+
+**Objetivo (petición del usuario):** quitar los mensajes de diagnóstico de envío de correo (`console.log`/`console.error`) del backend (`mail.service.js`) y mostrarlos como alertas de diálogo en el frontend, exactamente con el mismo texto: `--- INICIANDO ENVÍO DE CORREO ---`, `¿Existe API Key?:`, `✅ APIMailer respondió con éxito:` y `🚨 ERROR CRÍTICO AL ENVIAR CORREO:` (y sus detalles). Se generan como alerta de diálogo, no como log de backend, sin alterar el contrato de datos ni la persistencia.
+
+**Decisiones de diseño:**
+- Backend: `sendMail` acumula los 4 mensajes en un array `mailLogs` y los devuelve en `logs` del resultado; en caso de fallo adjunta `logs` al error (`error.logs`). `sendPasswordResetCode`, `sendWelcomeEmail` y `sendUserWelcomeEmail` propagan `logs`. En `localAuth.controller.js` (`localForgot`), `mailLogs` viaja dentro de `data` de la respuesta de éxito.
+- Frontend: `src/feedback/mailDialogs.ts` con `showMailDialogs(logs)` que dispara cada mensaje por `alertAPI` (`alertStore.ts`) clasificando tipo (success/error/info) según el texto. El interceptor de respuesta de `src/lib/api.js` lee `data.mail.logs` / `data.mailLogs` y llama a `showMailDialogs`. `<AlertDialog />` se monta en `src/main.jsx` junto a `<Toaster />`.
+
+**Archivos modificados (5) + 1 nuevo:**
+- `backend/services/mail.service.js` — `sendMail` acumula `mailLogs` y los retorna en `logs`/`error.logs`; los wrappers propagan `logs`.
+- `backend/controllers/localAuth.controller.js` — `localForgot` devuelve `mailLogs` en `data`.
+- `frontend/AIFormBuilder/src/feedback/mailDialogs.ts` (nuevo) — `showMailDialogs(logs)` dispara alertas de diálogo vía `alertStore`.
+- `frontend/AIFormBuilder/src/lib/api.js` — interceptor de respuesta llama a `showMailDialogs` con `data.mail.logs` / `data.mailLogs`.
+- `frontend/AIFormBuilder/src/main.jsx` — monta `<AlertDialog />` junto a `<Toaster />`.
+- `frontend/AIFormBuilder/src/feedback/alertStore.ts` (ya existía, se reusa) — API imperativa de alertas.
+- `frontend/AIFormBuilder/src/components/ui/AlertDialog.tsx` (ya existía, se reusa) — capa de presentación.
+
+**Contrato de datos intacto:** sin cambios de persistencia ni de backend más allá de propagar los logs.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/` y `backend/`):**
+- Backend `node --check` → OK.
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0 (warnings `@utility` de `admin.css` y chunks >500 kB preexistentes, ver §9).
+- (Opcional) Verificación funcional con servidores backend y frontend vivos: pendiente por falta de `.env` (MAIL_PROVIDER/APIMAILER_API_KEY y DATABASE_URL no configurados en este entorno).
+
 ### 2026-11-03 — Recuperación: mostrar errores de correo mientras se escribe (onChange)
 
 **Objetivo (petición del usuario):** al escribir el correo en el `RecoveryModal` de las puertas `/a/:slug`, los mensajes de error debían aparecer **a medida que el usuario escribe**, no solo al salir del campo (blur). Así, si el formato es inválido se muestra "Introduce una dirección de correo válida" (`recoveryEmailInvalid`) al teclear; si el formato es válido pero no coincide con la cuenta de la URL de acceso se muestra "El correo no coincide con la cuenta" (`recoveryEmailNotMatch`); y el botón «Enviar instrucciones» solo se habilita cuando se escribe el correo correcto de la cuenta.

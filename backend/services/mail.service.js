@@ -154,28 +154,32 @@ async function sendMail({
   }
 
   // APIMailer (por defecto)
-  console.log("--- INICIANDO ENVÍO DE CORREO ---");
-  console.log("MAIL_PROVIDER actual:", process.env.MAIL_PROVIDER || env.mailProvider || "(vacío)");
-  console.log("¿Existe API Key?:", !!process.env.APIMAILER_API_KEY);
+  const mailLogs = [];
+  mailLogs.push("--- INICIANDO ENVÍO DE CORREO ---");
+  mailLogs.push(`MAIL_PROVIDER actual: ${process.env.MAIL_PROVIDER || env.mailProvider || "(vacío)"}`);
+  mailLogs.push(`¿Existe API Key?: ${!!process.env.APIMAILER_API_KEY}`);
 
   const mailer = getApiMailer();
   try {
-    console.log("Llamando a mailer.send() de APIMailer para:", to);
+    mailLogs.push(`Llamando a mailer.send() de APIMailer para: ${to}`);
     const result = await mailer.send({
       to,
       subject,
       body: html || text,
     });
-    console.log("✅ APIMailer respondió con éxito:", JSON.stringify(result));
+    mailLogs.push(`✅ APIMailer respondió con éxito: ${JSON.stringify(result)}`);
     return {
       messageId: result?.id || result?.data?.messageId || result?.messageId || "apimailer-ok",
       preview: null,
+      logs: mailLogs,
     };
   } catch (error) {
-    console.error("🚨 ERROR CRÍTICO AL ENVIAR CORREO:", error);
-    console.error("Detalles del error:", JSON.stringify(error, null, 2));
-    console.error("Código:", error?.code, "Status:", error?.status, "Mensaje:", error?.message, "Response:", error?.response);
-    throw error;
+    mailLogs.push(`🚨 ERROR CRÍTICO AL ENVIAR CORREO: ${error?.message ?? String(error)}`);
+    mailLogs.push(`Detalles del error: ${JSON.stringify(error, null, 2)}`);
+    mailLogs.push(`Código: ${error?.code} Status: ${error?.status} Mensaje: ${error?.message} Response: ${error?.response}`);
+    const err = error;
+    err.logs = mailLogs;
+    throw err;
   }
 }
 
@@ -209,6 +213,7 @@ export async function sendPasswordResetCode({
   return {
     messageId: result?.messageId || "apimailer-ok",
     preview: null,
+    logs: result?.logs ?? [],
   };
 }
 
@@ -251,6 +256,7 @@ export async function sendWelcomeEmail({
   return {
     messageId: result?.messageId || "apimailer-ok",
     preview: null,
+    logs: result?.logs ?? [],
   };
 }
 
@@ -295,7 +301,7 @@ export async function sendUserWelcomeEmail({
       ttlHours,
     });
 
-    await withRetry(() =>
+    const sendResult = await withRetry(() =>
       sendMail({
         to,
         subject: rendered.subject,
@@ -307,6 +313,7 @@ export async function sendUserWelcomeEmail({
 
     result.sent = true;
     result.reason = null;
+    result.logs = sendResult?.logs ?? [];
     console.log("[mail.service] sendUserWelcomeEmail completado con éxito");
     return result;
   } catch (error) {
@@ -318,6 +325,7 @@ export async function sendUserWelcomeEmail({
     } catch {
       result.error = error.code || "UNKNOWN_ERROR";
     }
+    if (error.logs) result.logs = error.logs;
     return result;
   }
 }
