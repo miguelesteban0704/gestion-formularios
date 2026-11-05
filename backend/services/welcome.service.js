@@ -2,7 +2,8 @@ import { env } from "../config/env.js";
 import * as userRepo from "../repositories/user.repo.js";
 import * as entityRepo from "../repositories/entity.repo.js";
 import { hashPassword, generateTempPassword } from "../utils/password.js";
-import { sendUserWelcomeEmail } from "./mail.service.js";
+import { isMailConfigured, sendUserWelcomeEmail } from "./mail.service.js";
+import { safeMailErrorCode } from "../utils/mailConfiguration.js";
 
 /**
  * Orquesta el correo de bienvenida de una cuenta recién creada o reenviada.
@@ -179,6 +180,6 @@ export async function sendSuperAdminAccessUrl({
     });
     return { sent: true, reason: null, to, ...info };
   } catch (error) {
-    return { sent: false, reason: error?.message || "unknown", to };
+    return { sent: false, reason: safeMailErrorCode(error), to };
   }
 }

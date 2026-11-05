@@ -20,7 +20,7 @@ recibe el resultado (`mail.sent`) y muestra un diálogo u otro.
 
 | Variante | `MAIL_SEND_CREDENTIALS` | El correo lleva | Caducidad | Efecto en la cuenta |
 |---|---|---|---|---|
-| **A** (por defecto) | `false` | **Enlace de activación** (`?token=…`, un solo uso) | `MAIL_ACTIVATION_TTL_HOURS` (24 h) | Sin contraseña en el correo; la cuenta ya existe con la contraseña que fijó el admin |
+| **A** (por defecto) | `false` | **Enlace de activación** (`?token=…`, un solo uso) | `MAIL_ACTIVATION_TTL_HOURS` (24 h) | El usuario crea su contraseña desde el enlace; no se envía una contraseña por correo |
 | **B** | `true` | **Usuario + contraseña temporal** | `MAIL_TEMP_PASSWORD_TTL_HOURS` (72 h) | `must_change_password = true`; cambio forzado al entrar |
 
 - En **A**, el enlace apunta a una **ruta estable**: `${frontendUrl}/activar?token=<token>`
@@ -68,33 +68,77 @@ mail = {
   sent: boolean,        // true si el proveedor aceptó el envío
   reason: "disabled" | "error" | "no_access_url" | null,
   to: string,           // destinatario
-  preview?: string,     // solo con Ethereal (dev)
+  preview?: string,     // vista previa si el proveedor la ofrece
 }
 ```
 
 `sendUserWelcomeEmail` **nunca lanza**: captura el error y devuelve
 `reason:"error"`. `sendPasswordResetCode` sí lanza (su llamador lo tolera).
 
-## 5. Configuración (`backend/.env`)
+## 5. Configuración
+
+### Desarrollo local (`backend/.env`)
 
 ```dotenv
-MAIL_PROVIDER=ethereal        # ethereal | smtp | (vacío = sin correo)
+# MAIL_PROVIDER vacío usa APIMailer; smtp selecciona Gmail SMTP
+MAIL_PROVIDER=
 MAIL_FROM="Formularios con IA <no-reply@…>"
 MAIL_SEND_CREDENTIALS=false   # false = variante A (enlace); true = variante B
 MAIL_ACTIVATION_TTL_HOURS=24
 MAIL_TEMP_PASSWORD_TTL_HOURS=72
 
-# smtp
+# Gmail SMTP
 SMTP_HOST=…
-SMTP_PORT=587
+SMTP_PORT=465
 SMTP_USER=…
 SMTP_PASS=…
-MAIL_SECURE=                  # vacío = se infiere del puerto (465 = TLS implícito)
+MAIL_SECURE=true              # 465 = TLS implícito; 587 = STARTTLS obligatorio
 ```
 
-`isMailConfigured()` es falso si: no hay `MAIL_PROVIDER`/es `none`, Ethereal en
-producción, o SMTP sin host/usuario/contraseña. En ese caso el alta sigue
-funcionando y `mail.reason === "disabled"`.
+En desarrollo, si `MAIL_PROVIDER` está vacío, el backend usa APIMailer; configura
+`APIMAILER_API_KEY` para habilitar el envío. El SMTP configurado no se utiliza
+hasta establecer explícitamente `MAIL_PROVIDER=smtp`. La selección explícita
+de `MAIL_PROVIDER` siempre tiene prioridad.
+
+APIMailer envía desde el buzón SMTP predeterminado conectado; esta integración
+no envía un selector de buzón. Configura el remitente como
+`Gestión de Formularios <no-reply@unionelectrica.cu>` en APIMailer y en el
+proveedor de correo.
+
+### Producción en Render
+
+El blueprint configura los valores no secretos en el servicio
+`gestion-formularios-backend`:
+
+```text
+MAIL_PROVIDER=smtp
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+MAIL_SECURE=true
+MAIL_SEND_CREDENTIALS=false
+FRONTEND_URL=https://gestion-formularios.onrender.com
+```
+
+En **Render → servicio backend → Environment**, añade `SMTP_USER` con la
+dirección de Gmail y `SMTP_PASS` con su **contraseña de aplicación**. El
+blueprint declara ambas como `sync: false`: no se escriben en `.env.example`,
+`render.yaml`, Git ni logs. Al guardar, Render reinicia/despliega el backend.
+No uses la contraseña normal de Gmail.
+
+El puerto 465 usa TLS implícito; 587 usa STARTTLS obligatorio. El backend
+mantiene la validación normal del certificado TLS. No configures
+`NODE_TLS_REJECT_UNAUTHORIZED=0` en producción.
+
+`isMailConfigured()` es falso si no hay un proveedor soportado o SMTP carece de
+host/usuario/contraseña. En ese caso
+el alta sigue funcionando y devuelve `mail.reason === "disabled"`. Ante un
+fallo de transporte solo se expone un código acotado, no el mensaje completo
+del proveedor.
+
+Después de cargar los secretos, verifica la recuperación y el alta con una
+cuenta de prueba controlada. Las pruebas automatizadas no conectan con Gmail;
+sin los secretos en Render no se puede afirmar que el envío real haya quedado
+verificado.
 
 ## 6. Auditoría
 

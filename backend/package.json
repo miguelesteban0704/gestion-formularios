@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "seed": "node utils/seed.js"
+    "seed": "node utils/seed.js",
+    "test:mail": "node --test qa/mail-config.test.js qa/recovery-code-logging.test.js"
   },
   "keywords": [
     "forms",
@@ -20,6 +21,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@apimailer/sdk": "^0.1.1",
     "@neondatabase/serverless": "^1.1.0",
     "axios": "^1.20.0",
     "bcryptjs": "^3.0.2",

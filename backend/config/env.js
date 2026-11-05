@@ -89,7 +89,7 @@ export const env = {
   sessionMaxConcurrentDefault: parseInt(process.env.SESSION_MAX_CONCURRENT_DEFAULT) || 5,
 
   // ── Correo transaccional (recuperación + bienvenida/activación) ──────
-  // "ethereal" (pruebas, solo dev) | "smtp" (real) | vacío = sin correo.
+  // "smtp" usa SMTP; vacío usa APIMailer por defecto.
   mailProvider: (process.env.MAIL_PROVIDER || "").toLowerCase() || null,
   smtpHost: process.env.SMTP_HOST || null,
   smtpPort: process.env.SMTP_PORT || "587",

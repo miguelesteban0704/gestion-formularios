@@ -12,6 +12,8 @@ import * as sessionRepo from "../repositories/session.repo.js";
 import * as entityRepo from "../repositories/entity.repo.js";
 import { env } from "../config/env.js";
 import { isMailConfigured, sendPasswordResetCode } from "../services/mail.service.js";
+import { safeMailErrorCode } from "../utils/mailConfiguration.js";
+import { recoveryCodeLogMessage, recoveryResponseData } from "../utils/recoveryPolicy.js";
 import { sendWelcomeForNewUser, tempPasswordExpiry, isCredentialVariant } from "../services/welcome.service.js";
 import { resolveActiveAccessUrl, registerUse, assertAccessUrlFor } from "../services/accessUrl.service.js";
 import { ROLES, MANAGEABLE_ROLES } from "../middleware/rbac.js";
@@ -317,16 +319,15 @@ export const localForgot = asyncHandler(async (req, res) => {
       mailed = true;
       if (preview) console.log(`[local-auth] correo de recuperación enviado · preview: ${preview}`);
     } catch (e) {
-      console.error("[local-auth] fallo al enviar correo de recuperación:", e.message);
+      console.error("[local-auth] fallo al enviar correo de recuperación:", safeMailErrorCode(e));
     }
   }
-  if (!mailed) console.log(`[local-auth] código de recuperación (sin correo) para ${email}: ${code}`);
+  const recoveryLog = !mailed && recoveryCodeLogMessage({ nodeEnv: env.nodeEnv, email, code });
+  if (recoveryLog) console.log(recoveryLog);
 
   sendSuccess(res, {
     message: "Si el correo existe, se envió un código de recuperación",
-    // En producción el código NUNCA se devuelve: solo llega por correo.
-    // En desarrollo se expone para poder completar el flujo sin bandeja.
-    data: env.nodeEnv === "production" ? {} : { code, mailed },
+    data: recoveryResponseData({ nodeEnv: env.nodeEnv, code, mailed }),
   });
 });
 
