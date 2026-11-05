@@ -28,11 +28,12 @@ let smtpTransport = null;
 
 export function isMailConfigured() {
   const provider = resolveMailProvider({ mailProvider: env.mailProvider });
+  const hasApiKey = Boolean(process.env.APIMAILER_API_KEY || env.apiMailerKey);
+  console.log("[mail.service] isMailConfigured → provider:", provider, "hasApiKey:", hasApiKey);
   if (provider === "smtp") {
     return Boolean(env.smtpHost && env.smtpUser && env.smtpPass);
   }
-  // APIMailer (por defecto): verificamos la API Key.
-  return Boolean(process.env.APIMAILER_API_KEY || env.apiMailerKey);
+  return hasApiKey;
 }
 
 function getApiMailer() {
@@ -172,11 +173,13 @@ async function sendMail({
   // APIMailer (por defecto): solo envía to, subject, body.
   // El SDK no acepta "from" ni "attachments"; el servidor de APIMailer gestiona el remitente.
   const mailer = getApiMailer();
+  console.log("[mail.service] Enviando por APIMailer a:", to, "subject:", subject);
   const result = await mailer.send(createApiMailerPayload({
     to,
     subject,
     body: html || text,
   }));
+  console.log("[mail.service] APIMailer respuesta:", JSON.stringify(result));
 
   return {
     messageId: result?.id || result?.data?.messageId || result?.messageId || "apimailer-ok",
@@ -315,7 +318,8 @@ export async function sendUserWelcomeEmail({
     result.reason = null;
     return result;
   } catch (error) {
-    console.error("[mail.service] Error al enviar correo:", safeMailErrorCode(error));
+    console.error("[mail.service] Error al enviar correo:", error);
+    console.error("[mail.service] Error code:", error?.code, "status:", error?.status, "message:", error?.message);
     result.reason = "error";
     try {
       result.error = safeMailErrorCode(error);
