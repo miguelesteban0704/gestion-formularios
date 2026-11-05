@@ -7,7 +7,6 @@ import { env } from "../config/env.js";
 import {
   createApiMailerPayload,
   createSmtpTransportOptions,
-  isMailConfigured as isSmtpMailConfigured,
   resolveMailProvider,
   resolveSmtpFromAddress,
   safeMailErrorCode,
@@ -18,8 +17,7 @@ import { welcomeEmail, resetEmail } from "./mail.templates.js";
  * Proveedor de correo transaccional.
  * Soporta SMTP y APIMailer, seleccionados por MAIL_PROVIDER:
  *  - "smtp": usa Nodemailer + SMTP (p. ej. Gmail en puerto 465 SSL/TLS).
- *  - cualquier otro valor: usa APIMailer (API HTTP, puerto 443).
- *  - vacío: usa APIMailer por defecto.
+ *  - vacío o cualquier otro valor: usa APIMailer (API HTTP, puerto 443).
  *
  * APIMailer usa el remitente predeterminado del buzón conectado. Su nombre y
  * dirección se configuran en la cuenta de APIMailer.
@@ -28,25 +26,13 @@ import { welcomeEmail, resetEmail } from "./mail.templates.js";
 let apimailer = null;
 let smtpTransport = null;
 
-function getMailProvider() {
-  return resolveMailProvider({ mailProvider: env.mailProvider });
-}
-
 export function isMailConfigured() {
-  const provider = getMailProvider();
+  const provider = resolveMailProvider({ mailProvider: env.mailProvider });
   if (provider === "smtp") {
-    return isSmtpMailConfigured({
-      mailProvider: provider,
-      nodeEnv: env.nodeEnv,
-      smtpHost: env.smtpHost,
-      smtpUser: env.smtpUser,
-      smtpPass: env.smtpPass,
-    });
+    return Boolean(env.smtpHost && env.smtpUser && env.smtpPass);
   }
-  if (provider === "apimailer") {
-    return Boolean(process.env.APIMAILER_API_KEY || env.apiMailerKey);
-  }
-  return false;
+  // APIMailer (por defecto): verificamos la API Key.
+  return Boolean(process.env.APIMAILER_API_KEY || env.apiMailerKey);
 }
 
 function getApiMailer() {
@@ -158,7 +144,7 @@ async function sendMail({
   fromName,
   fromEmail,
 }) {
-  const provider = getMailProvider();
+  const provider = resolveMailProvider({ mailProvider: env.mailProvider });
 
   if (provider === "smtp") {
     const transport = getSmtpTransport();
@@ -183,10 +169,8 @@ async function sendMail({
     };
   }
 
-  if (provider !== "apimailer") {
-    throw new Error("MAIL_PROVIDER no está configurado con un proveedor compatible");
-  }
-
+  // APIMailer (por defecto): solo envía to, subject, body.
+  // El SDK no acepta "from" ni "attachments"; el servidor de APIMailer gestiona el remitente.
   const mailer = getApiMailer();
   const result = await mailer.send(createApiMailerPayload({
     to,
