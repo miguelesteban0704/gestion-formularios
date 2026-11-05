@@ -4,32 +4,29 @@ import { fileURLToPath } from "node:url";
 import { APIMailer } from "@apimailer/sdk";
 import nodemailer from "nodemailer";
 import { env } from "../config/env.js";
-import {
-  createApiMailerPayload,
-  createSmtpTransportOptions,
-  resolveMailProvider,
-  resolveSmtpFromAddress,
-  safeMailErrorCode,
-} from "../utils/mailConfiguration.js";
+import { safeMailErrorCode } from "../utils/mailConfiguration.js";
 import { welcomeEmail, resetEmail } from "./mail.templates.js";
-
-/**
- * Proveedor de correo transaccional.
- * - MAIL_PROVIDER vacío o cualquier valor distinto de "smtp": usa APIMailer (por defecto).
- * - MAIL_PROVIDER=smtp: usa Nodemailer + SMTP.
- *
- * APIMailer gestiona el remitente desde su panel; el SDK solo acepta { to, subject, body }.
- */
 
 let apimailer = null;
 let smtpTransport = null;
 
+function getMailProvider() {
+  return String(process.env.MAIL_PROVIDER || env.mailProvider || "").toLowerCase() || "apimailer";
+}
+
 export function isMailConfigured() {
-  const provider = resolveMailProvider({ mailProvider: env.mailProvider });
+  const provider = getMailProvider();
+  console.log("[mail.service] isMailConfigured → provider:", provider);
+
   if (provider === "smtp") {
-    return Boolean(env.smtpHost && env.smtpUser && env.smtpPass);
+    const ok = Boolean(env.smtpHost && env.smtpUser && env.smtpPass);
+    console.log("[mail.service] SMTP configured:", ok, { host: !!env.smtpHost, user: !!env.smtpUser, pass: !!env.smtpPass });
+    return ok;
   }
-  return Boolean(process.env.APIMAILER_API_KEY || env.apiMailerKey);
+
+  const hasKey = Boolean(process.env.APIMAILER_API_KEY || env.apiMailerKey);
+  console.log("[mail.service] APIMailer key configured:", hasKey);
+  return hasKey;
 }
 
 function getApiMailer() {
@@ -40,6 +37,7 @@ function getApiMailer() {
     throw new Error("APIMAILER_API_KEY no está configurada");
   }
 
+  console.log("[mail.service] Inicializando APIMailer con clave:", apiKey.substring(0, 10) + "...");
   apimailer = new APIMailer({ apiKey });
   return apimailer;
 }
@@ -47,19 +45,15 @@ function getApiMailer() {
 function getSmtpTransport() {
   if (smtpTransport) return smtpTransport;
 
-  if (!env.smtpHost || !env.smtpUser || !env.smtpPass) {
-    throw new Error("SMTP no está configurado (SMTP_HOST, SMTP_USER, SMTP_PASS)");
-  }
+  const port = Number(env.smtpPort) || 465;
+  const secure = env.mailSecure === true || port === 465;
 
-  smtpTransport = nodemailer.createTransport(
-    createSmtpTransportOptions({
-      smtpHost: env.smtpHost,
-      smtpPort: env.smtpPort,
-      mailSecure: env.mailSecure,
-      smtpUser: env.smtpUser,
-      smtpPass: env.smtpPass,
-    }),
-  );
+  smtpTransport = nodemailer.createTransport({
+    host: env.smtpHost,
+    port,
+    secure,
+    auth: { user: env.smtpUser, pass: env.smtpPass },
+  });
   return smtpTransport;
 }
 
@@ -132,12 +126,13 @@ async function sendMail({
   fromName,
   fromEmail,
 }) {
-  const provider = resolveMailProvider({ mailProvider: env.mailProvider });
+  const provider = getMailProvider();
+  console.log("[mail.service] sendMail → provider:", provider, "to:", to);
 
   if (provider === "smtp") {
     const transport = getSmtpTransport();
     const info = await transport.sendMail({
-      from: `"${fromName || process.env.MAIL_FROM_NAME || "Formularios con IA"}" <${resolveSmtpFromAddress({ fromEmail, mailFrom: env.mailFrom, smtpUser: env.smtpUser })}>`,
+      from: `"${fromName || process.env.MAIL_FROM_NAME || "Formularios con IA"}" <${fromEmail || env.mailFrom || env.smtpUser || "no-reply@example.com"}>`,
       to,
       subject,
       html,
@@ -151,6 +146,7 @@ async function sendMail({
           }))
         : [],
     });
+    console.log("[mail.service] SMTP enviado correctamente, messageId:", info.messageId);
     return {
       messageId: info.messageId || "smtp-ok",
       preview: null,
@@ -159,22 +155,20 @@ async function sendMail({
 
   // APIMailer (por defecto)
   const mailer = getApiMailer();
-  try {
-    const result = await mailer.send(createApiMailerPayload({
-      to,
-      subject,
-      body: html || text,
-    }));
-    console.log("[mail.service] APIMailer respuesta:", JSON.stringify(result));
-    return {
-      messageId: result?.id || result?.data?.messageId || result?.messageId || "apimailer-ok",
-      preview: null,
-    };
-  } catch (error) {
-    console.error("[mail.service] APIMailer error:", error);
-    console.error("[mail.service] APIMailer código:", error?.code, "status:", error?.status, "mensaje:", error?.message, "response:", error?.response);
-    throw error;
-  }
+  console.log("[mail.service] Enviando por APIMailer a:", to);
+
+  const result = await mailer.send({
+    to,
+    subject,
+    body: html || text,
+  });
+
+  console.log("[mail.service] APIMailer respuesta:", JSON.stringify(result));
+
+  return {
+    messageId: result?.id || result?.data?.messageId || result?.messageId || "apimailer-ok",
+    preview: null,
+  };
 }
 
 export async function sendPasswordResetCode({
@@ -183,6 +177,8 @@ export async function sendPasswordResetCode({
   ttlMinutes,
   language = "es",
 }) {
+  console.log("[mail.service] sendPasswordResetCode iniciado para:", to);
+
   const logo = brandLogo();
   const rendered = resetEmail({
     language,
@@ -201,6 +197,7 @@ export async function sendPasswordResetCode({
     }),
   );
 
+  console.log("[mail.service] sendPasswordResetCode completado:", result.messageId);
   return {
     messageId: result?.messageId || "apimailer-ok",
     preview: null,
@@ -217,6 +214,8 @@ export async function sendWelcomeEmail({
   password,
   language = "es",
 }) {
+  console.log("[mail.service] sendWelcomeEmail iniciado para:", to);
+
   const logo = brandLogo();
   const rendered = welcomeEmail({
     language,
@@ -240,6 +239,7 @@ export async function sendWelcomeEmail({
     }),
   );
 
+  console.log("[mail.service] sendWelcomeEmail completado:", result.messageId);
   return {
     messageId: result?.messageId || "apimailer-ok",
     preview: null,
@@ -262,8 +262,11 @@ export async function sendUserWelcomeEmail({
 }) {
   const result = { sent: false, reason: null, to };
 
+  console.log("[mail.service] sendUserWelcomeEmail iniciado para:", to);
+
   if (!isMailConfigured()) {
     result.reason = "disabled";
+    console.log("[mail.service] Correo deshabilitado (isMailConfigured=false)");
     return result;
   }
 
@@ -296,9 +299,11 @@ export async function sendUserWelcomeEmail({
 
     result.sent = true;
     result.reason = null;
+    console.log("[mail.service] sendUserWelcomeEmail completado con éxito");
     return result;
   } catch (error) {
-    console.error("[mail.service] Error al enviar correo:", error.message);
+    console.error("[mail.service] Error al enviar correo:", error);
+    console.error("[mail.service] Código:", error?.code, "Status:", error?.status, "Mensaje:", error?.message, "Response:", error?.response);
     result.reason = "error";
     try {
       result.error = safeMailErrorCode(error);
