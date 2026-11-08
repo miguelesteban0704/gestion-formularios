@@ -6,6 +6,7 @@ import {
   localLogout,
   localForgot,
   localReset,
+  getSuperAdminEmail,
 } from "../controllers/localAuth.controller.js";
 import { protect } from "../middleware/auth.js";
 import { requireRole, audit } from "../middleware/rbac.js";
@@ -26,6 +27,8 @@ router.post("/register-by-access/:slug", localRegisterByAccess);
 router.post("/login", localLogin);
 router.post("/forgot", localForgot);
 router.post("/reset", localReset);
+/* Correo del Super Admin para validar la recuperación (público, sin sesión). */
+router.get("/super-admin-email", getSuperAdminEmail);
 // Cierre de la sesión actual.
 router.post("/logout", protect, localLogout);
 

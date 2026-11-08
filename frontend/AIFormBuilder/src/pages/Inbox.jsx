@@ -190,7 +190,7 @@ function FilterChip({ active, onClick, color, children }) {
       onClick={onClick}
       className={
         "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors " +
-        (active ? "bg-brand-600 text-white shadow-soft" : "border border-default text-muted hover:text-fg")
+        (active ? "bg-brand-600 text-on-brand-600 shadow-soft" : "border border-default text-muted hover:text-fg")
       }
     >
       {color && <span className="h-2 w-2 rounded-full" style={{ background: active ? "#fff" : color }} />}

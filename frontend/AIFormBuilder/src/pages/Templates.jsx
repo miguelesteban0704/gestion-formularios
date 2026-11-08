@@ -109,7 +109,7 @@ export default function Templates({ guestMode = false }) {
             className={cn(
               "rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
               category === cat
-                ? "bg-brand-600 text-white shadow-soft"
+                ? "bg-brand-600 text-on-brand-600 shadow-soft"
                 : "border border-default text-muted hover:border-brand-300 hover:text-fg"
             )}
           >
@@ -149,7 +149,7 @@ export default function Templates({ guestMode = false }) {
                   <Button
                     variant="secondary"
                     size="sm"
-                    className="group-hover:bg-brand-gradient group-hover:text-white group-hover:border-transparent"
+                    className="group-hover:bg-brand-gradient group-hover:text-on-brand-gradient group-hover:border-transparent"
                     loading={creatingId === template.id}
                     onClick={() => applyTemplate(template)}
                   >

@@ -68,7 +68,7 @@ class PanelErrorBoundary extends React.Component {
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition"
+              className="mt-4 px-4 py-2 rounded-lg bg-brand-500 text-on-brand-500 text-sm font-medium hover:bg-brand-600 hover:text-on-brand-600 transition"
             >
               {isSpanish ? "Recargar página" : "Reload page"}
             </button>
@@ -175,7 +175,7 @@ function RailItem({ to, label, icon: Icon }) {
             className={cn(
               "grid h-9 w-9 shrink-0 place-items-center rounded-lg transition-all",
               isActive
-                ? "bg-brand-gradient text-white shadow-soft"
+                ? "bg-brand-gradient text-on-brand-gradient shadow-soft"
                 : "text-ink-muted group-hover/rail:text-ink"
             )}
           >
@@ -244,7 +244,7 @@ function MobileDrawer({ open, onClose, onCreate }) {
         </div>
         {isAuthenticated && !isGuest(user) && !isSuper(user) && !isEntityAdmin(user) && <button
           onClick={() => { onClose(); onCreate?.(); }}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-gradient py-2.5 text-sm font-medium text-white cta-glass-shadow transition hover:scale-105 active:scale-95 transform-gpu"
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-gradient py-2.5 text-sm font-medium text-on-brand-gradient cta-glass-shadow transition hover:scale-105 active:scale-95 transform-gpu"
         >
           <Plus className="h-4 w-4" /> {t("newForm")}
         </button>}
@@ -338,7 +338,7 @@ export function DashboardLayout({ children }) {
           style={!isAuthenticated || isGuest(user) || isSuper(user) || isEntityAdmin(user) ? { display: "none" } : undefined}
           aria-hidden={!isAuthenticated || isGuest(user) || isSuper(user) || isEntityAdmin(user)}
         >
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-gradient text-white transition hover:scale-105 active:scale-95 transform-gpu">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-gradient text-on-brand-gradient transition hover:scale-105 active:scale-95 transform-gpu">
             <Plus className="h-5 w-5" />
           </span>
           <span className="whitespace-nowrap text-sm font-semibold text-ink opacity-0 transition-opacity duration-200 group-hover:opacity-100">

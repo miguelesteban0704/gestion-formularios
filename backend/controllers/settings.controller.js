@@ -53,9 +53,9 @@ export const getSettings = asyncHandler(async (req, res) => {
 // ─── PATCH /api/settings/profile ────────────────────────────────────────────
 export const updateProfile = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-  const { name, lastName, username, bio, timezone, language, dateFormat } = req.body;
+  const { name, lastName, username, bio, timezone, language, dateFormat, email } = req.body;
 
-  // Validación mínima
+  // Validación mínima del nombre
   if (name !== undefined && (typeof name !== "string" || name.trim().length < 2)) {
     throw ApiError.badRequest("El nombre debe tener al menos 2 caracteres.");
   }
@@ -66,12 +66,26 @@ export const updateProfile = asyncHandler(async (req, res) => {
         "El username solo puede contener letras, números, puntos, guiones y guiones bajos (3-32 caracteres).",
       );
     }
-    // Unicidad
+    // Unicidad del username
     const { rows } = await query(
       `SELECT id FROM users WHERE username = $1 AND id != $2`,
       [clean, userId],
     );
-    if (rows.length > 0) throw ApiError.conflict("Ese username ya está en uso.");
+    if (rows.length > 0) throw ApiError.conflict("Ese username ya está en uso.", { field: "username" });
+  }
+
+  // Validación y unicidad del correo electrónico
+  let cleanEmail;
+  if (email !== undefined) {
+    cleanEmail = String(email).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      throw ApiError.badRequest("Introduce un correo electrónico válido.");
+    }
+    const { rows } = await query(
+      `SELECT id FROM users WHERE email = $1 AND id != $2`,
+      [cleanEmail, userId],
+    );
+    if (rows.length > 0) throw ApiError.conflict("Este correo ya está en uso por otra cuenta.", { field: "email" });
   }
 
   const updated = await settingsRepo.updateProfile(userId, {
@@ -79,6 +93,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     lastName: lastName?.trim(),
     username: username?.trim().toLowerCase(),
     bio: bio?.trim(),
+    email: cleanEmail,
     timezone,
     language,
     dateFormat,

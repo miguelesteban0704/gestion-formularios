@@ -433,7 +433,7 @@ export function PremiumDatePicker({
                         disabled={isDisabledDay}
                         className={`flex items-center justify-center w-11 h-11 rounded-2xl text-sm font-medium transition-all duration-150 ease-ui active:scale-90
                         ${sel
-                          ? "bg-brand-600 text-white shadow-[0_0_24px_color-mix(in_srgb,var(--color-brand-600)_50%,transparent)] ring-2 ring-brand-500/30"
+                          ? "bg-brand-600 text-on-brand-600 shadow-[0_0_24px_color-mix(in_srgb,var(--color-brand-600)_50%,transparent)] ring-2 ring-brand-500/30"
                           : tdy
                           ? "bg-brand-50/70 dark:bg-brand-950/15 text-brand-600 dark:text-brand-400 ring-1 ring-brand-500/50"
                           : !currentMonth

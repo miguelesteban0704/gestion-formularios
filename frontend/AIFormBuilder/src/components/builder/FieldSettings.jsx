@@ -12,7 +12,7 @@ import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { ValidationSettings } from "./ValidationSettings.jsx";
 
 /** Editor panel for a single field's properties. */
-export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex = 0 }) {
+export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex = 0, accent }) {
   const def = FIELD_DEFS[field.type];
   const [aiBusy, setAiBusy] = useState(false);
   const [improving, setImproving] = useState(false);
@@ -93,6 +93,7 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
           <Label>{t("imageBlock")}</Label>
           <ImageUpload
             initialUrl={field.content}
+            accent={accent}
             onUpload={({ file, previewUrl }) => set({ content: previewUrl })}
             onRemove={() => set({ content: "" })}
             hints={{ dragDrop: "Arrastra y suelta una imagen", remove: "Quitar", formatHint: "JPG, PNG, WEBP, GIF · hasta 8 MB" }}

@@ -265,6 +265,10 @@ export function marcarTraspaso(activo) {
 
 api.interceptors.response.use(
   (response) => {
+    /* El portal local del super_admin (LocalLogin) envía el correo de
+       recuperación y muestra su propio modal premium. No debe disparar las
+       alertas genéricas de diagnóstico del interceptor. */
+    if (response.config?.__noMailDialogs) return response;
     const data = response?.data?.data ?? response?.data;
     const mailLogs = data?.mail?.logs ?? data?.mailLogs;
     if (Array.isArray(mailLogs) && mailLogs.length) {

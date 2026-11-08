@@ -79,7 +79,7 @@ export function ResponsesTable({ responses, onDeleteResponse, onExport, isLoadin
           </button>
           <button
             onClick={() => setToDelete(null)}
-            className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium shadow-md hover:bg-brand-700 transition-all duration-200 hover:shadow-[0_8px_30px_rgb(99,102,241,0.15)]"
+            className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600 text-on-brand-600 text-sm font-medium shadow-md hover:bg-brand-700 hover:text-on-brand-700 transition-all duration-200 hover:shadow-[0_8px_30px_rgb(99,102,241,0.15)]"
           >
             <ChevronRight className="h-4 w-4" />
             Gestionar respuestas

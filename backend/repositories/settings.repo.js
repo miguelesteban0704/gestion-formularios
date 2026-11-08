@@ -44,16 +44,17 @@ export async function getOrCreateSettings(userId) {
 /**
  * Actualiza campos de perfil en users + user_settings en una transacción.
  */
-export async function updateProfile(userId, { name, lastName, username, bio, timezone, language, dateFormat }) {
+export async function updateProfile(userId, { name, lastName, username, bio, timezone, language, dateFormat, email }) {
   // Actualizar tabla users (campos que viven ahí)
   await query(
     `UPDATE users
      SET
        name       = COALESCE($2, name),
        last_name  = COALESCE($3, last_name),
-       username   = COALESCE($4, username)
+       username   = COALESCE($4, username),
+       email      = COALESCE($5, email)
      WHERE id = $1`,
-    [userId, name ?? null, lastName ?? null, username ?? null],
+    [userId, name ?? null, lastName ?? null, username ?? null, email ?? null],
   );
 
   // Actualizar user_settings

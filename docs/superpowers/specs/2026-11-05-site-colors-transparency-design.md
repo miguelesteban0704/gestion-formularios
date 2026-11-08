@@ -1,7 +1,7 @@
 # Especificación: sistema global de color y transparencia
 
 - **Fecha:** 2026-11-05
-- **Estado:** propuesta aprobada en conversación; pendiente revisión de este documento.
+- **Estado:** aprobada en conversación.
 - **Alcance:** frontend `frontend/AIFormBuilder`.
 
 ## Objetivo

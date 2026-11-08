@@ -96,7 +96,7 @@ export function ShareModal({ isOpen, onClose, formId, formTitle, publicUrl }: Sh
                       flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
                       transition-all duration-200 whitespace-nowrap
                       ${active
-                        ? "bg-brand-600 text-white shadow-sm shadow-brand-600/20"
+                        ? "bg-brand-600 text-on-brand-600 shadow-sm shadow-brand-600/20"
                         : "text-gray-500 hover:text-brand-600 hover:bg-gray-50/50"
                       }
                     `}

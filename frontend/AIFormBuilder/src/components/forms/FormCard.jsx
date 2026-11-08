@@ -281,7 +281,7 @@ export function FormCard({ form, index = 0, publicOnly = false, guestMode = fals
         {!ro && puedeStats && (
           <button
             onClick={() => navigate(analyticsPath(language, form._id, entityCode))}
-            className="group/btn mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface-2/70 py-2 text-xs font-semibold text-ink transition-all duration-300 hover:border-brand-600/50 hover:bg-brand-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:bg-slate-800/60"
+            className="group/btn mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface-2/70 py-2 text-xs font-semibold text-ink transition-all duration-300 hover:border-brand-600/50 hover:bg-brand-600 hover:text-on-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:bg-slate-800/60"
             aria-label={t("insights")}
           >
             <BarChart3 className="h-4 w-4" />
@@ -299,7 +299,7 @@ export function FormCard({ form, index = 0, publicOnly = false, guestMode = fals
           <div className="mt-3 flex gap-2">
             <button
               onClick={goAnswer}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-brand-gradient py-2 text-xs font-semibold text-white transition-all duration-300 hover:scale-[1.02] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-brand-gradient py-2 text-xs font-semibold text-on-brand-gradient transition-all duration-300 hover:scale-[1.02] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
             >
               <Reply className="h-4 w-4" />
               {rt("answerNow")}

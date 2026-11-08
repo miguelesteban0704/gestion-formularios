@@ -191,7 +191,7 @@ export function AccentPicker({
           {previewLabel}
         </p>
         <div className="flex flex-wrap items-center gap-2.5">
-          <span className="inline-flex h-9 items-center rounded-[20px] bg-brand-gradient px-4 text-xs font-bold text-white shadow-[0_6px_16px_-6px_var(--color-brand-600)]">
+          <span className="inline-flex h-9 items-center rounded-[20px] bg-brand-gradient px-4 text-xs font-bold text-on-brand-gradient shadow-[0_6px_16px_-6px_var(--color-brand-600)]">
             {previewButton}
           </span>
 

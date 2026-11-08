@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { ImagePlus, Trash2, Link, Upload } from "lucide-react";
-import { hexToRgba, shade } from "../../lib/utils.js";
+import { hexToRgba } from "../../lib/utils.js";
+import { DEFAULT_ACCENT, checkOnAccent } from "../../lib/accent.js";
 
 /**
  * Premium image upload component with TWO modes:
@@ -12,12 +13,21 @@ import { hexToRgba, shade } from "../../lib/utils.js";
  * shows something.
  */
 
-export function ImageUpload({ initialUrl, onUpload, onRemove, hints, accent = "#0c8b7c" }) {
+export function ImageUpload({ initialUrl, onUpload, onRemove, hints, accent }) {
   const [previewUrl, setPreviewUrl] = useState(initialUrl || null);
   const [mode, setMode] = useState("upload"); // "upload" or "url"
   const [error, setError] = useState(null);
   const [urlValue, setUrlValue] = useState("");
   const inputRef = useRef(null);
+  const resolvedAccent = accent || "var(--color-brand-500)";
+  const contrastAccent =
+    accent ||
+    (typeof document === "undefined"
+      ? DEFAULT_ACCENT
+      : getComputedStyle(document.documentElement).getPropertyValue("--color-brand-500").trim()) ||
+    DEFAULT_ACCENT;
+  const accentInk = checkOnAccent(contrastAccent);
+  const gradientTarget = accentInk === "#000000" ? "white" : "black";
 
   const handleFileChange = (e) => {
     try {
@@ -98,8 +108,8 @@ export function ImageUpload({ initialUrl, onUpload, onRemove, hints, accent = "#
           className="absolute top-1 bottom-1 w-1/2 rounded-lg shadow-md transition-transform duration-300 ease-out"
           style={{
             transform: mode === "upload" ? "translateX(0)" : "translateX(100%)",
-            background: `linear-gradient(145deg, ${accent}, ${shade(accent, -14)})`,
-            boxShadow: `0 4px 14px -4px ${hexToRgba(accent, 0.5)}`,
+            background: `linear-gradient(145deg, ${resolvedAccent}, color-mix(in srgb, ${resolvedAccent} 86%, ${gradientTarget}))`,
+            boxShadow: `0 4px 14px -4px ${hexToRgba(resolvedAccent, 0.5)}`,
           }}
         />
         <button
@@ -113,12 +123,12 @@ export function ImageUpload({ initialUrl, onUpload, onRemove, hints, accent = "#
             absolute inset-0 flex items-center justify-center gap-2 rounded-xl text-sm font-medium
             transition-colors duration-300
             ${mode === "upload"
-              ? "text-white"
+              ? ""
               : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"}
           `}
-          style={{ width: "50%" }}
+          style={{ width: "50%", color: mode === "upload" ? accentInk : undefined }}
         >
-          <Upload className={`h-4 w-4 ${mode === "upload" ? "text-white" : "text-slate-400"}`} />
+          <Upload className={`h-4 w-4 ${mode !== "upload" ? "text-slate-400" : ""}`} />
           <span>Desde PC</span>
         </button>
         <button
@@ -131,12 +141,12 @@ export function ImageUpload({ initialUrl, onUpload, onRemove, hints, accent = "#
             absolute inset-0 flex items-center justify-center gap-2 rounded-xl text-sm font-medium
             transition-colors duration-300
             ${mode === "url"
-              ? "text-white"
+              ? ""
               : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"}
           `}
-          style={{ left: "50%", width: "50%" }}
+          style={{ left: "50%", width: "50%", color: mode === "url" ? accentInk : undefined }}
         >
-          <Link className={`h-4 w-4 ${mode === "url" ? "text-white" : "text-slate-400"}`} />
+          <Link className={`h-4 w-4 ${mode !== "url" ? "text-slate-400" : ""}`} />
           <span>URL de internet</span>
         </button>
       </div>

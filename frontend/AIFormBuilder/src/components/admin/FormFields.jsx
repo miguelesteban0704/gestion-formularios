@@ -512,7 +512,7 @@ export function AdminOptionGroup({
                 className={cn(
                   "grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-all duration-200",
                   selected
-                    ? "border-brand-500 bg-brand-500 text-white"
+                    ? "border-brand-500 bg-brand-500 text-on-brand-500"
                     : "border-line bg-transparent text-transparent"
                 )}
                 aria-hidden="true"

@@ -120,11 +120,13 @@ export function SuperAdminStage({ eyebrow, title, subtitle, role, children, foot
  * `role="alert"` + `aria-invalid`/`aria-describedby`. No reutiliza AuthField
  * para no tocar el aspecto de /a/:slug.
  */
-export function SaField({ label, icon: Icon, type = "text", error, className, placeholder, ...props }) {
+export function SaField({ label, icon: Icon, type = "text", error, valid, className, placeholder, ...props }) {
   const [visible, setVisible] = useState(false);
   const id = useId();
   const errId = `${id}-err`;
   const isPassword = type === "password";
+  const hasIcon = Boolean(Icon);
+  const isValid = valid && !error;
   
   // Placeholders por defecto según el tipo
   const defaultPlaceholder = isPassword 
@@ -139,9 +141,13 @@ export function SaField({ label, icon: Icon, type = "text", error, className, pl
         {label}
       </label>
       <span className="relative block">
-        {Icon && (
+        {hasIcon && (
           <Icon
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+            className={cn(
+              "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 stroke-1.5",
+              isValid ? "text-success" : "text-muted",
+              error && "text-danger"
+            )}
             strokeWidth={1.5}
             aria-hidden="true"
           />
@@ -153,7 +159,12 @@ export function SaField({ label, icon: Icon, type = "text", error, className, pl
           placeholder={placeholder || defaultPlaceholder}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errId : undefined}
-          className={cn("sa-input py-2.5", Icon && "pl-9 pr-3", isPassword && "pr-12")}
+          className={cn(
+            "sa-input py-2.5",
+            hasIcon && "pl-9 pr-3",
+            isPassword && "pr-12",
+            isValid && "focus-visible:ring-success/60 border-success/50"
+          )}
         />
         {isPassword && (
           <span className="absolute right-1.5 top-1/2 -translate-y-1/2">

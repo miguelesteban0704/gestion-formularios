@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings as SettingsIcon,
+  User,
   Palette,
   Check,
   Laptop,
@@ -18,6 +19,7 @@ import { DEFAULT_ACCENT } from "../lib/accent.js";
 import { setAppearanceExplicitSave } from "../components/settings/appearanceSaveGate.js";
 import { useUpdateAppearance } from "../hooks/useSettings.js";
 import SessionsPanel from "../components/settings/SessionsPanel.jsx";
+import UserProfileSettings from "../components/settings/UserProfileSettings.jsx";
 import { PageHeader } from "./Insights.jsx";
 import { Card } from "../components/ui/Card.jsx";
 import { Label } from "../components/ui/Input.jsx";
@@ -30,6 +32,7 @@ export default function Settings() {
   const [tab, setTab] = useState("appearance");
 
   const TABS = [
+    { id: "perfil", icon: User, label: t("tabProfile") },
     { id: "appearance", icon: Palette, label: t("tabAppearance") },
     { id: "devices", icon: Laptop, label: t("tabDevices") },
   ];
@@ -99,6 +102,7 @@ export default function Settings() {
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               className="space-y-5"
             >
+              {tab === "perfil" && <UserProfileSettings />}
               {tab === "appearance" && <AppearanceSettings />}
               {tab === "devices" && <SessionsPanel />}
             </motion.div>

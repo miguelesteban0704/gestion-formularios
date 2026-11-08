@@ -149,7 +149,7 @@ export function IdentityMenu({ user }) {
             {rt("userLabel")}
           </span>
           <span className="inline-flex max-w-[10.5rem] items-center gap-1.5 rounded-full border border-brand-500/30 bg-gradient-to-r from-brand-500/15 to-brand-500/5 py-1 pl-1 pr-2.5 text-xs font-semibold text-ink shadow-[inset_0_1px_0_rgb(255_255_255_/_0.35),0_8px_22px_-14px_var(--color-brand-500)]">
-            <span className="grid h-[1.15rem] w-[1.15rem] shrink-0 place-items-center rounded-full bg-brand-500 text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.5)]">
+            <span className="grid h-[1.15rem] w-[1.15rem] shrink-0 place-items-center rounded-full bg-brand-500 text-on-brand-500 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.5)]">
               <UserRound className="h-3 w-3" aria-hidden="true" strokeWidth={2.5} />
             </span>
             <span className="truncate">{accountLabel}</span>
@@ -189,4 +189,3 @@ export function IdentityMenu({ user }) {
     </Dropdown>
   );
 }
-

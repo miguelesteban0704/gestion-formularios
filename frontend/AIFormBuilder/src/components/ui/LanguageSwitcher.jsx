@@ -59,7 +59,7 @@ export function LanguageSwitcher({ className = "" }) {
         className={cn(
           "relative flex h-8 items-center gap-2 rounded-lg px-1.5 text-xs font-semibold transition-all duration-300 ease-out lg:px-3",
           language === "es"
-            ? "bg-brand-500 text-white shadow-md shadow-brand-500/25 scale-[1.02]"
+            ? "bg-brand-500 text-on-brand-500 shadow-md shadow-brand-500/25 scale-[1.02]"
             : "text-muted dark:text-slate-400 hover:text-fg dark:hover:text-slate-200 hover:bg-surface-2 dark:hover:bg-slate-800/60"
         )}
         aria-label="Español"
@@ -77,7 +77,7 @@ export function LanguageSwitcher({ className = "" }) {
         className={cn(
           "relative flex h-8 items-center gap-2 rounded-lg px-1.5 text-xs font-semibold transition-all duration-300 ease-out lg:px-3",
           language === "en"
-            ? "bg-brand-500 text-white shadow-md shadow-brand-500/25 scale-[1.02]"
+            ? "bg-brand-500 text-on-brand-500 shadow-md shadow-brand-500/25 scale-[1.02]"
             : "text-muted dark:text-slate-400 hover:text-fg dark:hover:text-slate-200 hover:bg-surface-2 dark:hover:bg-slate-800/60"
         )}
         aria-label="English"

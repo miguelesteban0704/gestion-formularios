@@ -137,8 +137,8 @@ export function NavCard({
                  como un solo par de utilidades, y `--card-accent` ya viene
                  puesto en la raíz de la tarjeta: aquí no hace falta el `style`
                  en línea que antes fijaba el relleno al 9% y lo dejaba fijo en
-                 hover. El glifo se pone blanco y el círculo toma el color de la
-                 tarjeta. */
+                 hover. El glifo oscuro conserva contraste en todos los acentos
+                 del panel y el círculo toma el color de la tarjeta. */
               : "card-arrow group-hover:card-arrow-on group-hover:scale-105"
           )}
         >

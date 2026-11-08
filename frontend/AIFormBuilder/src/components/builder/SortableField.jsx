@@ -286,7 +286,7 @@ function SortableFieldBase({
     {/* Inline settings */}
     {expanded && (
       <div className="border-t border-default dark:border-slate-800 bg-surface-2/50 dark:bg-slate-900/60 p-4" onClick={(e) => e.stopPropagation()}>
-        <FieldSettings field={field} onChange={onChange} allQuestions={allQuestions} fieldIndex={fieldIndex} />
+        <FieldSettings field={field} onChange={onChange} allQuestions={allQuestions} fieldIndex={fieldIndex} accent={accent} />
       </div>
     )}
   </div>

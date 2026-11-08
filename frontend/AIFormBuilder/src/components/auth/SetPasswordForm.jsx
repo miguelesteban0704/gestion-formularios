@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { KeyRound, Hash } from "lucide-react";
+import { useState, useCallback } from "react";
+import { KeyRound, Hash, Check } from "lucide-react";
 import { toast } from "sonner";
 import { localAuthApi } from "../../services/index.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
@@ -40,15 +40,48 @@ export default function SetPasswordForm({
   const [code, setCode] = useState(initialCode || token || "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [codeError, setCodeError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const codeOk = !requireCode || code.trim().length >= 6;
+  const codeOk = !requireCode || /^\d{6}$/.test(code.trim());
   const passwordsMatch = password.length >= 8 && password === confirmPassword;
   const ready = codeOk && passwordsMatch;
 
+  /* Sanitiza el código a dígitos puros (el correo puede traer "123 456" o
+     "123-456") y limita a 6. */
+  const sanitizeCode = useCallback((value) => value.replace(/\D/g, ""), []);
+
+  const validateCode = useCallback((value = code) => {
+    const normalized = sanitizeCode(value).slice(0, 6);
+    const isValid = /^\d{6}$/.test(normalized);
+    setCodeError(isValid ? "" : t("recoveryCodeDigits"));
+    return isValid;
+  }, [code, t, sanitizeCode]);
+
+  const handleCodeChange = (event) => {
+    const value = sanitizeCode(event.target.value).slice(0, 6);
+    setCode(value);
+    validateCode(value);
+  };
+
+  const handleCodePaste = (event) => {
+    event.preventDefault();
+    const clipboardData =
+      event.clipboardData || event.nativeEvent?.clipboardData || window.clipboardData;
+    const pasted = clipboardData?.getData("text") || "";
+    const digits = sanitizeCode(pasted).slice(0, 6);
+    setCode(digits);
+    validateCode(digits);
+  };
+
   const submit = async (event) => {
     event.preventDefault();
-    if (!ready) return;
+    if (!ready) {
+      if (requireCode && !/^\d{6}$/.test(code.trim())) {
+        setCodeError(t("recoveryCodeDigits"));
+      }
+      return;
+    }
     setBusy(true);
     try {
       const data = await localAuthApi.reset((token || code).trim(), password);
@@ -58,11 +91,17 @@ export default function SetPasswordForm({
       setPassword("");
       setConfirmPassword("");
       setCode("");
+      setCodeError("");
       /* `localReset` devuelve la puerta vigente del usuario: se le lleva allí a
          iniciar sesión, no a la puerta que pudiera llevar el correo. */
       onSuccess?.(data);
     } catch (err) {
-      toast.error(err.message);
+      /* El backend rechaza el código si es inválido o caducó: mostramos el
+         error debajo del campo de código, no como toast. */
+      setCodeError(
+        err?.message ||
+          (es ? "Código inválido o caducado." : "Invalid or expired code."),
+      );
     } finally {
       setBusy(false);
     }
@@ -73,15 +112,17 @@ export default function SetPasswordForm({
       {requireCode && (
         <SaField
           label={es ? "Código de recuperación" : "Recovery code"}
-          icon={Hash}
+          icon={codeOk && code.trim().length === 6 ? Check : Hash}
+          valid={codeOk && code.trim().length === 6 && !codeError}
           value={code}
-          onChange={(event) => setCode(event.target.value)}
+          onChange={handleCodeChange}
+          onPaste={handleCodePaste}
           required
-          minLength={6}
           maxLength={6}
           inputMode="numeric"
           autoComplete="one-time-code"
-          placeholder="······"
+          placeholder={t("recoveryCodePlaceholder")}
+          error={codeError}
         />
       )}
       <SaField

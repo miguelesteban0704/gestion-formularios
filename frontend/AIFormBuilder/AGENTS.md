@@ -1,5 +1,64 @@
 # AGENTS.md — Gestor de Formularios
 
+### 2026-11-08 — Super Admin: revisión y verificación de Usuarios, Entidades y URLs de acceso
+
+**Objetivo (petición del usuario):** revisar al detalle las tres páginas del dashboard de super_admin —`src/pages/admin/Users.jsx`, `src/pages/admin/Entities.jsx` y `src/pages/admin/AccessUrls.jsx`— para confirmar que están en sintonía (los mismos usuarios de rol gestor de formularios aparecen en Usuarios que como `assignedUsers` en AccessUrls) y que se cumple la regla de «un solo gestor de entidad por entidad».
+
+**Hallazgos (sin cambios de código necesarios):**
+- Las tres páginas ya están en sintonía: `users.access_url_id` ↔ `access_urls.id`; `AccessUrls.jsx` muestra `assignedUsers` en cada fila y `Users.jsx` filtra por rol (`form_creator`/`entity_admin`), así que los mismos gestores aparecen en ambos lados.
+- Validación «un solo gestor de entidad por entidad» ya implementada en 4 capas: (1) `localAuth.controller.localRegister` → `findEntityAdminByEntity(entityId)` 409; (2) `admin.controller.updateUser` → `findEntityAdminByEntity(nextEntityId, target._id)` 409; (3) índice único parcial `users_entity_admin_entity_unique_idx` en BD; (4) migración `config/db.js` que repara duplicados heredados al arrancar.
+- El único `super_admin` está protegido (no se degrada ni elimina si es el único).
+- Backend `assertAccessUrlFor` (`accessUrl.service.js`) es el único punto de correlación cuenta↔URL al crear/editar.
+
+**Puertas ejecutadas desde `frontend/AIFormBuilder/`:**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0 (1.48s; warnings `@utility` de `admin.css` y chunks >500 kB preexistentes, ver §9).
+
+**Archivos revisados (sin modificaciones):** `frontend/AIFormBuilder/src/pages/admin/{Users,Entities,AccessUrls}.jsx`, `frontend/AIFormBuilder/src/lib/roles.js`, `backend/middleware/rbac.js`, `backend/repositories/user.repo.js`, `backend/repositories/accessUrl.repo.js`, `backend/services/accessUrl.service.js`, `backend/controllers/admin.controller.js`, `backend/controllers/localAuth.controller.js`, `backend/config/db.js`.
+
+### 2026-11-08 — LocalLogin: modal premium en lugar de alerta de diálogo al enviar correo de recuperación (superadmin)
+
+**Objetivo (petición del usuario):** al enviar el correo para restablecer contraseña en el portal del super_admin (`LocalLogin.jsx`), ya no se muestra la alerta de diálogo genérica del interceptor de correo. En su lugar se muestra un único **modal premium** con el mensaje "Se envió un código de recuperación a tu correo" (o similar), un botón **Cerrar** y un botón **Aceptar**, con diseño super moderno y premium y acento de superadministrador (`--color-brand-500` = #00D2FF).
+
+**Decisiones de diseño:**
+- El interceptor de `lib/api.js` ya no dispara `showMailDialogs` para la llamada de `forgot` (se añade `__noMailDialogs: true` al config de la petición), evitando las alertas de diagnóstico del correo en esta puerta.
+- `submitForgot` abre el modal premium en éxito; al pulsar Cerrar o Aceptar se cierra el modal, se marca `mailed = true` y se pasa al modo `reset` para que el usuario escriba el código.
+- El modal usa el componente `Modal` con `orb` (ícono `Check` dentro de un orbe elevado), `aura="var(--color-brand-500)"` (acento superadmin), `size="sm"`, `headerPt="pt-10"`, dos botones en el pie (Cerrar = neutro, Aceptar = marca cyan con `shadow-glow`), y respeta el idioma activo (es/en).
+
+**Archivos modificados (3):**
+- `frontend/AIFormBuilder/src/pages/LocalLogin.jsx` — añade estado `forgotModalOpen`, handler `handleForgotAccept`, `submitForgot` abre el modal en éxito, renderiza `<Modal>` premium con orb de marca, dos botones y acento `#00D2FF`. Importa `Check` de lucide y `Modal` de `ui/Modal.tsx`.
+- `frontend/AIFormBuilder/src/lib/api.js` — el interceptor de respuesta salta `showMailDialogs` cuando `response.config.__noMailDialogs` es true.
+- `frontend/AIFormBuilder/src/services/index.js` — `localAuthApi.forgot` pasa `{ ...NO_LOGOUT, __noMailDialogs: true }` en el config de axios.
+
+**Contrato de datos intacto:** misma llamada `localAuthApi.forgot(email)`; sin cambios de backend ni persistencia. Solo se suprime la alerta genérica del interceptor para esta puerta y se muestra el modal premium en su lugar.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → construido exitosamente (warnings `@utility` de `admin.css` y chunks >500 kB preexistentes, ver §9).
+
+### 2026-11-08 — LocalLogin: validar que el correo de recuperación sea el del Super Admin; error premium si no coincide
+
+**Objetivo (petición del usuario):** en el card "Recuperar acceso" del portal del super_admin (`LocalLogin.jsx`) no se validaba el correo escrito. Ahora el correo del campo `forgot` **debe ser igual que el correo del Super Admin** (`user.email` vía `useAuth()`). Si no coincide, se muestra un **modal de error premium** (`ErrorModal`, tono `error`, ícono `ShieldAlert`, acento de peligro, cierre con "Cerrar") comunicando que el correo no es válido o no pertenece al Super Admin, en lugar de enviar la petición de recuperación.
+
+**Decisiones de diseño:**
+- La validación se hace en el frontend en `submitForgot`, **antes** de llamar a `localAuthApi.forgot(email)`. Se normalizan ambos correos (`.trim().toLowerCase()`) y se compara contra `user?.email`. Si no hay sesión de Super Admin o los correos no coinciden, se abre el modal de error y se retorna sin enviar.
+- El backend `localForgot` ya responde idéntico exista o no el correo (no enumera), así que la pertenencia al Super Admin se resuelve en cliente sin tocar el backend ni la persistencia.
+- Si el correo coincide, se mantiene el flujo previo: se abre el modal premium de éxito ("Código enviado") con orb `Check`, acento `var(--color-brand-500)` y botones Cerrar/Aceptar.
+- i18n: claves `forgotNotSuperAdminTitle` / `forgotNotSuperAdminBody(email)` añadidas en `es`/`en` de `roleI18n.js`.
+
+**Archivos modificados (2):**
+- `frontend/AIFormBuilder/src/pages/LocalLogin.jsx` — importa `ErrorModal` de `ui/Modal.tsx`; desestructura `user` de `useAuth()`; añade estado `forgotErrorOpen` y handler `handleForgotErrorClose`; `submitForgot` valida `email === user.email` antes de enviar y abre `ErrorModal` premium en caso de no coincidir; renderiza `<ErrorModal>` con `headerPt="pt-10"` y tamaño `sm`.
+- `frontend/AIFormBuilder/src/lib/roleI18n.js` — claves `forgotNotSuperAdminTitle` y `forgotNotSuperAdminBody` en diccionarios `en` y `es`.
+
+**Contrato de datos intacto:** misma llamada `localAuthApi.forgot(email)`; sin cambios de backend ni persistencia.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → construido exitosamente (warnings `@utility` de `admin.css` y chunks >500 kB preexistentes, ver §9).
+
 ### 2026-11-03 — Recuperación: separar mensaje de "no coincide con la cuenta", evitar error prematuro y desbloqueo del botón
 
 **Objetivo (petición del usuario):** al escribir el correo en el `RecoveryModal` de las puertas `/a/:slug`, (1) el mensaje "Introduce una dirección de correo válida" (`recoveryEmailInvalid`) aparecía siempre aunque el correo tuviera formato válido pero no coincidiera con la cuenta; (2) el error de formato aparecía mientras el usuario aún escribía el dominio; (3) el botón "Enviar instrucciones" no se desbloqueaba nunca y no aparecía ningún error.
@@ -1796,6 +1855,53 @@ const estilo = flex({ direction: "column", gap: 12 }); // objeto de estilo
 
 > Orden: **mÃ¡s reciente primero**. Cada entrada lleva fecha, archivos, quÃ© cambiÃ³
 > y las puertas ejecutadas (ver Â§5).
+
+### 2026-11-08 — Super Admin: nueva pestaña «Perfil» en Ajustes (nombre y correo)
+
+**Objetivo (petición del usuario):** añadir una nueva pestaña llamada "perfil" a la página de Ajustes del super_admin que muestre la información del usuario y permita cambiar su nombre y correo electrónico, con diseño súper moderno, premium y elegante, y validaciones premium con iconos modernos.
+
+**Decisiones de diseño:**
+- Backend: `PATCH /api/settings/profile` extendido para aceptar y validar `email` (regex de formato + unicidad frente a otros usuarios) en `backend/controllers/settings.controller.js`; el repo `updateProfile` ahora actualiza también `users.email`.
+- Frontend: nuevo componente `UserProfileSettings.jsx` con héroe (avatar + nombre + insignia de rol + correo), tarjetas de nombre/correo con validación Zod y chips de estado visual (`CheckCircle2` válido / `AlertCircle` error), barra de guardado animada con `framer-motion`, y Toast vía hook `tracked` en `useUpdateProfile`.
+- Página de Ajustes: pestaña `perfil` añadida como primera pestaña (ícono de usuario), renderizada antes de apariencia/dispositivos.
+- i18n: claves añadidas en `LanguageContext.jsx` para `en` y `es`: `profileNameMin/Max`, `profileEmailRequired/Invalid`, `profileNameDesc`, `profileEmailDesc`, `changesSaved`, `profileChangesSaved`, `profileUpToDate`, `tabProfile` (es), `nameExample` (es).
+
+**Archivos modificados:**
+- `backend/controllers/settings.controller.js` — `updateProfile` valida/actualiza email.
+- `backend/repositories/settings.repo.js` — `updateProfile` actualiza `users.email`.
+- `frontend/AIFormBuilder/src/components/settings/UserProfileSettings.jsx` (nuevo) — componente premium de perfil.
+- `frontend/AIFormBuilder/src/pages/Settings.jsx` — pestaña `perfil` + imports.
+- `frontend/AIFormBuilder/src/contexts/LanguageContext.jsx` — claves i18n (en/es).
+
+**Contrato de datos intacto:** misma llamada `PATCH /api/settings/profile`; sin cambios de persistencia ni de esquema.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0 (warnings `@utility` de `admin.css` y chunks >500 kB preexistentes, ver §9).
+- (Opcional) `npm run qa:brand` y `npm run qa:routes`: baseline sin regresión.
+
+### 2026-11-08 — Super Admin: campo «Usuario» (username) en la pestaña «Perfil» de Ajustes
+
+**Objetivo (petición del usuario):** extender la pestaña "perfil" de Ajustes del super_admin para que, además del nombre y el correo, permita cambiar el **nombre de usuario (`username`)**, con validación premium (iconos modernos) y persistencia en BD. Los cambios de email y username deben guardarse en BD y validarse al autenticarse.
+
+**Decisiones de diseño:**
+- Backend: `PATCH /api/settings/profile` ya acepta y valida `email` (formato regex + unicidad) y `username` (formato + unicidad) en `backend/controllers/settings.controller.js`; `backend/repositories/settings.repo.js` `updateProfile` actualiza `users.email` y `users.username`. Los errores de conflicto (409) devuelven `details: { field }` para atribuirlos a `username` o `email`. El login local (`localAuth.controller.js`, `findUserWithSecret`) busca por `LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1)`, así que valida contra el email/username actualizados.
+- Frontend: `UserProfileSettings.jsx` añade el campo `username` al schema Zod (`min 3` / `max 32` / regex `^[a-z0-9_.-]+$` → `usernameInvalid`; server `usernameTaken` / `emailTaken` vía `details.field`), tarjeta premium con ícono `AtSign`, `usernameHint` y `usernameExample`, y envía `{ name, email, username }` al guardar.
+- i18n: claves añadidas en `LanguageContext.jsx` (`en`/`es`): `username`, `usernameExample`, `usernameHint`, `usernameInvalid`, `usernameTaken`, `emailTaken`.
+
+**Archivos modificados:**
+- `frontend/AIFormBuilder/src/components/settings/UserProfileSettings.jsx` — campo `username` en schema Zod, envío de `{ name, email, username }`, atribución de 409 por `details.field`, tarjeta de input con `AtSign` + hint/example.
+- `frontend/AIFormBuilder/src/contexts/LanguageContext.jsx` — claves i18n `username*`/`emailTaken` (en/es).
+
+**Contrato de datos intacto:** misma llamada `PATCH /api/settings/profile`; el backend ya persistía email y username, el frontend ahora envía `username` también.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0 (warnings `@utility` de `admin.css` y chunks >500 kB preexistentes, ver §9).
+- `npm run qa:brand` → TODO CORRECTO (0/28/0).
+- `npm run qa:routes` → 124 checks / 2 fallos preexistentes de la baseline (sin regresión).
 
 ### 2026-11-05 — Correo: los diagnósticos de envío se muestran como alertas de diálogo en el frontend
 

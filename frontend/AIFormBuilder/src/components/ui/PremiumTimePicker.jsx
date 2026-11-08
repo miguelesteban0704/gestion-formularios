@@ -187,7 +187,7 @@ export function PremiumTimePicker({
           disabled={disabled}
           className={`absolute flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-200 ease-ui active:scale-90
           ${isSelected
-            ? "bg-brand-600 text-white shadow-[0_0_24px_color-mix(in_srgb,var(--color-brand-600)_55%,transparent)] ring-2 ring-brand-500/40 scale-110"
+            ? "bg-brand-600 text-on-brand-600 shadow-[0_0_24px_color-mix(in_srgb,var(--color-brand-600)_55%,transparent)] ring-2 ring-brand-500/40 scale-110"
             : "text-slate-500 dark:text-slate-400 bg-white/60 dark:bg-slate-800/60 border border-white/30 dark:border-slate-700/40 hover:bg-brand-50/60 dark:hover:bg-brand-950/20 hover:text-brand-600 dark:hover:text-brand-400"}`}
           style={{ left: pos.x - 20, top: pos.y - 20 }}
         >
@@ -339,7 +339,7 @@ export function PremiumTimePicker({
                         disabled={disabled}
                         className={`w-11 h-11 rounded-xl flex items-center justify-center text-sm font-semibold transition-all duration-200 ease-ui active:scale-95
                         ${isSelected
-                          ? "bg-brand-600 text-white shadow-[0_0_24px_color-mix(in_srgb,var(--color-brand-600)_50%,transparent)] scale-105"
+                          ? "bg-brand-600 text-on-brand-600 shadow-[0_0_24px_color-mix(in_srgb,var(--color-brand-600)_50%,transparent)] scale-105"
                           : "text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-800/50 border border-white/20 dark:border-slate-700/30 hover:bg-brand-50/60 dark:hover:bg-brand-950/20 hover:text-brand-600 dark:hover:text-brand-400"}`}
                       >
                         {pad(m)}
@@ -364,8 +364,8 @@ export function PremiumTimePicker({
                         className={`px-5 py-2 rounded-2xl text-xs font-bold transition-all duration-200 ease-ui active:scale-95
                         ${isSelected
                           ? p === "AM"
-                            ? "bg-brand-600 text-white shadow-[0_0_24px_color-mix(in_srgb,var(--color-brand-600)_50%,transparent)]"
-                            : "bg-brand-500 text-white shadow-[0_0_24px_color-mix(in_srgb,var(--color-brand-500)_50%,transparent)]"
+                            ? "bg-brand-600 text-on-brand-600 shadow-[0_0_24px_color-mix(in_srgb,var(--color-brand-600)_50%,transparent)]"
+                            : "bg-brand-500 text-on-brand-500 shadow-[0_0_24px_color-mix(in_srgb,var(--color-brand-500)_50%,transparent)]"
                           : "text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-800/50 border border-white/20 dark:border-slate-700/30 hover:bg-slate-50 dark:hover:bg-slate-800/20"}`}
                       >
                         {p}

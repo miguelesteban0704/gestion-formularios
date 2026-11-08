@@ -33,6 +33,22 @@
   --color-brand-900: #005c70;
   --color-brand-950: #003b47;
 
+  /* Contraste foreground for each dynamic brand shade (default cyan accent). */
+  --color-on-brand-50: #000000;
+  --color-on-brand-100: #000000;
+  --color-on-brand-200: #000000;
+  --color-on-brand-300: #000000;
+  --color-on-brand-400: #000000;
+  --color-on-brand-500: #000000;
+  --color-on-brand-600: #000000;
+  --color-on-brand-700: #000000;
+  --color-on-brand-800: #ffffff;
+  --color-on-brand-900: #ffffff;
+  --color-on-brand-950: #ffffff;
+  --color-brand-gradient-start: #00D2FF;
+  --color-brand-gradient-end: #2edaff;
+  --color-on-brand-gradient: #000000;
+
   /* Semantic palette — each with 100% custom identity, no generic purple */
   /* Semantic palette — unificada en #10B981/#EF4444/#F59E0B/#3B82F6 (spec
      del sistema de feedback). Cada tono con su capa `-ink` para alcanzar AA
@@ -348,7 +364,7 @@
 }
 
 @utility bg-brand-gradient {
-  background-image: linear-gradient(145deg, var(--color-brand-400) 0%, var(--color-brand-600) 100%);
+  background-image: linear-gradient(145deg, var(--color-brand-gradient-start) 0%, var(--color-brand-gradient-end) 100%);
 }
 
 @utility animate-page-enter {
@@ -417,11 +433,11 @@
 @utility btn-primary {
   background-image: linear-gradient(
     145deg,
-    var(--color-brand-300) 0%,
+    var(--color-brand-gradient-start) 0%,
     var(--color-brand-500) 52%,
-    var(--color-brand-700) 100%
+    var(--color-brand-gradient-end) 100%
   );
-  color: #ffffff;
+  color: var(--color-on-brand-gradient);
   border-color: color-mix(in srgb, var(--color-brand-300) 48%, transparent);
   --btn-bevel: color-mix(in srgb, #ffffff 48%, transparent);
   --btn-contact: color-mix(in srgb, var(--color-brand-700) 42%, transparent);
@@ -889,13 +905,13 @@
     box-shadow var(--transition-slow) var(--ease-premium);
 }
 
-/* El hover de la flecha: relleno sólido del acento y glifo blanco. Separate de
+/* El hover de la flecha: relleno sólido del acento y glifo oscuro. Separate de
    `card-arrow` para que quien la use escriba el estado de reposo y el de hover
    como dos palabras, igual que cualquier otra pareja de utilidades. */
 @utility card-arrow-on {
   background-color: var(--card-accent);
   border-color: transparent;
-  color: #ffffff;
+  color: #000000;
   box-shadow:
     inset 0 1px 0 0 color-mix(in srgb, #ffffff 30%, transparent),
     0 6px 18px -6px color-mix(in srgb, var(--card-accent) 70%, transparent);

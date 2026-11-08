@@ -11,7 +11,7 @@ import {
   visibleRenderList,
 } from "../../lib/fieldTypes.js";
 import { validateField, validateForm } from "../../lib/validate.js";
-import { shade } from "../../lib/utils.js";
+import { checkOnAccent } from "../../lib/accent.js";
 import { assetUrl } from "../../lib/api.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { getSpecialFieldType } from "../../lib/fieldTypes.js";
@@ -76,6 +76,8 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
   const { t, language } = useLanguage();
   const theme = getTheme(form.theme);
   const accent = form.settings?.primaryColor || theme.accent;
+  const accentInk = checkOnAccent(accent);
+  const gradientTarget = accentInk === "#000000" ? "white" : "black";
   /* Estado inicial perezoso: el borrador se lee UNA vez al montar. Leerlo en un
      efecto dejaría un render con las respuestas vacías y, si el envío saliera en
      ese instante, mandaría un formulario en blanco. */
@@ -257,9 +259,10 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
                        (aria-hidden): la pregunta se anuncia por su etiqueta. */
                     <div aria-hidden="true" className="mb-2.5 flex items-center gap-2.5">
                       <span
-                        className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold text-white"
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold"
                         style={{
-                          background: `linear-gradient(135deg, ${accent}, ${shade(accent, -18)})`,
+                          color: accentInk,
+                          background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 82%, ${gradientTarget}))`,
                           boxShadow: `0 4px 12px -4px ${accent}66`,
                         }}
                       >
@@ -290,9 +293,10 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
             <button
               type="submit"
               disabled={submitting}
-              className="mt-9 w-full rounded-lg py-3 text-sm font-semibold text-white transition-all hover:brightness-[1.07] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60"
+              className="mt-9 w-full rounded-lg py-3 text-sm font-semibold transition-all hover:brightness-[1.07] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60"
               style={{
-                background: `linear-gradient(145deg, ${accent}, ${shade(accent, -16)})`,
+                color: accentInk,
+                background: `linear-gradient(145deg, ${accent}, color-mix(in srgb, ${accent} 84%, ${gradientTarget}))`,
                 boxShadow: `0 8px 22px -8px ${accent}80`,
               }}
             >

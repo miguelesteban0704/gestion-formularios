@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Mail, KeyRound, ArrowLeft, Send } from "lucide-react";
+import { Mail, KeyRound, ArrowLeft, Send, Check } from "lucide-react";
 import { z } from "zod";
 import { accessApi, localAuthApi } from "../services/index.js";
 import { useAuth } from "../hooks/useAuth.js";
@@ -12,6 +12,7 @@ import { LOGIN_PORTAL_SLUG } from "../lib/routes.js";
 import { SuperAdminStage, SaField } from "../components/auth/SuperAdminStage.jsx";
 import SetPasswordForm from "../components/auth/SetPasswordForm.jsx";
 import { Button } from "../components/ui/Button.jsx";
+import { Modal, ErrorModal } from "../components/ui/Modal.tsx";
 import { notifyAuthAlert } from "../components/admin/AdminKit.jsx";
 import NotFound from "./NotFound.jsx";
 
@@ -50,8 +51,11 @@ export default function LocalLogin() {
   const [email, setEmail] = useState("");
   const [devCode, setDevCode] = useState(null);
   const [mailed, setMailed] = useState(false);
+  const [forgotModalOpen, setForgotModalOpen] = useState(false);
+  const [forgotErrorOpen, setForgotErrorOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [doorError, setDoorError] = useState(false);
+  const [superAdminEmail, setSuperAdminEmail] = useState("");
   const isSpanish = language === "es";
 
   /* El portal solo existe si el backend reconoce el slug fijo.
@@ -108,6 +112,26 @@ export default function LocalLogin() {
       cancelado = true;
     };
   }, [resetToken]);
+
+  /* Carga el correo del Super Admin desde el backend (endpoint público) para
+     validar la recuperación de acceso. Solo se pide una vez que el portal está
+     confirmado. Si no está configurado o falla la petición, no se bloquea el
+     envío (se asume que no hay restricción de correo esperado). */
+  useEffect(() => {
+    if (!portalOk) return;
+    let cancelado = false;
+    localAuthApi
+      .getSuperAdminEmail()
+      .then((data) => {
+        if (!cancelado) setSuperAdminEmail(data?.email || "");
+      })
+      .catch(() => {
+        if (!cancelado) setSuperAdminEmail("");
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [portalOk]);
 
   /* El aviso de puerta equivocada aparece como alerta en esquina superior derecha.
    * Cuando un usuario que no es super admin intenta loguearse en esta puerta. */
@@ -225,17 +249,43 @@ export default function LocalLogin() {
     validateEmail(email);
   };
 
+  /* Cierra el modal premium de recuperación y pasa al modo restablecer
+     contraseña para que el usuario escriba el código recibido. */
+  const handleForgotAccept = () => {
+    setForgotModalOpen(false);
+    setMailed(true);
+    setMode("reset");
+  };
+
+  /* Cierra el modal de error de recuperación y deja que el usuario corrija
+     el correo sin salir del modo "Recuperar acceso". */
+  const handleForgotErrorClose = () => {
+    setForgotErrorOpen(false);
+  };
+
   const submitForgot = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
+      /* Solo el correo del Super Admin puede solicitar un código de
+         recuperación en esta puerta. El backend nunca revela si una
+         dirección existe (no enumera), así que la pertenencia al Super
+         Admin se comprueba aquí contra el correo configurado en el
+         backend (SUPER_ADMIN_EMAIL, expuesto por
+         GET /auth/local/super-admin-email). Si no coincide, se muestra
+         el modal de error premium en lugar de enviar la petición. */
+      const expectedEmail = (superAdminEmail || "").trim().toLowerCase();
+      const inputEmail = email.trim().toLowerCase();
+      if (expectedEmail && inputEmail !== expectedEmail) {
+        setForgotErrorOpen(true);
+        return;
+      }
       /* `localAuthApi.forgot` responde igual exista o no el correo: nunca
-         revela si una dirección está registrada (seguridad). */
+         revela si una dirección está registrada (seguridad).
+         El interceptor de api.js ya no dispara alertas de diagnóstico para
+         esta llamada (__noMailDialogs); aquí mostramos el modal premium. */
       await localAuthApi.forgot(email);
-      /* Mostramos la alerta de éxito informando que, si el correo está
-         registrado, se enviaron las instrucciones. */
-      setMailed(true);
-      setMode("reset");
+      setForgotModalOpen(true);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -314,38 +364,92 @@ export default function LocalLogin() {
 
   if (mode === "forgot") {
     return (
-      <SuperAdminStage
-        eyebrow={language === "es" ? "Acceso" : "Access"}
-        title="Recuperar acceso"
-        subtitle={
-          language === "es"
-            ? "Te enviamos un código de recuperación a tu correo."
-            : "We sent a recovery code to your email."
-        }
-      >
-        <form onSubmit={submitForgot} className="space-y-3">
-          <SaField
-            label={isSpanish ? "Correo electrónico" : "Email"}
-            icon={Mail}
-            type="email"
-            value={email}
-            onChange={handleEmailChange}
-            onBlur={handleEmailBlur}
-            onPaste={handleEmailPaste}
-            required
-            autoComplete="email"
-            placeholder={isSpanish ? "correo@ejemplo.com" : "name@example.com"}
-            error={emailError}
-            touched={emailTouched}
+      <>
+        <SuperAdminStage
+          eyebrow={language === "es" ? "Acceso" : "Access"}
+          title="Recuperar acceso"
+          subtitle={
+            language === "es"
+              ? "Te enviamos un código de recuperación a tu correo."
+              : "We sent a recovery code to your email."
+          }
+        >
+          <form onSubmit={submitForgot} className="space-y-3">
+            <SaField
+              label={isSpanish ? "Correo electrónico" : "Email"}
+              icon={Mail}
+              type="email"
+              value={email}
+              onChange={handleEmailChange}
+              onBlur={handleEmailBlur}
+              onPaste={handleEmailPaste}
+              required
+              autoComplete="email"
+              placeholder={isSpanish ? "correo@ejemplo.com" : "name@example.com"}
+              error={emailError}
+              touched={emailTouched}
+            />
+            <Button type="submit" loading={busy} disabled={busy || !isEmailValid} className={BTN_PREMIUM}>
+              <Send className="h-4 w-4" strokeWidth={1.5} /> {language === "es" ? "Enviar código" : "Send code"}
+            </Button>
+            <button type="button" onClick={() => goMode("login")} className="flex w-full items-center justify-center gap-1.5 text-sm text-muted transition hover:text-fg">
+              <ArrowLeft className="h-4 w-4" strokeWidth={1.5} /> {rt("signIn")}
+            </button>
+          </form>
+        </SuperAdminStage>
+        {forgotModalOpen && (
+          <Modal
+            open={forgotModalOpen}
+            onClose={handleForgotAccept}
+            size="sm"
+            aura="var(--color-brand-500)"
+            headerPt="pt-10"
+            title={isSpanish ? "Código enviado" : "Code sent"}
+            description={
+              isSpanish
+                ? "Se envió un código de recuperación a tu correo. Revisa tu bandeja de entrada."
+                : "A recovery code has been sent to your email. Check your inbox."
+            }
+            orb={
+              <span
+                className="cr-orb cr-orb-lg text-white"
+                style={{ "--cr-orb": "var(--color-brand-500)" }}
+                aria-hidden="true"
+              >
+                <Check className="h-7 w-7 drop-shadow-sm" strokeWidth={2.2} />
+              </span>
+            }
+            footer={
+              <>
+                <button
+                  type="button"
+                  onClick={handleForgotAccept}
+                  className="cr-btn cr-btn-neutral min-w-[96px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2"
+                >
+                  {isSpanish ? "Cerrar" : "Close"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleForgotAccept}
+                  className="cr-btn min-w-[108px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 bg-brand-500 text-black hover:bg-brand-400 active:bg-brand-600 shadow-glow transform-gpu transition-all"
+                >
+                  {isSpanish ? "Aceptar" : "Accept"}
+                </button>
+              </>
+            }
           />
-          <Button type="submit" loading={busy} disabled={busy || !isEmailValid} className={BTN_PREMIUM}>
-            <Send className="h-4 w-4" strokeWidth={1.5} /> {language === "es" ? "Enviar código" : "Send code"}
-          </Button>
-          <button type="button" onClick={() => goMode("login")} className="flex w-full items-center justify-center gap-1.5 text-sm text-muted transition hover:text-fg">
-            <ArrowLeft className="h-4 w-4" strokeWidth={1.5} /> {rt("signIn")}
-          </button>
-        </form>
-      </SuperAdminStage>
+        )}
+        {forgotErrorOpen && (
+          <ErrorModal
+            open={forgotErrorOpen}
+            onClose={handleForgotErrorClose}
+            title={rt("forgotNotSuperAdminTitle")}
+            description={rt("forgotNotSuperAdminBody", email)}
+            size="sm"
+            headerPt="pt-10"
+          />
+        )}
+      </>
     );
   }
 

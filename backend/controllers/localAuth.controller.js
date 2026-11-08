@@ -355,3 +355,11 @@ export const localReset = asyncHandler(async (req, res) => {
     data: { door, email: row.email || null },
   });
 });
+
+/* Correo esperado del Super Admin para validar la recuperación de acceso.
+   Endpoint público: el portal de login lo consulta antes de autenticar para
+   saber qué correo puede pedir un código de recuperación. No enumera usuarios;
+   solo devuelve el correo configurado en el backend (SUPER_ADMIN_EMAIL). */
+export const getSuperAdminEmail = asyncHandler(async (_req, res) => {
+  sendSuccess(res, { data: { email: env.superAdminEmail || null } });
+});

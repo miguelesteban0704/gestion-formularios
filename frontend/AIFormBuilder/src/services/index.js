@@ -138,7 +138,14 @@ export const localAuthApi = {
     api.post(`/auth/local/register-by-access/${encodeURIComponent(slug)}`, payload, NO_LOGOUT).then((r) => r.data.data),
   logout: () => api.post("/auth/local/logout").then((r) => r.data),
   register: (payload) => api.post("/auth/local/register", payload, NO_LOGOUT).then((r) => r.data.data),
-  forgot: (email) => api.post("/auth/local/forgot", { email }, NO_LOGOUT).then((r) => r.data.data),
+  forgot: (email) =>
+    api.post("/auth/local/forgot", { email }, { ...NO_LOGOUT, __noMailDialogs: true }).then(
+      (r) => r.data.data,
+    ),
+  /* Correo esperado del Super Admin para validar la recuperación de acceso.
+     Endpoint público: no requiere sesión, se consulta antes de autenticar. */
+  getSuperAdminEmail: () =>
+    api.get("/auth/local/super-admin-email", NO_LOGOUT).then((r) => r.data.data),
   reset: (token, password) => api.post("/auth/local/reset", { token, password }, NO_LOGOUT).then((r) => r.data.data),
 };
 //-------Administración (super_admin / entity_admin)-------

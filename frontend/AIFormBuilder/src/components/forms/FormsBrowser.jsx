@@ -87,7 +87,7 @@ export const FormsBrowser = forwardRef(function FormsBrowser(
                 aria-pressed={safeFilter === f.id}
                 className={cn(
                   "rounded-lg px-3 py-1.5 text-sm font-medium transition-[color,background-color,box-shadow] duration-300 ease-out",
-                  safeFilter === f.id ? "bg-brand-600 text-white shadow-soft" : "text-muted hover:bg-surface-2 hover:text-fg"
+                  safeFilter === f.id ? "bg-brand-600 text-on-brand-600 shadow-soft" : "text-muted hover:bg-surface-2 hover:text-fg"
                 )}
               >
                 {f.label}

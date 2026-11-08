@@ -63,20 +63,16 @@ export const ACCENTS = [
  * Cian; con esta regla cada preset y el color personalizado eligen solo.
  */
 export function checkOnAccent(hex) {
-  const lum = (h) => {
-    const c = [0, 2, 4].map((i) => {
-      const v = parseInt(h.slice(i, i + 2), 16) / 255;
-      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-    });
-    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-  };
   const clean = String(hex || "").replace("#", "");
   if (!/^[0-9a-fA-F]{6}$/.test(clean)) return "#ffffff";
-  const l = lum(clean);
-  const darkLum = lum("1e293b");
-  const vsWhite = 1.05 / (l + 0.05);
-  const vsDark = (l + 0.05) / (darkLum + 0.05);
-  return vsDark > vsWhite ? "#1e293b" : "#ffffff";
+  const channels = [0, 2, 4].map((i) => {
+    const value = parseInt(clean.slice(i, i + 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  const blackContrast = (luminance + 0.05) / 0.05;
+  const whiteContrast = 1.05 / (luminance + 0.05);
+  return blackContrast > whiteContrast ? "#000000" : "#ffffff";
 }
 
 const SHADE_STEPS = ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"];
@@ -156,7 +152,15 @@ export function applyAccent(hex) {
   const root = document.documentElement;
   for (const [step, color] of Object.entries(scale)) {
     root.style.setProperty(`--color-brand-${step}`, color);
+    root.style.setProperty(`--color-on-brand-${step}`, checkOnAccent(color));
   }
+  const gradientInk = checkOnAccent(scale["500"]);
+  root.style.setProperty("--color-brand-gradient-start", scale["500"]);
+  root.style.setProperty(
+    "--color-brand-gradient-end",
+    gradientInk === "#000000" ? scale["400"] : scale["600"],
+  );
+  root.style.setProperty("--color-on-brand-gradient", gradientInk);
 }
 
 /** Devuelve la marca al valor por defecto del tema (quita las vars inline). */
@@ -165,5 +169,9 @@ export function resetAccent() {
   const root = document.documentElement;
   for (const step of SHADE_STEPS) {
     root.style.removeProperty(`--color-brand-${step}`);
+    root.style.removeProperty(`--color-on-brand-${step}`);
   }
+  root.style.removeProperty("--color-brand-gradient-start");
+  root.style.removeProperty("--color-brand-gradient-end");
+  root.style.removeProperty("--color-on-brand-gradient");
 }

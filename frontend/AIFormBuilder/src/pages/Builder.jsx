@@ -672,7 +672,7 @@ function CanvasDropArea({ hasFields, activeDrag, children }) {
             )}
           >
             <div className={cn("flex items-center justify-center gap-2 text-sm font-bold", isOverTop ? "text-brand-700 dark:text-brand-300" : "text-slate-500 dark:text-slate-400")}>
-              <span className={cn("grid h-7 w-7 place-items-center rounded-full border-2 text-xs", isOverTop ? "border-brand-500 bg-brand-500 text-white shadow-sm dark:border-brand-400 dark:bg-brand-400 dark:text-slate-900" : "border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300")}>
+              <span className={cn("grid h-7 w-7 place-items-center rounded-full border-2 text-xs", isOverTop ? "border-brand-500 bg-brand-500 text-on-brand-500 shadow-sm dark:border-brand-400 dark:bg-brand-400 dark:text-on-brand-400" : "border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300")}>
                 {isOverTop ? "↑" : "+"}
               </span>
               {isOverTop ? "Suelta aquí — al inicio" : "Arrastra aquí para colocar al inicio"}
@@ -698,7 +698,7 @@ function CanvasDropArea({ hasFields, activeDrag, children }) {
             )}
           >
             <div className={cn("flex items-center justify-center gap-2 text-sm font-bold", isOverBottom ? "text-brand-700 dark:text-brand-300" : "text-slate-500 dark:text-slate-400")}>
-              <span className={cn("grid h-7 w-7 place-items-center rounded-full border-2 text-xs", isOverBottom ? "border-brand-500 bg-brand-500 text-white shadow-sm dark:border-brand-400 dark:bg-brand-400 dark:text-slate-900" : "border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300")}>
+              <span className={cn("grid h-7 w-7 place-items-center rounded-full border-2 text-xs", isOverBottom ? "border-brand-500 bg-brand-500 text-on-brand-500 shadow-sm dark:border-brand-400 dark:bg-brand-400 dark:text-on-brand-400" : "border-slate-300 bg-white text-slate-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300")}>
                 {isOverBottom ? "↓" : "+"}
               </span>
               {isOverBottom ? "Suelta aquí — al final" : "Arrastra aquí para colocar al final"}

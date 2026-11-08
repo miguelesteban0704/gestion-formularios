@@ -123,7 +123,7 @@ export function SettingsPanel({ form, onChange, canManageVisibility = false, onV
               >
                 <ThemeThumb theme={theme} accent={form.settings.primaryColor} />
                 {active && (
-                  <span className="absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-brand-600 text-white shadow-soft">
+                  <span className="absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-brand-600 text-on-brand-600 shadow-soft">
                     <Check className="h-3 w-3" strokeWidth={3} />
                   </span>
                 )}

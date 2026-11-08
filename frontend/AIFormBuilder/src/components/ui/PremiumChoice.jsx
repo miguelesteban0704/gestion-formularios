@@ -130,7 +130,7 @@ function ChoiceOption({
             className={cn(
               "absolute -left-3.5 top-3.5 flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold",
               isSelected
-                ? "bg-brand-500 text-white border-brand-500 dark:bg-brand-400 dark:border-brand-400"
+                ? "bg-brand-500 text-on-brand-500 border-brand-500 dark:bg-brand-400 dark:text-on-brand-400 dark:border-brand-400"
                 : "bg-white/60 dark:bg-slate-900/60 border-slate-300 dark:border-slate-700/50 text-ink/60 dark:text-slate-300"
             )}
           >
@@ -426,7 +426,7 @@ export function PremiumYesNo({
                 className={cn(
                   "shrink-0 flex h-8 w-8 items-center justify-center rounded-xl border",
                   isSelected
-                    ? "bg-brand-500 text-white border-brand-500 dark:bg-brand-400 dark:border-brand-400 shadow-[0_0_16px_rgba(0,210,255,0.35)] dark:shadow-[0_0_16px_rgba(0,210,255,0.15)]"
+                    ? "bg-brand-500 text-on-brand-500 border-brand-500 dark:bg-brand-400 dark:text-on-brand-400 dark:border-brand-400 shadow-[0_0_16px_rgba(0,210,255,0.35)] dark:shadow-[0_0_16px_rgba(0,210,255,0.15)]"
                     : "bg-white/60 dark:bg-slate-900/60 border-slate-300 dark:border-slate-700/50 text-ink/60 dark:text-slate-400"
                 )}
               >
@@ -527,7 +527,7 @@ function RankedOption({
         }}
         className={base}
       >
-        <span className="absolute -left-3.5 top-3.5 flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold bg-brand-500 text-white border-brand-500 dark:bg-brand-400 dark:border-brand-400">
+        <span className="absolute -left-3.5 top-3.5 flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold bg-brand-500 text-on-brand-500 border-brand-500 dark:bg-brand-400 dark:text-on-brand-400 dark:border-brand-400">
           {index + 1}
         </span>
 
@@ -666,7 +666,7 @@ function AvailableOption({
         </div>
 
         {!disabled && (
-          <div className="shrink-0 flex h-6 w-6 items-center justify-center rounded-xl border border-brand-500/40 bg-brand-50/50 text-brand-600 hover:bg-brand-500 hover:text-white dark:border-brand-400/30 dark:bg-brand-900/20 dark:text-brand-400 dark:hover:bg-brand-400 dark:hover:text-white transition-colors">
+          <div className="shrink-0 flex h-6 w-6 items-center justify-center rounded-xl border border-brand-500/40 bg-brand-50/50 text-brand-600 hover:bg-brand-500 hover:text-on-brand-500 dark:border-brand-400/30 dark:bg-brand-900/20 dark:text-brand-400 dark:hover:bg-brand-400 dark:hover:text-on-brand-400 transition-colors">
             <Plus className="h-3.5 w-3.5" />
           </div>
         )}

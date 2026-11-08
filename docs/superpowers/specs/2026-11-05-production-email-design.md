@@ -1,7 +1,7 @@
 # Especificación: correo transaccional en producción
 
 - **Fecha:** 2026-11-05
-- **Estado:** propuesta aprobada en conversación; pendiente revisión de este documento.
+- **Estado:** aprobada en conversación.
 - **Alcance:** backend de `gestion-formularios` y variables del servicio Render.
 
 ## Objetivo
