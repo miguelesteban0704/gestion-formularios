@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { ImagePlus, Trash2, Link, Upload } from "lucide-react";
-import { hexToRgba } from "../../lib/utils.js";
+import { hexToRgba, shade } from "../../lib/utils.js";
 import { DEFAULT_ACCENT, checkOnAccent } from "../../lib/accent.js";
 
 /**
@@ -93,13 +93,18 @@ export function ImageUpload({ initialUrl, onUpload, onRemove, hints, accent }) {
     setMode("upload");
   };
 
+  // When an image is already set (previewUrl exists), the parent (FieldSettings)
+  // handles the preview display. This component should render nothing to avoid duplication.
+  if (previewUrl) {
+    return null;
+  }
+
   return (
     <div className="space-y-4">
       {/* ── Premium Segmented Toggle ──────────────────────────────────
           Solo se muestra cuando NO hay imagen: una vez subida, la imagen
           reemplaza por completo esta zona (una sola imagen por bloque). */}
-      {!previewUrl && (
-        <div className="relative mb-4 h-11 w-full max-w-sm">
+      <div className="relative mb-4 h-11 w-full max-w-sm">
         <div
           className="absolute inset-0 rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-slate-50/60 dark:bg-slate-800/40 backdrop-blur"
           style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)" }}
@@ -150,65 +155,45 @@ export function ImageUpload({ initialUrl, onUpload, onRemove, hints, accent }) {
           <span>URL de internet</span>
         </button>
       </div>
-      )}
 
       {/* ── MODE: UPLOAD FROM PC ────────────────────────────────────── */}
       {mode === "upload" && (
         <div>
-          {/* Solo mostrar el dropzone si NO hay imagen subida (una sola imagen) */}
-          {!previewUrl && (
-            <div>
-              <div
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="group relative flex flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-800/50 px-5 py-5 text-center transition-all duration-200 hover:border-brand-400 hover:bg-brand-50/30 dark:hover:bg-brand-900/10 cursor-pointer"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-100/50 text-brand-500 transition-colors group-hover:bg-brand-200/60">
-                  <ImagePlus className="h-5 w-5" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                    {hints?.dragDrop || "Arrastra y suelta una imagen"}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {hints?.orClick || "o haz clic para explorar"}
-                  </p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">
-                    JPG, PNG, WEBP, GIF · Máx. 8 MB
-                  </p>
-                </div>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
+          {/* Dropzone - shown when no image uploaded */}
+          <div>
+            <div
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="group relative flex flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-800/50 px-5 py-5 text-center transition-all duration-200 hover:border-brand-400 hover:bg-brand-50/30 dark:hover:bg-brand-900/10 cursor-pointer"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-100/50 text-brand-500 transition-colors group-hover:bg-brand-200/60">
+                <ImagePlus className="h-5 w-5" />
               </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  {hints?.dragDrop || "Arrastra y suelta una imagen"}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {hints?.orClick || "o haz clic para explorar"}
+                </p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  JPG, PNG, WEBP, GIF · Máx. 8 MB
+                </p>
+              </div>
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
             </div>
-          )}
+          </div>
 
           {error && (
             <p className="mt-2 rounded-lg bg-red-50/80 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
               {error}
             </p>
-          )}
-
-          {previewUrl && (
-            <div className="mt-3">
-              <img
-                src={previewUrl}
-                alt="Vista previa"
-                className="aspect-video w-full rounded-xl object-cover shadow-lg ring-1 ring-slate-200/50 dark:ring-slate-700/50"
-              />
-              <button
-                onClick={removeImage}
-                className="mt-2 flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-red-600 transition-colors"
-              >
-                <Trash2 className="h-3 w-3" />
-                Quitar imagen
-              </button>
-            </div>
           )}
         </div>
       )}
@@ -241,7 +226,7 @@ export function ImageUpload({ initialUrl, onUpload, onRemove, hints, accent }) {
               onClick={confirmUrl}
               disabled={!urlValue.trim()}
               className="flex-1 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:transform-none"
-              style={{ background: `linear-gradient(145deg, ${accent}, ${shade(accent, -16)})` }}
+              style={{ background: `linear-gradient(145deg, ${resolvedAccent}, ${shade(resolvedAccent, -16)})` }}
             >
               Confirmar
             </button>
@@ -256,23 +241,6 @@ export function ImageUpload({ initialUrl, onUpload, onRemove, hints, accent }) {
               Cancelar
             </button>
           </div>
-
-          {previewUrl && (
-            <div className="mt-3">
-              <img
-                src={previewUrl}
-                alt="Imagen desde URL"
-                className="aspect-video w-full rounded-xl object-cover shadow-lg ring-1 ring-slate-200/50 dark:ring-slate-700/50"
-              />
-              <button
-                onClick={removeImage}
-                className="mt-2 flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-red-600 transition-colors"
-              >
-                <Trash2 className="h-3 w-3" />
-                Quitar imagen
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

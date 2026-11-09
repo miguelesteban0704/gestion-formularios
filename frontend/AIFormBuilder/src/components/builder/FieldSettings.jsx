@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, X, Wand2, GripVertical, AlertTriangle, Trash2 } from "lucide-react";
+import { Plus, X, Wand2, GripVertical, AlertTriangle } from "lucide-react";
 import { Input, Textarea, Label } from "../ui/Input.jsx";
 import { Switch } from "../ui/Switch.jsx";
 import { Button } from "../ui/Button.jsx";
@@ -62,43 +62,32 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
   // Static layout blocks have a simpler editor.
   if (def.static) {
     if (field.type === "image") {
-      // Solo una imagen por bloque: cuando ya hay contenido, NO se muestra
-      // el selector (toggle + dropzone), solo la vista previa con opción a
-      // quitar. Así la imagen queda en una sola sección y no se pueden
-      // subir dos.
+      // La vista previa y el botón para quitar viven en la tarjeta del lienzo;
+      // este panel conserva únicamente la edición de URL.
       if (field.content) {
         return (
-          <div className="space-y-4">
-            <Label>{t("imageBlock")}</Label>
-            <div className="relative">
-              <img
-                src={field.content}
-                alt="Imagen del bloque"
-                className="aspect-video w-full rounded-xl object-cover shadow-lg ring-1 ring-slate-200/50 dark:ring-slate-700/50"
-              />
-              <button
-                type="button"
-                onClick={() => set({ content: "" })}
-                className="absolute top-2 right-2 flex items-center gap-1.5 rounded-lg bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/70"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Quitar
-              </button>
-            </div>
+          <div>
+            <Label>URL de la imagen</Label>
+            <Input
+              value={field.content}
+              placeholder="https://…"
+              onChange={(e) => set({ content: e.target.value })}
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Puedes copiar o editar la URL directamente
+            </p>
           </div>
         );
       }
+      // El uploader aparece solo cuando el bloque aún no tiene imagen.
       return (
-        <div className="space-y-4">
-          <Label>{t("imageBlock")}</Label>
-          <ImageUpload
-            initialUrl={field.content}
-            accent={accent}
-            onUpload={({ file, previewUrl }) => set({ content: previewUrl })}
-            onRemove={() => set({ content: "" })}
-            hints={{ dragDrop: "Arrastra y suelta una imagen", remove: "Quitar", formatHint: "JPG, PNG, WEBP, GIF · hasta 8 MB" }}
-          />
-        </div>
+        <ImageUpload
+          initialUrl=""
+          accent={accent}
+          onUpload={({ previewUrl }) => set({ content: previewUrl })}
+          onRemove={() => set({ content: "" })}
+          hints={{ dragDrop: "Arrastra y suelta una imagen", remove: "Quitar", formatHint: "JPG, PNG, WEBP, GIF · hasta 8 MB" }}
+        />
       );
     }
     return (

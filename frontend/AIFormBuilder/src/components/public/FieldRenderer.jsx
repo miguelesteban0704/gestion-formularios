@@ -679,6 +679,25 @@ export function FieldRenderer({
   }
 
   /* ── Bloques de diseño (estáticos) ── */
+  if (field.type === "image") {
+    return (
+      <div>
+        {field.content && (
+          <img
+            src={field.content}
+            alt={field.label || "Imagen del bloque"}
+            className="aspect-video w-full rounded-xl object-cover shadow-lg ring-1 ring-slate-200/50 dark:ring-slate-700/50"
+          />
+        )}
+        {!field.content && (
+          <div className="aspect-video w-full rounded-xl border-2 border-dashed border-slate-200/80 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">
+            Sin imagen
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (field.type === "heading") {
     return (
       <div>

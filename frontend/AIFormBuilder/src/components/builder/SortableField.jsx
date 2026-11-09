@@ -278,8 +278,24 @@ function SortableFieldBase({
 
     {/* Live preview row con datos traducidos dinámicamente */}
     <div className="border-t border-default dark:border-slate-800 px-4 py-3">
-      <div className="pointer-events-none text-fg dark:text-slate-100">
-        <FieldRenderer field={translatedField} value={undefined} onChange={() => {}} accent={accent} disabled language={language} />
+      <div className="relative">
+        <div className="pointer-events-none text-fg dark:text-slate-100">
+          <FieldRenderer field={translatedField} value={undefined} onChange={() => {}} accent={accent} disabled language={language} />
+        </div>
+        {field.type === "image" && field.content && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onChange({ ...field, content: "" });
+            }}
+            className="absolute right-2 top-2 z-10 inline-flex items-center gap-1.5 rounded-lg bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+            aria-label={t("removeImage")}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {t("removeImage")}
+          </button>
+        )}
       </div>
     </div>
 
