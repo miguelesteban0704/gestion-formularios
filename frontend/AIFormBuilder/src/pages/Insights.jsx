@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import {
   Inbox as InboxIcon,
@@ -24,6 +24,7 @@ import { formatDuration, parseDateOnly } from "../lib/utils.js";
 import { InsightKpiGrid } from "../components/analytics/InsightKpis.jsx";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
 import { useAuth } from "../hooks/useAuth.js";
+import { useRealtimeStats } from "../hooks/useRealtimeStats.js";
 import { motion } from "framer-motion";
 
 /**
@@ -37,6 +38,16 @@ export default function Insights() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState("Day");
+  const lastInsightsUpdate = useRef(0);
+
+  const fetchInsights = useCallback(async () => {
+    try {
+      const d = await insightsApi.overview();
+      setData(d);
+    } catch (e) {
+      if (!e?.message?.includes("401")) toast.error(e.message);
+    }
+  }, []);
 
   useEffect(() => {
     // Sin sesión todo vacío: no se carga ningún dato
@@ -50,12 +61,20 @@ export default function Insights() {
       return;
     }
     setLoading(true);
-    insightsApi
-      .overview()
-      .then(setData)
-      .catch((e) => toast.error(e.message))
-      .finally(() => setLoading(false));
-  }, [isAuthenticated, authLoading]);
+    fetchInsights().finally(() => setLoading(false));
+  }, [isAuthenticated, authLoading, fetchInsights]);
+
+  // SSE para actualización de stats generales en tiempo real (super_admin)
+  useRealtimeStats({
+    general: true,
+    onStatsUpdated: (eventData) => {
+      if (eventData._fallbackPoll) return;
+      const now = Date.now();
+      if (now - lastInsightsUpdate.current < 900) return;
+      lastInsightsUpdate.current = now;
+      fetchInsights();
+    },
+  });
 
   const series = useMemo(
     () => bucketTimeline(data?.timeline || [], range),

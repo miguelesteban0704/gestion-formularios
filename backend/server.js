@@ -53,13 +53,13 @@ async function start() {
   let server;
   if (certs) {
     console.log(`✔ Certificados HTTPS encontrados en: ${certs.from}`);
-    server = https.createServer(certs, app).listen(env.port, "0.0.0.0", () => {
-      console.log(`✔ Server running in ${env.nodeEnv} mode on https://192.168.5.105:${env.port} (https://localhost:${env.port})`);
+    server = https.createServer(certs, app).listen(env.port, "127.0.0.1", () => {
+      console.log(`✔ Server running in ${env.nodeEnv} mode on https://localhost:${env.port}`);
     });
   } else {
-    console.warn("⚠ Certificados HTTPS no encontrados en backend/certs — iniciando en HTTP. Copia los .pem de frontend/AIFormBuilder/certs/ a backend/certs/ para https://192.168.5.105:8000");
-    server = http.createServer(app).listen(env.port, "0.0.0.0", () => {
-      console.log(`✔ Server running in ${env.nodeEnv} mode on http://localhost:${env.port} (LAN: http://<tu-ip>:${env.port})`);
+    console.warn("⚠ Certificados HTTPS no encontrados en backend/certs — iniciando en HTTP");
+    server = http.createServer(app).listen(env.port, "127.0.0.1", () => {
+      console.log(`✔ Server running in ${env.nodeEnv} mode on http://localhost:${env.port}`);
     });
   }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useRealtimeResponses } from "../hooks/useRealtimeResponses.js";
+import { useRealtimeStats } from "../hooks/useRealtimeStats.js";
 import {
   Inbox,
   Eye,
@@ -91,14 +92,17 @@ export default function Analytics() {
     },
   });
 
-  useEffect(() => {
-    if (!id) return;
-    const iv = setInterval(() => {
-      fetchResponses();
+  // SSE para actualización de stats en tiempo real (sin polling)
+  useRealtimeStats({
+    formId: id,
+    onStatsUpdated: (eventData) => {
+      if (eventData._fallbackPoll) return;
+      const now = Date.now();
+      if (now - lastAnalyticsUpdate.current < 900) return;
+      lastAnalyticsUpdate.current = now;
       fetchAnalytics();
-    }, 7000);
-    return () => clearInterval(iv);
-  }, [id, fetchResponses, fetchAnalytics]);
+    },
+  });
 
   const stats = analytics?.stats || {};
 

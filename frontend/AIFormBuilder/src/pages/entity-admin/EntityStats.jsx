@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -29,6 +29,7 @@ import { useRoleT } from "../../lib/roleI18n.js";
 import { analyticsPath } from "../../lib/routes.js";
 import { motion } from "framer-motion";
 import { PageHeader } from "../Insights.jsx";
+import { useRealtimeStats } from "../../hooks/useRealtimeStats.js";
 
 /**
  * Estadísticas de la entidad del `entity_admin`: LA MISMA página que las
@@ -44,9 +45,20 @@ export default function EntityStats() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const entitySlug = user?.entity?.code || "";
+  const entityId = user?.entityId;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState("Day");
+  const lastEntityStatsUpdate = useRef(0);
+
+  const fetchEntityStats = useCallback(async () => {
+    try {
+      const d = await entityAdminApi.entityStats();
+      setData(d);
+    } catch (e) {
+      if (!e?.message?.includes("401")) toast.error(e.message);
+    }
+  }, []);
 
   useEffect(() => {
     // Sin sesión todo vacío: no se carga ningún dato
@@ -60,12 +72,20 @@ export default function EntityStats() {
       return;
     }
     setLoading(true);
-    entityAdminApi
-      .entityStats()
-      .then(setData)
-      .catch((e) => toast.error(e.message))
-      .finally(() => setLoading(false));
-  }, [isAuthenticated, authLoading]);
+    fetchEntityStats().finally(() => setLoading(false));
+  }, [isAuthenticated, authLoading, fetchEntityStats]);
+
+  // SSE para actualización de stats de entidad en tiempo real
+  useRealtimeStats({
+    entityId,
+    onStatsUpdated: (eventData) => {
+      if (eventData._fallbackPoll) return;
+      const now = Date.now();
+      if (now - lastEntityStatsUpdate.current < 900) return;
+      lastEntityStatsUpdate.current = now;
+      fetchEntityStats();
+    },
+  });
 
   const series = useMemo(
     () => bucketTimeline(data?.timeline || [], range),
