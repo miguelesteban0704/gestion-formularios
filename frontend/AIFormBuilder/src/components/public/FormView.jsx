@@ -17,6 +17,13 @@ import { assetUrl } from "../../lib/api.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { getSpecialFieldType } from "../../lib/fieldTypes.js";
 
+function pickLocalized(value, lng, fallback = "") {
+  if (value == null) return fallback;
+  if (typeof value === "string") return value || fallback;
+  if (typeof value === "object") return value[lng] ?? value.es ?? value.en ?? fallback;
+  return fallback;
+}
+
 /* Borrador de lo que llevaba escrito, para sobrevivir al salto al IDP.
  *
  * Al poner los formularios detrás del IDP aparece un momento en el que la
@@ -329,9 +336,9 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
                     style={{ background: accent }}
                   />
                 )}
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{form.title}</h1>
-                {form.description && (
-                  <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{form.description}</p>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{pickLocalized(form.title_i18n, language, form.title)}</h1>
+                {pickLocalized(form.description_i18n, language, form.description) && (
+                  <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{pickLocalized(form.description_i18n, language, form.description)}</p>
                 )}
               </div>
             </div>
@@ -387,6 +394,7 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
                     language={language}
                     answers={answers}
                     questions={form.questions}
+                    formI18n={form.questions_i18n}
                   />
                 </div>
               );

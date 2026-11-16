@@ -3,6 +3,13 @@ import { validateClassificationScaleAnswer } from "./classificationScale.js";
 import { validatePhone, digitsLabel, countryFromPattern } from "./phoneRules.js";
 import { translateLabel } from "./fieldTexts.js";
 
+function pickI18n(value, lng, fallback) {
+  if (value == null) return fallback;
+  if (typeof value === "string") return value || fallback;
+  if (typeof value === "object") return value[lng] ?? value.es ?? value.en ?? fallback;
+  return fallback;
+}
+
 /** Validate a single answer; returns an error string or null. */
 export function validateField(field, value, t = (key) => key, language = "en") {
   const v = field.validation || {};
@@ -15,7 +22,8 @@ export function validateField(field, value, t = (key) => key, language = "en") {
   const format = (key, values = {}) => Object.entries(values).reduce((text, [name, replacement]) => text.replace(`{${name}}`, replacement), t(key));
 
   // Traducir la etiqueta al idioma activo para que el mensaje de error salga en el idioma correcto
-  const label = translateLabel(field.label, language);
+  const label = pickI18n(field.label_i18n, language, translateLabel(field.label, language));
+  const customMessage = pickI18n(v.message_i18n, language, v.message);
 
   if (field.type === "importancia") {
     if (field.required && isEmpty) return format("requiredError", { label });
@@ -29,9 +37,9 @@ export function validateField(field, value, t = (key) => key, language = "en") {
   const str = Array.isArray(value) ? value.join(",") : String(value);
 
   if (field.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str))
-    return v.message || t("validEmailError");
+    return customMessage || t("validEmailError");
   if (field.type === "url" && !/^https?:\/\/.+/.test(str))
-    return v.message || t("validUrlError");
+    return customMessage || t("validUrlError");
 
   /* Teléfono: se valida por país (el que el respondiente escriba con `+código`
      manda; si no, el que fijó el autor). `validatePhone` es la misma tabla que
@@ -48,26 +56,26 @@ export function validateField(field, value, t = (key) => key, language = "en") {
       mode: phone.mode || (implied ? "fixed" : "any"),
     });
     if (!result.ok) {
-      if (v.message) return v.message;
+      if (customMessage) return customMessage;
       return format("phoneInvalidError", { digits: digitsLabel(result.expected) });
     }
   }
 
   if (v.minLength != null && str.length < v.minLength)
-    return v.message || format("minLengthError", { value: v.minLength });
+    return customMessage || format("minLengthError", { value: v.minLength });
   if (v.maxLength != null && str.length > v.maxLength)
-    return v.message || format("maxLengthError", { value: v.maxLength });
+    return customMessage || format("maxLengthError", { value: v.maxLength });
 
   if (field.type === "number") {
     const num = Number(value);
-    if (Number.isNaN(num)) return v.message || t("numberError");
-    if (v.min != null && num < v.min) return v.message || format("minValueError", { value: v.min });
-    if (v.max != null && num > v.max) return v.message || format("maxValueError", { value: v.max });
+    if (Number.isNaN(num)) return customMessage || t("numberError");
+    if (v.min != null && num < v.min) return customMessage || format("minValueError", { value: v.min });
+    if (v.max != null && num > v.max) return customMessage || format("maxValueError", { value: v.max });
   }
 
   if (v.pattern && field.type !== "phone") {
     try {
-      if (!new RegExp(v.pattern).test(str)) return v.message || t("invalidFormatError");
+      if (!new RegExp(v.pattern).test(str)) return customMessage || t("invalidFormatError");
     } catch {
       /* ignore malformed regex */
     }

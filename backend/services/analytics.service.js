@@ -158,16 +158,24 @@ function valoresEfectivos(q, respuesta) {
 
 /* Exportada para las sondas de `qa/`: es pura (recibe formulario y respuestas),
    así que se puede comprobar el desglose sin tocar la base de datos. */
-export function buildQuestionAnalytics(form, responses) {
+export function buildQuestionAnalytics(form, responses, language = "es") {
   /* El denominador de TODA la analítica es el número de respuestas enviadas:
      la misma cifra que muestra el KPI de la encuesta. Cada pregunta declara
      además cuántas de esas respuestas la contestaron (`total`) y cuántas la
      dejaron en blanco (`skipped`), para que el desglose sea transparente y
      todas las tarjetas partan del mismo total. */
   const totalResponses = responses.length;
+  const formI18n = form.questions_i18n ?? null;
   return form.questions
     .filter((q) => !STATIC_FIELD_TYPES.includes(q.type))
     .map((q) => {
+      // Resolver label traducida si existe questions_i18n
+      let label = q.label;
+      if (formI18n && formI18n[q.id]?.label?.[language]) {
+        label = formI18n[q.id].label[language];
+      } else if (formI18n && formI18n[q.id]?.label?.es) {
+        label = formI18n[q.id].label.es;
+      }
       const values = responses
         .map((r) => r.answers.find((a) => a.questionId === q.id)?.value)
         .filter((v) => v !== undefined && v !== null && v !== "");
@@ -191,9 +199,18 @@ export function buildQuestionAnalytics(form, responses) {
             tally.set(String(sel), (tally.get(String(sel)) || 0) + 1);
           }
         }
+        // Resolver etiquetas traducidas para catálogo
         return {
           ...base,
-          breakdown: [...tally.entries()].map(([label, count]) => ({ label, count })),
+          breakdown: [...tally.entries()].map(([label, count]) => {
+            let finalLabel = label;
+            if (formI18n && formI18n[q.id]?.options?.[label]?.label?.[language]) {
+              finalLabel = formI18n[q.id].options[label].label[language];
+            } else if (formI18n && formI18n[q.id]?.options?.[label]?.label?.es) {
+              finalLabel = formI18n[q.id].options[label].label.es;
+            }
+            return { label: finalLabel, count };
+          }),
         };
       }
 
@@ -294,12 +311,18 @@ export function buildQuestionAnalytics(form, responses) {
             tally.set(sel, (tally.get(sel) || 0) + 1);
           }
         }
+        // Resolver etiquetas traducidas para opciones
         return {
           ...base,
-          breakdown: [...tally.entries()].map(([label, count]) => ({
-            label,
-            count,
-          })),
+          breakdown: [...tally.entries()].map(([label, count]) => {
+            let finalLabel = label;
+            if (formI18n && formI18n[q.id]?.options?.[label]?.label?.[language]) {
+              finalLabel = formI18n[q.id].options[label].label[language];
+            } else if (formI18n && formI18n[q.id]?.options?.[label]?.label?.es) {
+              finalLabel = formI18n[q.id].options[label].label.es;
+            }
+            return { label: finalLabel, count };
+          }),
         };
       }
 

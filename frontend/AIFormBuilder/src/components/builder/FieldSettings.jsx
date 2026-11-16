@@ -3,7 +3,7 @@ import { DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
-import { Plus, X, Wand2, GripVertical, AlertTriangle, ArrowDown, ArrowUp } from "lucide-react";
+import { Plus, X, Wand2, GripVertical, AlertTriangle, ArrowDown, ArrowUp, Globe } from "lucide-react";
 import { Input, Textarea, Label } from "../ui/Input.jsx";
 import { Switch } from "../ui/Switch.jsx";
 import { Button } from "../ui/Button.jsx";
@@ -15,22 +15,75 @@ import { aiApi } from "../../services/index.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { ValidationSettings } from "./ValidationSettings.jsx";
 
+const LANGUAGES = [
+  { code: "es", label: "Español", flag: "🇪🇸" },
+  { code: "en", label: "English", flag: "🇬🇧" },
+];
+
+// Helper to get localized value from an i18n object or plain string
+function getI18nValue(obj, lang, fallback = "") {
+  if (obj == null) return fallback;
+  if (typeof obj === "string") return obj;
+  if (typeof obj === "object") return obj[lang] ?? obj.es ?? obj.en ?? fallback;
+  return fallback;
+}
+
+// Helper to set localized value in an i18n object
+function setI18nValue(obj, lang, value) {
+  const base = obj && typeof obj === "object" ? obj : {};
+  return { ...base, [lang]: value };
+}
+
 /** Editor panel for a single field's properties. */
 export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex = 0, accent }) {
   const def = FIELD_DEFS[field.type];
   const [aiBusy, setAiBusy] = useState(false);
   const [improving, setImproving] = useState(false);
   const [followUps, setFollowUps] = useState([]);
-  const { t, language } = useLanguage();
+  const { t, language, changeLanguage } = useLanguage();
+  const [activeLang, setActiveLang] = useState(language);
   const optionSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const set = (patch) => onChange({ ...field, ...patch });
   const setValidation = (patch) => set({ validation: { ...field.validation, ...patch } });
 
-  const updateOption = (id, label) =>
-    set({ options: field.options.map((o) => (o.id === id ? { ...o, label } : o)) });
+  const updateOption = (id, updates) =>
+    set({
+      options: field.options.map((o) =>
+        o.id === id
+          ? { ...o, ...updates }
+          : o
+      ),
+    });
   const addOption = () =>
-    set({ options: [...field.options, { id: uid("opt"), label: `Option ${field.options.length + 1}`, value: "" }] });
+    set({
+      options: [
+        ...field.options,
+        {
+          id: uid("opt"),
+          label: { [activeLang]: `Option ${field.options.length + 1}` },
+          value: "",
+        },
+      ],
+    });
+  const addOtherOption = (afterId) => {
+    const afterIndex = field.options.findIndex((o) => o.id === afterId);
+    if (afterIndex === -1) return;
+    const newOption = {
+      id: uid("opt"),
+      label: {
+        [activeLang]: `${t("classificationScaleOtherDefaultLabel") || "Otro"} ${field.options.filter(o => o.isOther).length + 1}`,
+      },
+      value: "",
+      isOther: true,
+    };
+    const newOptions = [
+      ...field.options.slice(0, afterIndex + 1),
+      newOption,
+      ...field.options.slice(afterIndex + 1),
+    ];
+    set({ options: newOptions });
+  };
   const removeOption = (id) => {
     const option = field.options.find((item) => item.id === id);
     const clearOtherCondition =
@@ -51,9 +104,12 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
   const toggleOtherOption = (id, enabled) => {
     const current = field.options.find((option) => option.id === id);
     const options = field.options.map((option) => {
-      const rest = { ...option };
-      delete rest.isOther;
-      return option.id === id && enabled ? { ...rest, isOther: true } : rest;
+      if (option.id === id) {
+        const rest = { ...option };
+        delete rest.isOther;
+        return enabled ? { ...rest, isOther: true } : rest;
+      }
+      return option;
     });
     const clearOtherCondition =
       !enabled &&
@@ -126,7 +182,7 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
       if (field.content) {
         return (
           <div>
-            <Label>URL de la imagen</Label>
+            <Label>{t("imageBlock")}</Label>
             <Input
               value={field.content}
               placeholder="https://…"
@@ -145,7 +201,7 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
           accent={accent}
           onUpload={({ previewUrl }) => set({ content: previewUrl })}
           onRemove={() => set({ content: "" })}
-          hints={{ dragDrop: "Arrastra y suelta una imagen", remove: "Quitar", formatHint: "JPG, PNG, WEBP, GIF · hasta 8 MB" }}
+          hints={{ dragDrop: t("fileDrop"), remove: t("fileRemove"), formatHint: t("fileAccepted") }}
         />
       );
     }
@@ -167,40 +223,102 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
 
   return (
     <div className="space-y-4">
+      {/* Language Selector for editing translations */}
+      <div className="mb-4 p-3 rounded-xl border border-brand-500/20 bg-brand-50/50 dark:bg-brand-900/10">
+        <div className="flex items-center gap-2 mb-2">
+          <Globe className="h-4 w-4 text-brand-500" />
+          <Label className="text-sm font-medium text-fg">{t("editingLanguage") || "Editing language"}</Label>
+        </div>
+        <div className="flex gap-2">
+          {LANGUAGES.map((lang) => (
+            <Button
+              key={lang.code}
+              variant={activeLang === lang.code ? "primary" : "ghost"}
+              size="sm"
+              className="flex items-center gap-1.5"
+              onClick={() => setActiveLang(lang.code)}
+            >
+              <span aria-hidden="true">{lang.flag}</span>
+              <span className="text-xs font-medium">{lang.label}</span>
+            </Button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted">
+          {t("editingLanguageHint") || "Edit translations for each language. Changes are saved per language."}
+        </p>
+      </div>
+
       <div>
         <div className="flex items-center justify-between">
           <Label>{t("questionLabel")}</Label>
-          {/* AI feature hidden - retained in code: the "AI improve" button used to
-              live here (Wand2 → improve()). The `improve` handler is still defined
-              below, but nothing in the UI can call it anymore. */}
         </div>
-        <Input value={field.label} onChange={(e) => set({ label: e.target.value })} />
+        <Input
+          value={getI18nValue(field.label_i18n, activeLang, field.label)}
+          onChange={(e) => {
+            const val = e.target.value;
+            const newLabelI18n = setI18nValue(field.label_i18n, activeLang, val);
+            const patch = { label_i18n: newLabelI18n };
+            // keep base label in sync for backward compat (prefer current UI language)
+            if (activeLang === language || !field.label) patch.label = val;
+            set(patch);
+          }}
+        />
       </div>
 
-      {/* AI feature hidden - retained in code: the "Suggested follow-up questions"
-          panel used to render here whenever `improve()` was called. */}
+      {/* AI feature hidden - retained in code: the "AI improve" button used to
+          live here (Wand2 → improve()). The `improve` handler is still defined
+          below, but nothing in the UI can call it anymore. */}
 
       {!["yes_no", "rating", "quality_rating", "score_rating", "importancia", "file", "date", "time", "rank"].includes(field.type) && (
         <div>
           <Label>{t("placeholder")}</Label>
-          <Input value={field.placeholder} onChange={(e) => set({ placeholder: e.target.value })} />
+          <Input
+            value={getI18nValue(field.placeholder_i18n, activeLang, field.placeholder)}
+            onChange={(e) => {
+              const val = e.target.value;
+              const newPlaceholderI18n = setI18nValue(field.placeholder_i18n, activeLang, val);
+              const patch = { placeholder_i18n: newPlaceholderI18n };
+              if (activeLang === language || !field.placeholder) patch.placeholder = val;
+              set(patch);
+            }}
+          />
         </div>
       )}
 
       <div>
         <Label>{t("description")}</Label>
         <Input
-          value={field.description}
+          value={getI18nValue(field.description_i18n, activeLang, field.description)}
           placeholder={t("optionalHelperText")}
-          onChange={(e) => set({ description: e.target.value })}
+          onChange={(e) => {
+            const val = e.target.value;
+            const newDescI18n = setI18nValue(field.description_i18n, activeLang, val);
+            const patch = { description_i18n: newDescI18n };
+            if (activeLang === language || !field.description) patch.description = val;
+            set(patch);
+          }}
         />
       </div>
 
-      {def.hasScale && <ScaleEditor field={field} set={set} />}
+      {def.hasScale && <ScaleEditor field={field} set={set} activeLang={activeLang} setActiveLang={setActiveLang} />}
 
       {OPTION_TYPES.includes(field.type) && (
         <div>
-          <Label>{t("options")}</Label>
+          <div className="flex items-center justify-between mb-2">
+            <Label>{t("options")}</Label>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted">{t("editingLanguage")}: </span>
+              <BuilderSelect
+                value={activeLang}
+                onChange={(lng) => setActiveLang(lng)}
+                options={[
+                  { value: "es", label: "Español" },
+                  { value: "en", label: "English" },
+                ]}
+                className="w-auto"
+              />
+            </div>
+          </div>
           {field.options.length < MIN_CHOICE_OPTIONS && (
             <p className="mb-1.5 flex items-start gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
               <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
@@ -221,10 +339,13 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
                       index={index}
                       count={field.options.length}
                       t={t}
-                      onChange={(label) => updateOption(option.id, label)}
+                      activeLang={activeLang}
+                      setActiveLang={setActiveLang}
+                      onChange={(updates) => updateOption(option.id, updates)}
                       onRemove={() => removeOption(option.id)}
                       onMove={(direction) => moveOption(option.id, direction)}
                       onToggleOther={(enabled) => toggleOtherOption(option.id, enabled)}
+                      onAddOther={option.isOther === true ? () => addOtherOption(option.id) : undefined}
                     />
                   ))}
                 </div>
@@ -236,9 +357,16 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
                 <div key={o.id} className="flex items-center gap-1.5">
                   <GripVertical className="h-4 w-4 shrink-0 text-muted" />
                   <Input
-                    value={o.label}
-                    onChange={(e) => updateOption(o.id, e.target.value)}
+                    value={getI18nValue(o.label_i18n, activeLang, o.label)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const label_i18n = setI18nValue(o.label_i18n, activeLang, val);
+                      const patch = { label_i18n };
+                      if (activeLang === language || !o.label) patch.label = val;
+                      updateOption(o.id, patch);
+                    }}
                     className="h-9"
+                    placeholder={t("optionLabelPlaceholder", { language: activeLang === "es" ? "Español" : "English" })}
                   />
                   <Button variant="ghost" size="icon-sm" onClick={() => removeOption(o.id)}>
                     <X className="h-4 w-4" />
@@ -256,9 +384,15 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
       <div>
         <Label>{t("helpText")}</Label>
         <Input
-          value={field.helpText}
+          value={getI18nValue(field.helpText_i18n, activeLang, field.helpText)}
           placeholder={t("shownBelowField")}
-          onChange={(e) => set({ helpText: e.target.value })}
+          onChange={(e) => {
+            const val = e.target.value;
+            const newHelpI18n = setI18nValue(field.helpText_i18n, activeLang, val);
+            const patch = { helpText_i18n: newHelpI18n };
+            if (activeLang === language || !field.helpText) patch.helpText = val;
+            set(patch);
+          }}
         />
       </div>
 
@@ -293,6 +427,8 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
               allQuestions={allQuestions}
               fieldIndex={fieldIndex}
               t={t}
+              activeLang={activeLang}
+              setActiveLang={setActiveLang}
             />
           </div>
         </div>
@@ -306,24 +442,25 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
         onSuggest={suggestValidation}
         aiBusy={aiBusy}
         t={t}
-        language={language}
+        language={activeLang}
       />
     </div>
   );
 }
 
-function SortableOption({ option, index, count, t, onChange, onRemove, onMove, onToggleOther }) {
+function SortableOption({ option, index, count, t, activeLang, onChange, onRemove, onMove, onToggleOther, onAddOther }) {
   const { listeners, setNodeRef, transform, isDragging } = useSortable({ id: option.id });
   const style = {
     transform: CSS.Transform.toString(transform),
     zIndex: isDragging ? 1 : undefined,
   };
+  const labelText = getI18nValue(option.label_i18n, activeLang, option.label);
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex flex-wrap items-center gap-1.5 rounded-lg ${isDragging ? "opacity-70" : ""}`}
+      className={`flex flex-wrap items-center gap-1.5 rounded-lg border p-2 transition-colors ${isDragging ? "opacity-70" : "hover:bg-surface-2"} ${option.isOther === true ? "border-brand-500/30 bg-brand-500/5" : "border-transparent"}`}
     >
       <button
         type="button"
@@ -334,23 +471,38 @@ function SortableOption({ option, index, count, t, onChange, onRemove, onMove, o
       >
         <GripVertical className="h-4 w-4" />
       </button>
-      <Input
-        aria-label={`${t("options")} ${index + 1}`}
-        value={option.label}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-9 min-w-[8rem] flex-1"
-      />
+      <div className="flex-1 min-w-[8rem] flex items-center gap-2">
+        <Input
+          aria-label={`${t("options")} ${index + 1}`}
+          value={labelText}
+          onChange={(event) => {
+            const val = event.target.value;
+            const label_i18n = setI18nValue(option.label_i18n, activeLang, val);
+            const patch = { label_i18n };
+            // sync base label for backward compat
+            if (!option.label || activeLang === "es") patch.label = val;
+            onChange(patch);
+          }}
+          className="h-9 flex-1"
+        />
+        {option.isOther === true && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-500/20">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true" />
+            {t("classificationScaleOtherBadge") || "Otros"}
+          </span>
+        )}
+      </div>
       <Switch
         checked={option.isOther === true}
         onChange={onToggleOther}
-        label={`${t("classificationScaleMarkOther")}: ${option.label}`}
+        label={option.isOther === true ? t("classificationScaleUnmarkOther") || "Desmarcar como Otros" : t("classificationScaleMarkOther") || "Marcar como Otros"}
         className="w-full sm:w-auto"
       />
       <div className="ml-auto flex shrink-0 items-center gap-0.5">
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={`${t("classificationScaleMoveUp")} ${option.label}`}
+          aria-label={`${t("classificationScaleMoveUp")} ${labelText}`}
           disabled={index === 0}
           onClick={() => onMove(-1)}
         >
@@ -359,7 +511,7 @@ function SortableOption({ option, index, count, t, onChange, onRemove, onMove, o
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={`${t("classificationScaleMoveDown")} ${option.label}`}
+          aria-label={`${t("classificationScaleMoveDown")} ${labelText}`}
           disabled={index === count - 1}
           onClick={() => onMove(1)}
         >
@@ -368,7 +520,7 @@ function SortableOption({ option, index, count, t, onChange, onRemove, onMove, o
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={`${t("removeOption")} ${option.label}`}
+          aria-label={`${t("removeOption")} ${labelText}`}
           onClick={onRemove}
         >
           <X className="h-4 w-4" />
@@ -392,34 +544,87 @@ function NumberInput({ label, value, onChange }) {
   );
 }
 
-/**
- * Editor de la condición de visibilidad ("Mostrar solo si…").
- *
- * La condición apunta a una pregunta ANTERIOR que ya se puede responder: no
- * tiene sentido depender de lo que viene después, porque aún no se contestó.
- * El valor se elige de las opciones de la pregunta de la que se depende
- * cuando las tiene (lista, sí/no), o se escribe a mano si es texto libre.
- */
-function ConditionEditor({ field, set, allQuestions, fieldIndex, t }) {
+function ScaleEditor({ field, set, activeLang, setActiveLang }) {
+  const { t, language } = useLanguage();
+  const es = language === "es";
+  const escala = scaleOf(field);
+  const pasos = escala.max - escala.min + 1;
+
+  const cambiar = (parche) => {
+    const siguiente = { ...escala, ...parche };
+    /* Se recorta aquí y no al pintar: un 1 a 40 se escribiría bien pero produciría
+       cuarenta botones, y un max menor que el min dejaría la escala vacía. */
+    siguiente.min = Math.max(1, Math.min(99, Number(siguiente.min) || DEFAULT_SCALE.min));
+    siguiente.max = Math.max(
+      siguiente.min + MIN_SCALE_STEPS - 1,
+      Math.min(siguiente.min + MAX_SCALE_STEPS - 1, Number(siguiente.max) || DEFAULT_SCALE.max),
+    );
+    const conditionalOption = field.conditionalOption;
+    const conditionalDefault = Number(conditionalOption?.defaultValue);
+    set({
+      scale: siguiente,
+      ...(conditionalOption
+        ? {
+            conditionalOption: {
+              ...conditionalOption,
+              defaultValue: Math.min(siguiente.max, Math.max(siguiente.min, conditionalDefault)),
+            },
+          }
+        : {}),
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      <Label className="text-sm font-medium mb-1">{t("scale")}</Label>
+      <p className="text-xs text-muted mb-2">{t("scaleNeedsAnchors")}</p>
+      <div className="grid grid-cols-4 gap-2">
+        <NumberInput
+          label={t("scaleFrom")}
+          value={escala.min}
+          onChange={(v) => cambiar({ min: v })}
+        />
+        <NumberInput
+          label={t("scaleTo")}
+          value={escala.max}
+          onChange={(v) => cambiar({ max: v })}
+        />
+        <div className="col-span-2">
+          <Label className="text-xs">{t("scaleMinLabel")}</Label>
+          <Input
+            value={escala.minLabel || ""}
+            onChange={(e) => cambiar({ minLabel: e.target.value })}
+            placeholder={escala.min}
+            className="h-9"
+          />
+        </div>
+        <div className="col-span-2">
+          <Label className="text-xs">{t("scaleMaxLabel")}</Label>
+          <Input
+            value={escala.maxLabel || ""}
+            onChange={(e) => cambiar({ maxLabel: e.target.value })}
+            placeholder={escala.max}
+            className="h-9"
+          />
+        </div>
+      </div>
+      <p className="text-xs text-muted">{t("scaleNeedsAnchors")}</p>
+    </div>
+  );
+}
+
+function ConditionEditor({ field, set, allQuestions, fieldIndex, t, activeLang, setActiveLang }) {
   const { language } = useLanguage();
   const prev = (allQuestions || [])
     .slice(0, Math.max(0, fieldIndex))
     .filter((q) => q && !isStatic(q.type) && q.id !== field.id);
   const cond = field.visibleIf || {};
-  const dep = prev.find((q) => q.id === cond.questionId) || null;
 
   const defaultValueFor = (q) => {
     if (!q) return "";
     if (q.type === "yes_no") return "Sí";
     if (Array.isArray(q.options) && q.options.length) return q.options[0].label || "";
     return "";
-  };
-
-  // Verifica si el campo es de tipo texto (sin opciones predefinidas)
-  const isTextField = (f) => {
-    const def = FIELD_DEFS[f.type];
-    if (!def) return false;
-    return !def.hasOptions && !def.static;
   };
 
   // Opciones para el select de Valor cuando se activa "Misma Pregunta"
@@ -758,97 +963,8 @@ function ConditionEditor({ field, set, allQuestions, fieldIndex, t }) {
   );
 }
 
-/**
- * Editor de la escala de un `rating`.
- *
- * Los dos rótulos de los extremos son lo importante, y por eso van primero y con
- * un aviso al lado: una escala de 1 a 7 sin anclas no dice nada, porque "3" no
- * significa nada por sí solo. Con los anclas puestos, cada número es una
- * posición con sentido y la respuesta se puede comparar entre personas.
- */
-function ScaleEditor({ field, set }) {
-  const { t, language } = useLanguage();
-  const es = language === "es";
-  const escala = scaleOf(field);
-  const pasos = escala.max - escala.min + 1;
-
-  const cambiar = (parche) => {
-    const siguiente = { ...escala, ...parche };
-    /* Se recorta aquí y no al pintar: un 1 a 40 se escribiría bien pero produciría
-       cuarenta botones, y un max menor que el min dejaría la escala vacía. */
-    siguiente.min = Math.max(1, Math.min(99, Number(siguiente.min) || DEFAULT_SCALE.min));
-    siguiente.max = Math.max(
-      siguiente.min + MIN_SCALE_STEPS - 1,
-      Math.min(siguiente.min + MAX_SCALE_STEPS - 1, Number(siguiente.max) || DEFAULT_SCALE.max),
-    );
-    const conditionalOption = field.conditionalOption;
-    const conditionalDefault = Number(conditionalOption?.defaultValue);
-    set({
-      scale: siguiente,
-      ...(conditionalOption
-        ? {
-            conditionalOption: {
-              ...conditionalOption,
-              defaultValue: Number.isFinite(conditionalDefault)
-                ? Math.min(siguiente.max, Math.max(siguiente.min, Math.round(conditionalDefault)))
-                : siguiente.min,
-            },
-          }
-        : {}),
-    });
-  };
-
-  const sinAnclas = !escala.minLabel && !escala.maxLabel;
-
-  return (
-    <div className="rounded-xl border border-default p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <Label className="mb-0">{t("scale")}</Label>
-        <span className="font-mono text-xs text-muted">
-          {escala.min}–{escala.max} ({pasos})
-        </span>
-      </div>
-
-      <div className="mb-2 grid grid-cols-2 gap-2">
-        <NumberInput
-          label={t("scaleFrom")}
-          value={escala.min}
-          onChange={(v) => cambiar({ min: v })}
-        />
-        <NumberInput
-          label={t("scaleTo")}
-          value={escala.max}
-          onChange={(v) => cambiar({ max: v })}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <div>
-          <Label className="text-xs">{t("scaleMinLabel")}</Label>
-          <Input
-            value={escala.minLabel}
-            placeholder={es ? "Muy en desacuerdo" : "Strongly disagree"}
-            onChange={(e) => cambiar({ minLabel: e.target.value })}
-            className="h-9"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">{t("scaleMaxLabel")}</Label>
-          <Input
-            value={escala.maxLabel}
-            placeholder={es ? "Muy de acuerdo" : "Strongly agree"}
-            onChange={(e) => cambiar({ maxLabel: e.target.value })}
-            className="h-9"
-          />
-        </div>
-      </div>
-
-      {sinAnclas && (
-        <p className="mt-2 flex items-start gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-700 dark:text-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
-          <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
-          {t("scaleNeedsAnchors")}
-        </p>
-      )}
-    </div>
-  );
+function isTextField(type) {
+  return ["short_text", "long_text", "email", "phone", "number", "url", "password", "address"].includes(type);
 }
+
+export { LANGUAGES };

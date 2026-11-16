@@ -136,7 +136,11 @@ export async function getFormById(formId, actorOrId) {
 export async function getPublicForm(slug) {
   const form = await formRepo.findPublishedBySlug(slug);
   if (!form) throw ApiError.notFound("This form is not available");
-  return form;
+  try {
+    return await ensureFormI18n(form, { persist: true });
+  } catch {
+    return form;
+  }
 }
 
 /**
@@ -228,6 +232,7 @@ export async function updateForm(formId, actorOrId, updates) {
     "description",
     "theme",
     "questions",
+    "questionsI18n",
     "settings",
     "isFavorite",
     "isArchived",
@@ -414,10 +419,23 @@ export async function setPublishState(formId, actorOrId, shouldPublish) {
     throw ApiError.badRequest("Add at least one question before publishing");
   }
 
+  let questionsI18n = form.questionsI18n ?? null;
+  let questions = form.questions;
+  if (shouldPublish) {
+    try {
+      const enriched = await ensureFormI18n(form, { persist: false });
+      questionsI18n = enriched.questions_i18n ?? questionsI18n;
+      questions = enriched.questions ?? questions;
+    } catch {
+      // fallback: publish without blocking on translation failure
+    }
+  }
+
   return formRepo.updateForm(formId, {
     status: shouldPublish ? "published" : "draft",
     publishedAt: shouldPublish ? new Date() : null,
     updatedBy: asActor(actorOrId)._id,
+    ...(shouldPublish ? { questionsI18n, questions } : {}),
   });
 }
 
