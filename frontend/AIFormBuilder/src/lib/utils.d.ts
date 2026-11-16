@@ -20,6 +20,9 @@ export declare function formatDuration(seconds?: number): string;
 
 export declare function formatDate(date: string | number | Date): string;
 
+/** `YYYY-MM-DD` → Date a mediodía local (sin desplazar el día por la zona). */
+export declare function parseDateOnly(value: string): Date;
+
 export declare function initials(name?: string): string;
 
 /** Convierte un hex (`#rrggbb` o `#rgb`) a `rgba(...)`. */

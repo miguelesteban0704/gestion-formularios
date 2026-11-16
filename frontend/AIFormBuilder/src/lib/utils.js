@@ -47,6 +47,22 @@ export function formatDate(date) {
   });
 }
 
+/**
+ * `YYYY-MM-DD` → fecha a mediodía LOCAL.
+ *
+ * `new Date("2026-11-13")` se interpreta como medianoche UTC. En zonas al oeste
+ * de UTC (p. ej. America/Havana) eso cae en el día anterior, así que un día de
+ * la semana salía desplazado. Construir la fecha con sus componentes locales y
+ * a mediodía evita el salto en cualquier zona razonable.
+ */
+export function parseDateOnly(value) {
+  const text = String(value ?? "").slice(0, 10);
+  const [y, m, d] = text.split("-").map(Number);
+  if (!y || !m || !d) return new Date(value);
+  const date = new Date(y, m - 1, d, 12, 0, 0, 0);
+  return Number.isNaN(date.getTime()) ? new Date(value) : date;
+}
+
 export function initials(name = "") {
   return name
     .split(" ")

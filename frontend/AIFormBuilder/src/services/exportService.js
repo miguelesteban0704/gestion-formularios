@@ -305,8 +305,8 @@ function modelFromForm({ form, analytics, meta, t, typeLabel, language, day }) {
       rows: questions.map((q) => ({
         label: q.label || "—",
         type: typeLabel(q.type),
-        total: num(q.total),
-        coverage: pct(q.total, totalResponses),
+        total: num(q.responses ?? q.total),
+        coverage: pct(q.total, q.responses ?? totalResponses),
       })),
     });
   }

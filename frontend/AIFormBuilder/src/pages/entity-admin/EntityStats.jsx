@@ -21,7 +21,7 @@ import PrismTopForms from "../../components/analytics/PrismTopForms.jsx";
 import { Card } from "../../components/ui/Card.jsx";
 import { Skeleton, EmptyState } from "../../components/ui/Feedback.jsx";
 import { ExportMenu } from "../../components/analytics/ExportMenu.jsx";
-import { formatDuration } from "../../lib/utils.js";
+import { formatDuration, parseDateOnly } from "../../lib/utils.js";
 import { InsightKpiGrid } from "../../components/analytics/InsightKpis.jsx";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -222,17 +222,17 @@ function bucketTimeline(timeline, gran) {
   if (!timeline.length) return [];
   if (gran === "Day") {
     return timeline.map((tl) => ({
-      label: new Date(tl.date).toLocaleDateString(undefined, {
+      label: parseDateOnly(tl.date).toLocaleDateString(undefined, {
         month: "short",
         day: "numeric",
       }),
       count: tl.count,
     }));
   }
-  const start = new Date(timeline[0].date);
+  const start = parseDateOnly(timeline[0].date);
   const groups = new Map();
   for (const tl of timeline) {
-    const d = new Date(tl.date);
+    const d = parseDateOnly(tl.date);
     let key;
     let label;
     if (gran === "Week") {

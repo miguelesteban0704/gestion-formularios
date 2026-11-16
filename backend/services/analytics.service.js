@@ -1,4 +1,4 @@
-import { listResponsesByForm } from "../repositories/response.repo.js";
+import { listResponsesByForm, timelineByForms } from "../repositories/response.repo.js";
 import { getStatsForm } from "./form.service.js";
 import { OPTION_FIELD_TYPES, STATIC_FIELD_TYPES, RATING_TYPES, CATALOG_FIELD_TYPES, catalogTypeFor } from "../utils/constants.js";
 
@@ -20,7 +20,15 @@ export async function getPublicFormAnalytics(form) {
 }
 
 async function computeForForm(form) {
-  const responses = await listResponsesByForm(form._id);
+  /* La serie diaria sale de la MISMA consulta SQL que alimenta el heatmap y
+     los formularios destacados: `to_char(submitted_at, 'YYYY-MM-DD')` en la
+     zona de la base. Antes se derivaba de `submittedAt` en JS con
+     `toISOString()`, que usa UTC y adelantaba un día los envíos de la tarde;
+     así «Días con más actividad» y el «Mejor día» del tooltip podían discrepar. */
+  const [responses, timeline] = await Promise.all([
+    listResponsesByForm(form._id),
+    timelineByForms([form._id]),
+  ]);
 
   const totalResponses = responses.length;
   const views = form.views || 0;
@@ -47,7 +55,7 @@ async function computeForForm(form) {
       completionRate,
       avgCompletionTime,
     },
-    timeline: buildTimeline(responses),
+    timeline,
     questions: buildQuestionAnalytics(form, responses),
   };
 }
@@ -60,17 +68,6 @@ function computeCompletionRate(responses, answerableCount) {
     0,
   );
   return Math.round((total / responses.length) * 100);
-}
-
-function buildTimeline(responses) {
-  const counts = new Map();
-  for (const r of responses) {
-    const key = new Date(r.submittedAt).toISOString().slice(0, 10);
-    counts.set(key, (counts.get(key) || 0) + 1);
-  }
-  return [...counts.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, count]) => ({ date, count }));
 }
 
 /* ── Texto «Otros» ────────────────────────────────────────────────────────
@@ -162,6 +159,12 @@ function valoresEfectivos(q, respuesta) {
 /* Exportada para las sondas de `qa/`: es pura (recibe formulario y respuestas),
    así que se puede comprobar el desglose sin tocar la base de datos. */
 export function buildQuestionAnalytics(form, responses) {
+  /* El denominador de TODA la analítica es el número de respuestas enviadas:
+     la misma cifra que muestra el KPI de la encuesta. Cada pregunta declara
+     además cuántas de esas respuestas la contestaron (`total`) y cuántas la
+     dejaron en blanco (`skipped`), para que el desglose sea transparente y
+     todas las tarjetas partan del mismo total. */
+  const totalResponses = responses.length;
   return form.questions
     .filter((q) => !STATIC_FIELD_TYPES.includes(q.type))
     .map((q) => {
@@ -169,11 +172,14 @@ export function buildQuestionAnalytics(form, responses) {
         .map((r) => r.answers.find((a) => a.questionId === q.id)?.value)
         .filter((v) => v !== undefined && v !== null && v !== "");
 
+      const answered = values.length;
       const base = {
         id: q.id,
         label: q.label,
         type: q.type,
-        total: values.length,
+        total: answered,
+        responses: totalResponses,
+        skipped: Math.max(0, totalResponses - answered),
       };
 
       if (isCatalogQuestion(q)) {

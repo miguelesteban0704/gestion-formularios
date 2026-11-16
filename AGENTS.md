@@ -2,6 +2,43 @@
 
 Ver `frontend/AIFormBuilder/AGENTS.md` para las reglas del proyecto frontend.
 
+## Registro de cambios — 2026-11-16
+
+Resumen de las modificaciones de producto realizadas hoy. El detalle operativo
+del frontend permanece en `frontend/AIFormBuilder/AGENTS.md` (§10).
+
+### Estadísticas: total de respuestas por pregunta
+
+**Objetivo:** hacer que la cantidad de respuestas de cada pregunta en «Desglose
+de preguntas» coincida con el total de respuestas de la encuesta, tanto en la
+estadística general como en la de un formulario concreto.
+
+**Causa:** el KPI usaba todas las respuestas enviadas, mientras cada tarjeta
+usaba solo las que contestaron esa pregunta. Los envíos parciales (preguntas no
+obligatorias u ocultas por condición) hacían que cada tarjeta mostrara un total
+distinto sin explicar la diferencia.
+
+**Cambios:**
+
+- `backend/services/analytics.service.js` — cada pregunta declara `responses`
+  (total de la encuesta), `total` (contestadas, se conserva) y `skipped`
+  (en blanco).
+- `frontend/AIFormBuilder/src/components/analytics/QuestionChart.jsx` — las
+  tarjetas muestran el total de la encuesta y añaden el segmento «Sin
+  responder» en preguntas de valor único; en multiselección, ranking, escala y
+  texto libre se indica aparte.
+- `frontend/AIFormBuilder/src/contexts/LanguageContext.jsx` — clave
+  `notAnswered` en español e inglés.
+- `frontend/AIFormBuilder/src/services/exportService.js` — la cobertura del
+  informe usa contestadas/total.
+- `backend/qa/analytics-question-totals.test.js` — 4 pruebas del contrato.
+
+**Verificación:** backend 14/14 pruebas; sonda real con 8 respuestas (todas las
+preguntas devuelven `responses=8` y `total + skipped = 8`); sonda CDP con las 13
+tarjetas mostrando «8 respuestas»; `/api/insights` cuadra (9 = 8 + 1). Puertas
+frontend: `tsc` 0, `lint` 0 errores, `build` 0, `qa:brand` TODO CORRECTO,
+`qa:routes` 124/2 (baseline preexistente).
+
 ## Registro de cambios — 2026-11-12
 
 Este registro resume las modificaciones de producto realizadas hoy. El detalle

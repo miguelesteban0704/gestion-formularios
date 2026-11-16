@@ -7,6 +7,7 @@ import { verifyToken } from "../utils/token.js";
 import { findUserById } from "../repositories/user.repo.js";
 import { getOwnedForm } from "../services/form.service.js";
 import { addClient, removeClient } from "../utils/realtime.js";
+import { addStatsClient, removeStatsClient } from "../services/realtimeStats.js";
 import { ApiError } from "../utils/ApiError.js";
 
 export const submitResponse = asyncHandler(async (req, res) => {
@@ -97,6 +98,57 @@ export const streamResponses = asyncHandler(async (req, res) => {
   const onClose = () => {
     clearInterval(ping);
     removeClient(formId, res);
+    try { res.end(); } catch {}
+  };
+  req.on("close", onClose);
+  req.on("error", onClose);
+});
+
+export const streamStats = asyncHandler(async (req, res) => {
+  // EventSource no manda Authorization header, permite token por query
+  const headerToken = req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null;
+  const queryToken = req.query.token;
+  const token = headerToken || queryToken;
+  if (!token) throw ApiError.unauthorized("Authentication required");
+  let decoded;
+  try {
+    decoded = verifyToken(token);
+  } catch {
+    throw ApiError.unauthorized("Invalid or expired token");
+  }
+  const user = await findUserById(decoded.id);
+  if (!user) throw ApiError.unauthorized("User no longer exists");
+
+  // Determina canales a suscribir según rol
+  const channels = ["general"];
+  if (user.role === "entity_admin" && user.entityId) {
+    channels.push(`entity:${user.entityId}`);
+  }
+  // Para super_admin y form_creator, el canal general cubre sus necesidades
+  // Los form_creator no tienen acceso a stats (vetado en insights.controller)
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  res.write(`: connected\n\n`);
+
+  const ping = setInterval(() => {
+    try { res.write(`: ping\n\n`); } catch {}
+  }, 15000);
+
+  // Registrar cliente en todos los canales relevantes
+  for (const channel of channels) {
+    addStatsClient(channel, res);
+  }
+
+  const onClose = () => {
+    clearInterval(ping);
+    for (const channel of channels) {
+      removeStatsClient(channel, res);
+    }
     try { res.end(); } catch {}
   };
   req.on("close", onClose);

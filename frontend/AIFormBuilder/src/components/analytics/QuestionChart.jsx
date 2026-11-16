@@ -7,12 +7,36 @@ import { PRISM_PALS } from "./PrismPalette.js";
 import { FIELD_DEFS, RATING_TYPES } from "../../lib/fieldTypes.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 
+/* Tipos en los que cada persona aporta EXACTAMENTE un valor al desglose. Son
+   los únicos donde "Sin responder" puede sumarse a las opciones sin falsear la
+   cuenta. En `checkbox` una persona puede marcar varias; en `rank` e
+   `importancia` cada opción se cuenta por separado. */
+const SINGLE_VALUE_TYPES = new Set([
+  "dropdown",
+  "radio",
+  "yes_no",
+  "province",
+  "municipality",
+  "gender",
+  "education_level",
+]);
+
+const countsSkippedAsSegment = (question) =>
+  SINGLE_VALUE_TYPES.has(question.type) ||
+  RATING_TYPES.includes(question.type) ||
+  question.type === "number";
+
 /**
  * Renders the right visualization for one question's analytics.
  * Mismo lenguaje Prism que el resto de /analytics:
  *  · donut → PrismDonut (aro biselado + leyenda glass)
  *  · barras → PrismBars (filas glass con barra degradada)
  *  · texto libre → tarjetas de vidrio con comilla
+ *
+ * El total que encabeza cada tarjeta es el de la encuesta (`responses`), igual
+ * que el KPI general. `total` sigue siendo la cuenta de quienes contestaron y
+ * `skipped` los que la dejaron en blanco: el desglose nunca cambia de
+ * denominador sin decirlo.
  */
 export function QuestionChart({ question }) {
   const { t } = useLanguage();
@@ -20,13 +44,13 @@ export function QuestionChart({ question }) {
   const Icon = def?.icon || MessageSquareText;
   const typeKey = `field_${question.type}`;
   const typeLabel = t(typeKey) !== typeKey ? t(typeKey) : def?.label || question.type;
-  const count = Number(question.total) || 0;
+  const surveyTotal = Number(question.responses ?? question.total) || 0;
 
   return (
     <ChartCard
       icon={Icon}
       title={question.label}
-      subtitle={`${count} ${(count === 1 ? t("response") : t("responses")).toLowerCase()} · ${typeLabel}`}
+      subtitle={`${surveyTotal} ${(surveyTotal === 1 ? t("response") : t("responses")).toLowerCase()} · ${typeLabel}`}
       right={
         question.average != null ? (
           <div className="flex items-center gap-1.5 rounded-xl border border-amber-200/70 bg-amber-50 px-2.5 py-1.5 text-sm font-bold text-amber-600 shadow-sm dark:border-amber-400/25 dark:bg-amber-500/10 dark:text-amber-300">
@@ -43,10 +67,11 @@ export function QuestionChart({ question }) {
 
 function QuestionBody({ question }) {
   const { t } = useLanguage();
+  const skipped = Math.max(0, Number(question.skipped) || 0);
 
   /* ── Free-text samples (máx. 4 por tarjeta — el backend devuelve todas) ── */
   if (question.samples) {
-    if (!question.samples.length) return <Empty />;
+    if (!question.samples.length) return <Empty skipped={skipped} />;
     const MAX_SAMPLES = 4;
     const shown = question.samples.slice(0, MAX_SAMPLES);
     const showingAll = question.samples.length <= MAX_SAMPLES;
@@ -70,36 +95,60 @@ function QuestionBody({ question }) {
             {t("showing")} {shown.length} / {question.samples.length}
           </p>
         )}
+        {skipped > 0 && <SkippedNote skipped={skipped} />}
       </div>
     );
   }
 
   const data = (question.breakdown || []).filter((d) => Number(d.count) > 0);
-  if (!data.length) return <Empty />;
+
+  /* En las preguntas de valor único el desglose suma exactamente quienes
+     contestaron; se añade «Sin responder» para que el gráfico sume el mismo
+     total que la encuesta. En selección múltiple / ranking / escala esto no
+     aplica: cada persona puede aportar varias marcas, así que solo se anota
+     aparte. */
+  if (countsSkippedAsSegment(question) && skipped > 0) {
+    data.push({ label: t("notAnswered"), count: skipped });
+  }
+
+  if (!data.length) return <Empty skipped={skipped} />;
 
   /* ── Donut Prism para yes_no y conjuntos pequeños (≤ 4 opciones) ── */
   if (
     question.type === "yes_no" ||
     (!RATING_TYPES.includes(question.type) && question.type !== "number" && data.length <= 4)
   ) {
-    return (
-      <PrismDonut
-        data={data.map((d) => ({ label: d.label, value: d.count }))}
-        palette={PRISM_PALS}
-        idBase={`q-${question.id}`}
-      />
-    );
+    return <PrismDonut data={data.map((d) => ({ label: d.label, value: d.count }))} palette={PRISM_PALS} idBase={`q-${question.id}`} />;
   }
 
   /* ── Barras horizontales Prism para conjuntos grandes / escalas / número ── */
-  return <PrismBars data={data.map((d) => ({ label: d.label, value: d.count }))} />;
+  return (
+    <div>
+      <PrismBars data={data.map((d) => ({ label: d.label, value: d.count }))} />
+      {skipped > 0 && !countsSkippedAsSegment(question) && <SkippedNote skipped={skipped} />}
+    </div>
+  );
 }
 
-function Empty() {
+function SkippedNote({ skipped }) {
   const { t } = useLanguage();
   return (
-    <p className="py-8 text-center text-sm font-medium text-slate-400 dark:text-slate-500">
-      {t("noDataYet")}
+    <p className="pt-3 text-center text-[11px] font-medium text-slate-400 dark:text-slate-500">
+      {skipped} {t("notAnswered").toLowerCase()}
     </p>
+  );
+}
+
+function Empty({ skipped = 0 }) {
+  const { t } = useLanguage();
+  return (
+    <div className="py-8 text-center">
+      <p className="text-sm font-medium text-slate-400 dark:text-slate-500">{t("noDataYet")}</p>
+      {skipped > 0 && (
+        <p className="mt-1 text-[11px] font-medium text-slate-400 dark:text-slate-500">
+          {skipped} {t("notAnswered").toLowerCase()}
+        </p>
+      )}
+    </div>
   );
 }

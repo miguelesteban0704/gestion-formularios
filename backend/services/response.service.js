@@ -5,6 +5,7 @@ import * as responseRepo from "../repositories/response.repo.js";
 import { OPTION_FIELD_TYPES, STATIC_FIELD_TYPES, CATALOG_FIELD_TYPES, catalogTypeFor } from "../utils/constants.js";
 import { isQuestionVisible, isConsentDeclined } from "../utils/visibility.js";
 import { broadcast } from "../utils/realtime.js";
+import { emitStatsUpdated } from "./realtimeStats.js";
 import { validatePhone, countryFromPattern } from "../utils/phoneRules.js";
 
 export async function submitResponse(
@@ -137,6 +138,13 @@ export async function submitResponse(
       formId: String(form._id),
       timestamp: new Date().toISOString(),
     });
+    // Notificar actualización de stats (general, formulario, entidad)
+    const formForStats = await formRepo.findFormById(form._id);
+    emitStatsUpdated({
+      formId: String(form._id),
+      entityId: formForStats?.entityId ? String(formForStats.entityId) : undefined,
+      timestamp: new Date().toISOString(),
+    });
   } catch {}
   return response;
 }
@@ -241,10 +249,16 @@ export async function deleteResponse(responseId, actorOrId) {
   if (!response) throw ApiError.notFound("Response not found");
 
   await getStatsForm(response.form, actorOrId);
+  const formForStats = await formRepo.findFormById(response.form);
   await responseRepo.deleteResponse(responseId);
   await formRepo.incrementResponseCount(response.form, -1);
   try {
     broadcast(String(response.form), "response_deleted", { responseId, formId: String(response.form) });
+    emitStatsUpdated({
+      formId: String(response.form),
+      entityId: formForStats?.entityId ? String(formForStats.entityId) : undefined,
+      timestamp: new Date().toISOString(),
+    });
   } catch {}
 }
 

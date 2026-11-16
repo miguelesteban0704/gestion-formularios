@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { cn } from "../../lib/utils.js";
+import { cn, parseDateOnly } from "../../lib/utils.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { useTheme } from "../../hooks/useTheme.js";
 import { analyticsPath } from "../../lib/routes.js";
@@ -48,7 +48,7 @@ const colorFor = (title, i) => {
 
 const dayKeyOf = (date) => {
   try {
-    return DAY_KEYS[new Date(`${date}T12:00:00`).getDay()] || "sun";
+    return DAY_KEYS[parseDateOnly(date).getDay()] || "sun";
   } catch {
     return "sun";
   }

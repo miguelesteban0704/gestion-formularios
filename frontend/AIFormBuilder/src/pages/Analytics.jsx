@@ -29,11 +29,13 @@ import { Card } from "../components/ui/Card.jsx";
 import { Skeleton, EmptyState } from "../components/ui/Feedback.jsx";
 import { RespondentCard } from "../components/responses/RespondentCard.jsx";
 import { ExportMenu } from "../components/analytics/ExportMenu.jsx";
-import { formatDuration, cn } from "../lib/utils.js";
+import { formatDuration, cn, parseDateOnly } from "../lib/utils.js";
 import { CHART, deviceFromUA } from "../lib/charts.js";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
 
-const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/* Días en el orden de la semana que usa el gráfico (lunes primero). Las
+   etiquetas salen de `t()` para respetar el idioma activo. */
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 export default function Analytics() {
   const { id } = useParams();
@@ -107,20 +109,21 @@ export default function Analytics() {
       run += t.count;
       return {
         ...t,
-        day: new Date(t.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        day: parseDateOnly(t.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         cumulative: run,
       };
     });
   }, [analytics]);
 
-  // Submissions by weekday.
+  // Submissions by weekday. `t.date` es una fecha sin hora: se parsea a
+  // mediodía local para que el día de la semana no se desplace por UTC.
   const weekday = useMemo(() => {
     const counts = Array(7).fill(0);
-    (analytics?.timeline || []).forEach((t) => {
-      counts[new Date(t.date).getDay()] += t.count;
+    (analytics?.timeline || []).forEach((entry) => {
+      counts[parseDateOnly(entry.date).getDay()] += entry.count;
     });
-    return [1, 2, 3, 4, 5, 6, 0].map((i) => ({ day: WD[i], count: counts[i] }));
-  }, [analytics]);
+    return [1, 2, 3, 4, 5, 6, 0].map((i) => ({ day: t(DAY_KEYS[i]), count: counts[i] }));
+  }, [analytics, t]);
 
   // Device breakdown from response user-agents.
   const devices = useMemo(() => {

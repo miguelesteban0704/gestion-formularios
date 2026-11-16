@@ -1,5 +1,31 @@
 # AGENTS.md — Gestor de Formularios
 
+### 2026-11-16 — Selects del builder: el buscador de ChronoSelect no se puede borrar cuando no hay coincidencias
+
+**Objetivo (petición del usuario):** en los campos de selección del builder (`ChronoSelect` con buscador interno), escribir una búsqueda que no coincida con ninguna opción dejaba el desplegable sin forma de borrar lo escrito: había que cerrar el select y volverlo a abrir. Debía poder corregirse la búsqueda sin cerrar el menú.
+
+**Causa raíz:** el `<input>` del buscador se renderizaba con `searchable && filtered.length > 0`. Cuando la consulta filtraba todas las opciones, el propio input se desmontaba junto con la lista, así que desaparecía el único control con el que se podía borrar el texto; el mensaje «Sin coincidencias» se quedaba sin campo de búsqueda. El estado `query` seguía vivo, pero sin input no había manera de vaciarlo.
+
+**Arreglo (mínimo, sin cambiar el contrato de props):**
+- `src/components/ui/ChronoSelect.jsx` — el buscador se muestra siempre que `searchable` sea verdadero (`{searchable ? (…)}`), en **las dos** ramas del desplegable (con y sin tooltip). El input queda montado durante el filtrado, conserva el foco y `autoFocus`, y al vaciarlo (Backspace/borrar) las opciones vuelven sin cerrar el menú.
+- `src/components/ui/PremiumSelect.jsx` — mismo defecto y misma corrección (`{searchable && (`) en sus dos ramas. No lo reportó el usuario, pero es el select que usa la vista previa de `ValidationSettings` en el builder; dejarlo igual evita el mismo síntoma en esa superficie.
+
+**Contrato de datos intacto:** no se tocan `value`/`onChange`, `options`, `query` ni la selección. Solo cambia la condición de montaje del buscador. Sin cambios de backend ni de persistencia.
+
+**Archivos modificados (3):**
+- `frontend/AIFormBuilder/src/components/ui/ChronoSelect.jsx` — buscador siempre montado si `searchable`.
+- `frontend/AIFormBuilder/src/components/ui/PremiumSelect.jsx` — ídem en sus dos ramas.
+- `frontend/AIFormBuilder/qa/chrono-select-search.test.js` (nuevo) — regresión de fuente: prohíbe volver a condicionar el buscador a `filtered.length > 0`, exige el input en ambas ramas y comprueba que sigue siendo controlado (`value={query}`) para que vaciarlo restaure las opciones.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `node --test qa/chrono-select-search.test.js qa/classification-scale.test.js` → **21/21** (incluye los 12 casos previos de la escala y el ancho del popup).
+- Sonda real en Chrome headless (CDP, temporal, página y script de sonda **eliminados**): con `searchable` y opciones Manzana/Pera/Uva, escribir `zzz` deja el input montado y enfocado con el mensaje «Sin coincidencias»; **tres Backspace** vacían la búsqueda y reaparecen las 3 opciones **sin cerrar el select**; elegir «Pera» después sigue funcionando. `SONDA: BUSCADOR DE CHRONOSELECT CORRECTO` (7/7).
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; en `ChronoSelect.jsx` siguen los dos ya registrados: `X` y `language` sin uso).
+- `npm run build` → exit 0 (1.76 s; avisos preexistentes de `@utility` y chunks >500 kB, ver §9).
+- `npm run qa:brand` → **TODO CORRECTO** (0 congelamientos · 28 excepciones · 0 conflictos semánticos).
+- `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes de la baseline (sin regresión).
+
 ### 2026-11-16 — Bandeja de entrada: corrección definitiva del texto de «Otros» en Casillas (y `undefined` en la escala)
 
 **Objetivo (petición del usuario):** en la **Bandeja de entrada** seguían sin verse los textos reales de «Otros» **en las preguntas de Casillas (checkbox)** y la clasificación por escala (`importancia`) mostraba `undefined` en la página de respuestas.
@@ -2258,6 +2284,60 @@ const estilo = flex({ direction: "column", gap: 12 }); // objeto de estilo
 
 > Orden: **mÃ¡s reciente primero**. Cada entrada lleva fecha, archivos, quÃ© cambiÃ³
 > y las puertas ejecutadas (ver Â§5).
+
+### 2026-11-16 — Estadísticas: el total de cada pregunta coincide con el de la encuesta
+
+**Objetivo (petición del usuario):** en la página de estadísticas general y en la
+estadística de un formulario concreto, la cantidad de respuestas de cada pregunta
+en «Desglose de preguntas» no coincidía con el total de respuestas de la encuesta.
+Debían coincidir todas.
+
+**Causa raíz:** `Analytics.jsx` mostraba el KPI con `stats.totalResponses` (todas
+las respuestas enviadas), pero cada tarjeta de pregunta usaba `question.total`,
+que el backend calculaba como el número de respuestas que **contestaron esa
+pregunta**. Con preguntas no obligatorias u ocultas por condición hay envíos
+parciales legítimos (en la encuesta de 8 respuestas, varias preguntas tenían 6 o
+7), así que la cifra base de cada tarjeta cambiaba de denominador. Además, al no
+declararse las respuestas en blanco, el desglose tampoco explicaba la diferencia.
+
+**Cambios:**
+- `backend/services/analytics.service.js` — `buildQuestionAnalytics` declara en
+  cada pregunta `responses` (total de la encuesta, denominador único), `total`
+  (cuántas la contestaron, se conserva por compatibilidad) y `skipped`
+  (`responses - total`).
+- `frontend/AIFormBuilder/src/components/analytics/QuestionChart.jsx` — el
+  subtítulo de las 13 tarjetas usa `question.responses`, de modo que muestra el
+  mismo total que el KPI. En preguntas de valor único (radio, dropdown, sí/no,
+  catálogo, escalas y número) se añade el segmento «Sin responder» para que el
+  gráfico sume el total de la encuesta; en casillas, ranking, importancia y texto
+  libre se anota aparte para no falsear (una persona puede marcar varias opciones).
+- `frontend/AIFormBuilder/src/contexts/LanguageContext.jsx` — nueva clave
+  `notAnswered` («Sin responder» / "Not answered") en es/en.
+- `frontend/AIFormBuilder/src/services/exportService.js` — la tabla de preguntas
+  usa `q.responses` como total y `q.total` como cobertura (contestadas/total).
+- `backend/qa/analytics-question-totals.test.js` (nuevo) — 4 pruebas puras:
+  denominador común, suma `total + skipped`, multiselección/texto sin falsear el
+  desglose y caso sin respuestas.
+
+**Contrato de datos intacto:** no cambia lo almacenado ni los endpoints; solo se
+añaden dos campos de lectura (`responses`, `skipped`) al payload de analítica.
+`total` sigue significando «contestadas», así que las exportaciones y sondas
+anteriores no se rompen.
+
+**Verificación (ejecutada):**
+- `node --test qa/analytics-question-totals.test.js qa/analytics-other-text.test.js
+  qa/classification-scale.test.js` (backend) → **14/14**.
+- Sonda real contra la encuesta de 8 respuestas: todas las preguntas devuelven
+  `responses=8` y `total + skipped = 8`.
+- Sonda CDP en Chrome headless sobre
+  `/panel-gestion/formularios/23de5a0e…/estadisticas`: las **13 tarjetas** muestran
+  «8 respuestas» y aparecen las notas «Sin responder» donde corresponde.
+  API general (`/api/insights`): `totalResponses = 9` = suma de sus `topForms`
+  (8 + 1). Sonda y token temporales eliminados.
+- `npx tsc --noEmit` → 0 · `npm run lint` → exit 0 (solo warnings preexistentes;
+  ninguno en los archivos tocados) · `npm run build` → exit 0 · `npm run qa:brand`
+  → **TODO CORRECTO** (0/28/0) · `npm run qa:routes` → 124 comprobaciones · 2
+  fallos preexistentes de la baseline.
 
 ### 2026-11-08 — Super Admin: nueva pestaña «Perfil» en Ajustes (nombre y correo)
 

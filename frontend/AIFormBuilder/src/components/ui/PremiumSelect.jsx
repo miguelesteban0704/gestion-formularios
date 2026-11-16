@@ -234,7 +234,9 @@ export function PremiumSelect({
                     transformOrigin: rect.flip ? "bottom center" : "top center",
                   }}
                 >
-                  {searchable && filtered.length > 0 && (
+                  {/* Igual que en ChronoSelect: el buscador permanece visible sin
+                      coincidencias para poder borrar la búsqueda sin cerrar. */}
+                  {searchable && (
                     <div className="relative mb-2">
                       <Search
                         className="absolute left-3 top-3 h-4 w-4 opacity-40"
@@ -359,7 +361,9 @@ export function PremiumSelect({
                     transformOrigin: rect.flip ? "bottom center" : "top center",
                   }}
                 >
-                  {searchable && filtered.length > 0 && (
+                  {/* Igual que en ChronoSelect: el buscador permanece visible sin
+                      coincidencias para poder borrar la búsqueda sin cerrar. */}
+                  {searchable && (
                     <div className="relative mb-2">
                       <Search
                         className="absolute left-3 top-3 h-4 w-4 opacity-40"

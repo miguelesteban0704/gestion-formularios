@@ -6,6 +6,7 @@ import {
   deleteResponse,
   exportResponses,
   streamResponses,
+  streamStats,
 } from "../controllers/response.controller.js";
 import { getPublicForm, getPublicForms, guestListForms, guestGetForm } from "../controllers/form.controller.js";
 import { protect } from "../middleware/auth.js";
@@ -45,6 +46,7 @@ router.post("/public/forms/:slug/respond", protect, attachRespondent, submitResp
    Poner `protect` aquí no endurecería nada: el controlador ya exige sesión y
    ownership, y `protect` solo miraría una cabecera que nunca llega. */
 router.get("/forms/:id/responses/stream", streamResponses);
+router.get("/events/stats", streamStats);
 router.get("/forms/:id/responses", protect, getResponses);
 router.get("/forms/:id/responses/export", protect, exportResponses);
 router.get("/forms/:id/analytics", protect, getAnalytics);
