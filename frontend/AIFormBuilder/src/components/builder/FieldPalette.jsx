@@ -55,8 +55,8 @@ const FIELD_LABELS_DICTIONARY = {
     checkbox: "Casillas",
     casillas: "Casillas",
     yes_no: "Sí / No",
+    importancia: "Clasificación por Escala",
 
-    // Avanzados
     date: "Selector de fecha",
     time: "Selector de hora",
     rating: "Valoración",
@@ -97,6 +97,7 @@ const FIELD_LABELS_DICTIONARY = {
     checkbox: "Checkboxes",
     casillas: "Checkboxes",
     yes_no: "Yes / No",
+    importancia: "Classification by scale",
 
     // Advanced
     date: "Date picker",

@@ -85,6 +85,9 @@ export function BuilderSelect({
   useEffect(() => {
     function handleClickOutside(event) {
       if (selectRef.current && !selectRef.current.contains(event.target)) {
+        // Si el clic cae dentro del dropdown montado en portal (document.body),
+        // no cerrar: dejar que el onClick de la opción dispare la selección.
+        if (event.target.closest('[data-dropdown="true"]')) return;
         setIsOpen(false);
       }
     }
@@ -108,11 +111,7 @@ export function BuilderSelect({
 
   const toggle = () => {
     if (disabled) return;
-    setIsOpen((prev) => {
-      const next = !prev;
-      if (next) positionDropdown();
-      return next;
-    });
+    setIsOpen((prev) => !prev);
   };
 
   return (
@@ -156,49 +155,48 @@ export function BuilderSelect({
         />
       </button>
 
-      {isOpen && !disabled && rect && (
+      {isOpen && !disabled && rect && createPortal(
         <div
+          data-dropdown="true"
+          className={cn("z-[9999]", dropdownClasses)}
           style={{
             position: "fixed",
             left: rect.left,
             top: rect.top,
             minWidth: rect.width,
             width: rect.width,
+            zIndex: 9999,
           }}
         >
-          {createPortal(
-            <div className={cn("z-[var(--z-dropdown, 60)]", dropdownClasses)}>
-              {options.length > 0 ? (
-                options.map((opt) => {
-                  const isSelected = opt.value === value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => handleSelect(opt)}
-                      className={cn(
-                        optionBase,
-                        isSelected
-                          ? "bg-brand-50 border-brand-200 text-brand-700 font-medium dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-300"
-                          : "border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100"
-                      )}
-                    >
-                      {isSelected && (
-                        <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-600" />
-                      )}
-                      <span>{opt.label}</span>
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="px-3.5 py-2 text-xs opacity-50 text-center dark:text-slate-400">
-                  Sin opciones
-                </div>
-              )}
-            </div>,
-            document.body
+          {options.length > 0 ? (
+            options.map((opt) => {
+              const isSelected = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleSelect(opt)}
+                  className={cn(
+                    optionBase,
+                    isSelected
+                      ? "bg-brand-50 border-brand-200 text-brand-700 font-medium dark:bg-brand-900/20 dark:border-brand-800 dark:text-brand-300"
+                      : "border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100"
+                  )}
+                >
+                  {isSelected && (
+                    <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-600" />
+                  )}
+                  <span>{opt.label}</span>
+                </button>
+              );
+            })
+          ) : (
+            <div className="px-3.5 py-2 text-xs opacity-50 text-center dark:text-slate-400">
+              Sin opciones
+            </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
 
       {error && (

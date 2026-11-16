@@ -17,10 +17,17 @@
  *  • Todo con tokens CSS (sin hex de marca a fuego): --color-brand-*, bg-surface,
  *    text-ink, border-line, etc. Respeta dark mode y reduced-motion.
  *
+ * Soporte para "Otro" con campo de texto:
+ *  • Cuando una opción tiene `isOther: true`, al seleccionarla aparece un input
+ *    de texto adicional para que el usuario escriba su respuesta.
+ *  • El valor se guarda como `{ value: "other", otherText: "..." }` o en el
+ *    array de checkboxes como `{ value: "other", otherText: "..." }`.
+ *
  * Exporta: PremiumRadio, PremiumCheckbox, PremiumYesNo, PremiumRank.
  */
 import { useCallback, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import "./PremiumChoice.css";
 import {
   Check,
   ChevronUp,
@@ -29,22 +36,65 @@ import {
   Plus,
   X,
   Info,
+  Edit,
 } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 import { Tooltip } from "./Tooltip.jsx";
 
-/* ── Tokens de glass del sistema ── */
-const GLASS =
-  "bg-white/60 dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200/60 dark:border-slate-700/60";
+/* ── Tokens de diseño refinado ── */
+const REFINED_OPTION =
+  "refined-option-card flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-all duration-150 cursor-pointer text-left relative";
 
-const GLASS_HOVER =
-  "hover:bg-white/70 dark:hover:bg-slate-900/70 hover:border-brand-500/60 dark:hover:border-brand-400/60";
+const REFINED_OPTION_HOVER =
+  "hover:border-brand-400/40 hover:bg-surface-2/85 dark:hover:border-brand-300/40 dark:hover:bg-surface-2/95";
 
-const SELECTED_BASE =
-  "bg-gradient-to-r from-brand-500/10 to-brand-100/30 dark:from-brand-900/20 dark:to-brand-800/20 border border-brand-500/50 dark:border-brand-400/50 text-brand-700 dark:text-brand-300 font-medium shadow-[0_0_24px_rgba(0,210,255,0.12)] dark:shadow-[0_0_24px_rgba(0,210,255,0.08)]";
+const REFINED_SELECTED =
+  "refined-option-card--selected";
 
-const MEDALLION =
-  "shrink-0 flex items-center justify-center w-10 h-10 rounded-xl border border-brand-500/20 dark:border-brand-900/30 bg-brand-500/10 dark:bg-brand-900/20";
+const REFINED_MEDALLION =
+  "refined-medallion shrink-0 flex h-7 w-7 items-center justify-center rounded-md border relative z-10";
+
+const REFINED_RANK_LEFT =
+  "refined-rank-left flex items-center justify-center gap-2";
+
+/* ── Input para opción "Otro" ── */
+function OtherInput({
+  value,
+  onChange,
+  disabled,
+  error,
+  placeholder,
+  autoFocus,
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
+      className="mt-2.5 ml-14 w-full max-w-md"
+    >
+      <div className="relative">
+        <Edit className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted/50 dark:text-slate-400/50" />
+        <input
+          type="text"
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          className={cn(
+            "w-full h-9 pl-10 pr-3 rounded-xl border bg-white/80 dark:bg-slate-900/80 text-sm transition-all duration-200",
+            disabled
+              ? "cursor-not-allowed bg-slate-50/40 dark:bg-slate-800/20 text-slate-400 border-slate-100/40 dark:border-slate-700/30 opacity-60"
+              : "border-slate-300 dark:border-slate-700 hover:border-brand-400/60 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/12",
+            error && "border-red-500"
+          )}
+        />
+      </div>
+    </motion.div>
+  );
+}
 
 /* ── Utilidad de animación de entrada escalonada ── */
 const containerVariants = {
@@ -70,11 +120,16 @@ function ChoiceOption({
   onKeyDown,
   tabIndex = 0,
   showNumber,
+  otherText,
+  onOtherChange,
+  isOtherActive,
 }) {
   const Icon = option.icon ?? ListOrdered;
   const label = option.label ?? "";
   const desc = option.description ?? "";
   const isRank = variant === "rank";
+  const isOtherOption = option.isOther === true;
+  const showOtherInput = isOtherOption && isSelected && isOtherActive;
 
   const handleKeyDown = (e) => {
     if (disabled) return;
@@ -86,117 +141,129 @@ function ChoiceOption({
   };
 
   const base = cn(
-    "relative flex w-full items-center justify-between rounded-2xl border px-4 py-3.5 text-base transition-all duration-200 ease-ui cursor-pointer",
-    GLASS,
+    REFINED_OPTION,
     disabled
-      ? "cursor-not-allowed bg-slate-50/40 dark:bg-slate-800/20 text-slate-400 border-slate-100/40 dark:border-slate-700/30 opacity-60"
-      : GLASS_HOVER,
+      ? "cursor-not-allowed refined-option-card--disabled text-slate-400 border-slate-100/40 dark:border-slate-700/30 opacity-50"
+      : REFINED_OPTION_HOVER,
     isSelected
-      ? SELECTED_BASE
-      : "border-transparent hover:text-slate-900 dark:hover:text-slate-100",
-    error && !isSelected ? "border-red-500/40" : "",
-    showNumber ? "pl-11" : "pl-4"
+      ? REFINED_SELECTED
+      : "border-transparent",
+    error && !isSelected ? "refined-option-card--error" : "",
+    showNumber ? "pl-10" : "pl-4"
   );
 
   return (
-    <Tooltip
-      content={desc}
-      side="top"
-      align="center"
-      delay={90}
-      disabled={disabled || !desc}
-      contentClassName="bg-surface-2/95 dark:bg-slate-900/95 border border-line/70 text-ink"
-    >
-      <motion.button
-        type="button"
-        role={variant === "checkbox" ? "checkbox" : "radio"}
-        aria-checked={isSelected ? "true" : "false"}
-        aria-disabled={disabled}
-        tabIndex={disabled ? -1 : tabIndex}
-        disabled={disabled}
-        onClick={onClick}
-        onKeyDown={handleKeyDown}
-        whileHover={
-          !disabled && !isSelected
-            ? { y: -4, scale: 1.01, transition: { duration: 0.12 } }
-            : {}
-        }
-        whileTap={!disabled ? { scale: 0.98 } : {}}
-        className={base}
+    <div>
+      <Tooltip
+        content={desc}
+        side="top"
+        align="center"
+        delay={90}
+        disabled={disabled || !desc}
+        contentClassName="bg-surface-2/95 dark:bg-slate-900/95 border border-line/70 text-ink"
       >
-        {/* Número de posición (solo ranking) */}
-        {showNumber && (
-          <span
-            className={cn(
-              "absolute -left-3.5 top-3.5 flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold",
-              isSelected
-                ? "bg-brand-500 text-on-brand-500 border-brand-500 dark:bg-brand-400 dark:text-on-brand-400 dark:border-brand-400"
-                : "bg-white/60 dark:bg-slate-900/60 border-slate-300 dark:border-slate-700/50 text-ink/60 dark:text-slate-300"
-            )}
-          >
-            {index + 1}
-          </span>
-        )}
-
-        {/* Medallón de icono de acento */}
-        <div className={MEDALLION}>
-          <Icon
-            className="h-5 w-5 shrink-0"
-            style={{
-              fill: isSelected ? "currentColor" : "none",
-              stroke: isSelected ? "none" : "currentColor",
-            }}
-          />
-        </div>
-
-        <div className="flex-1 min-w-0 pl-4">
-          <span
-            className={cn(
-              "block truncate text-fg dark:text-slate-100",
-              isSelected ? "font-semibold" : "font-medium",
-              disabled ? "opacity-50" : ""
-            )}
-          >
-            {label}
-          </span>
-          {desc && (
-            <span className="text-xs text-ink-muted/70 dark:text-slate-400/70 mt-0.5">
-              {desc}
+        <motion.button
+          type="button"
+          role={variant === "checkbox" ? "checkbox" : "radio"}
+          aria-checked={isSelected ? "true" : "false"}
+          aria-disabled={disabled}
+          tabIndex={disabled ? -1 : tabIndex}
+          disabled={disabled}
+          onClick={onClick}
+          onKeyDown={handleKeyDown}
+          whileHover={
+            !disabled && !isSelected
+              ? { y: -4, scale: 1.01, transition: { duration: 0.12 } }
+              : {}
+          }
+          whileTap={!disabled ? { scale: 0.98 } : {}}
+          className={base}
+        >
+          {/* Número de posición (solo ranking) */}
+          {showNumber && (
+            <span
+              className={cn(
+                "absolute -left-4 top-2.5 flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-semibold refined-rank-number",
+                isSelected
+                  ? "bg-brand-500 text-white border-brand-500 dark:bg-brand-400 dark:text-white dark:border-brand-400"
+                  : "bg-white/60 dark:bg-slate-900/60 border-slate-300 dark:border-slate-700/50 text-ink/60 dark:text-slate-300"
+              )}
+            >
+              {index + 1}
             </span>
           )}
-        </div>
 
-        {/* Indicador de selección (check o punto de marca) */}
-        <div
-          className={cn(
-            "shrink-0 flex items-center justify-center",
-            isSelected
-              ? variant === "checkbox"
-                ? "w-6 h-6 rounded-full bg-brand-500 border-2 border-white shadow-sm"
-                : "w-2.5 h-2.5 rounded-full bg-brand-600 dark:bg-brand-400 shadow-sm"
-              : variant === "checkbox"
-                ? "w-6 h-6 rounded-full border border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/60"
-                : "w-2.5 h-2.5 rounded-full border border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/60"
-          )}
-        >
-          {isSelected && variant === "checkbox" && (
-            <Check className="h-3.5 w-3.5 text-white" />
-          )}
-        </div>
+          {/* Medallón de icono de acento */}
+          <div className={cn(REFINED_MEDALLION)}>
+            <Icon
+              className={cn(
+                "h-5 w-5 shrink-0 transition-colors duration-200 ease-out",
+                isSelected && "text-white"
+              )}
+            />
+          </div>
 
-        {/* Chevron de orden (solo ranking) */}
-        {isRank && (
+          <div className="flex-1 min-w-0 pl-4">
+            <span
+              className={cn(
+                "block truncate",
+                isSelected ? "refined-option-label--selected" : "refined-option-label",
+                disabled ? "refined-option-label--disabled" : ""
+              )}
+            >
+              {label}
+            </span>
+            {desc && (
+              <span className="refined-option-description text-xs mt-0.5">
+                {desc}
+              </span>
+            )}
+          </div>
+
+          {/* Indicador de selección (check o punto de marca) */}
           <div
             className={cn(
-              "shrink-0 opacity-40 transition-opacity",
-              isSelected ? "opacity-100" : "opacity-30"
+              "shrink-0 flex items-center justify-center",
+              isSelected
+                ? variant === "checkbox"
+                  ? "w-5 h-5 rounded-md refined-selection-mark refined-selection-mark--checkbox refined-selection-mark--checked"
+                  : "w-4 h-4 rounded-full refined-selection-mark refined-selection-mark--checked"
+                : variant === "checkbox"
+                  ? "w-5 h-5 rounded-md refined-selection-mark refined-selection-mark--checkbox refined-selection-mark--unchecked"
+                  : "w-4 h-4 rounded-full refined-selection-mark refined-selection-mark--unchecked"
             )}
           >
-            <ChevronDown className="h-4 w-4 text-brand-500" />
+            {isSelected && variant === "checkbox" && (
+              <Check className="h-3.5 w-3.5 text-white" />
+            )}
           </div>
-        )}
-      </motion.button>
-    </Tooltip>
+
+          {/* Chevron de orden (solo ranking) */}
+          {isRank && (
+            <div
+              className={cn(
+                "shrink-0 opacity-40 transition-opacity",
+                isSelected ? "opacity-100" : "opacity-30"
+              )}
+            >
+              <ChevronDown className="h-4 w-4 text-brand-500" />
+            </div>
+          )}
+        </motion.button>
+      </Tooltip>
+
+      {/* Input para "Otro" cuando la opción está seleccionada */}
+      {showOtherInput && (
+        <OtherInput
+          value={otherText}
+          onChange={onOtherChange}
+          disabled={disabled}
+          error={error}
+          placeholder={option.otherPlaceholder || (option.label ? `Especificar ${option.label.toLowerCase()}` : "Especificar")}
+          autoFocus={isOtherActive}
+        />
+      )}
+    </div>
   );
 }
 
@@ -248,7 +315,7 @@ export function PremiumRadio({
       <div
         role="radiogroup"
         aria-label={label || (t ? t("radio") : "Opción múltiple")}
-        className="flex flex-col gap-2"
+        className="flex flex-col gap-1.5"
       >
         {options.map((option, i) => {
           const isSelected = selectedValue === (option.value ?? "");
@@ -305,7 +372,7 @@ export function PremiumCheckbox({
       <div
         role="group"
         aria-label={label || (t ? t("checkbox") : "Casillas")}
-        className="flex flex-col gap-2"
+        className="flex flex-col gap-1.5"
       >
         {options.map((option, i) => {
           const isSelected = selectedSet.has(String(option.value ?? ""));
@@ -380,7 +447,7 @@ export function PremiumYesNo({
       <div
         role="radiogroup"
         aria-label={label || (t ? t("yes_no") : "Sí / No")}
-        className="flex w-full gap-2"
+        className="refined-seg-control flex w-full gap-1.5"
       >
         {opts.map(({ value: v, label: lbl, icon: Icon }) => {
           const isSelected = v === value;
@@ -411,23 +478,22 @@ export function PremiumYesNo({
               whileHover={!disabled && !isSelected ? { scale: 1.02 } : {}}
               whileTap={!disabled ? { scale: 0.97 } : {}}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2.5 rounded-2xl border px-4 py-3.5 text-base font-semibold transition-all duration-200 ease-ui",
-                GLASS,
+                "flex-1 flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-all duration-150",
+                "refined-seg-item",
                 disabled
-                  ? "cursor-not-allowed bg-slate-50/40 dark:bg-slate-800/20 text-slate-400 border-slate-100/40 dark:border-slate-700/30 opacity-60"
-                  : GLASS_HOVER,
-                isSelected
-                  ? SELECTED_BASE
-                  : "border-transparent hover:text-slate-900 dark:hover:text-slate-100",
-                error && !isSelected ? "border-red-500/40" : ""
+                  ? "cursor-not-allowed refined-seg-item--disabled text-slate-400 border-slate-100/40 dark:border-slate-700/30 opacity-50"
+                  : "hover:border-brand-400/30 hover:bg-surface-2/85 dark:hover:border-brand-300/30 dark:hover:bg-surface-2/95",
+                isSelected ? "refined-seg-item--selected" : "border-transparent",
+                error && !isSelected ? "refined-option-card--error" : ""
               )}
             >
               <div
                 className={cn(
-                  "shrink-0 flex h-8 w-8 items-center justify-center rounded-xl border",
+                  "shrink-0 flex h-6 w-6 items-center justify-center rounded-md border",
+                  "refined-seg-medallion",
                   isSelected
-                    ? "bg-brand-500 text-on-brand-500 border-brand-500 dark:bg-brand-400 dark:text-on-brand-400 dark:border-brand-400 shadow-[0_0_16px_rgba(0,210,255,0.35)] dark:shadow-[0_0_16px_rgba(0,210,255,0.15)]"
-                    : "bg-white/60 dark:bg-slate-900/60 border-slate-300 dark:border-slate-700/50 text-ink/60 dark:text-slate-400"
+                    ? "bg-brand-500 text-on-brand-500 border-brand-500 dark:bg-brand-400 dark:text-on-brand-400 dark:border-brand-400 shadow-[0_0_10px_rgba(0,210,255,0.35)] dark:shadow-[0_0_10px_rgba(0,210,255,0.15)]"
+                    : "bg-surface-2/55 dark:bg-surface-2/45 border-slate-300 dark:border-slate-700/50 text-ink/55 dark:text-slate-400/55"
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -474,19 +540,18 @@ function RankedOption({
   const dragging = isDragging && !disabled;
 
   const base = cn(
-    "relative flex w-full items-center justify-between rounded-2xl border px-4 py-3.5 text-base transition-all duration-200 ease-ui",
-    GLASS,
+    REFINED_OPTION,
     disabled
-      ? "cursor-not-allowed bg-slate-50/40 dark:bg-slate-800/20 text-slate-400 border-slate-100/40 dark:border-slate-700/30 opacity-60"
+      ? "cursor-not-allowed refined-option-card--disabled text-slate-400 border-slate-100/40 dark:border-slate-700/30 opacity-50"
       : cn(
-          GLASS_HOVER,
+          REFINED_OPTION_HOVER,
           dragging
-            ? "opacity-50 scale-[0.98] ring-2 ring-brand-500 dark:ring-brand-400 shadow-[0_0_24px_rgba(0,210,255,0.25)]"
-            : "cursor-default hover:text-slate-900 dark:hover:text-slate-100",
+            ? "opacity-50 scale-[0.98] ring-1 ring-brand-500 dark:ring-brand-400"
+            : "cursor-default",
           isDropTarget
-            ? "border-t-2 border-brand-500 dark:border-brand-400 shadow-[0_0_16px_rgba(0,210,255,0.15)] dark:shadow-[0_0_16px_rgba(0,210,255,0.08)]"
+            ? "border-t-1 border-brand-500 dark:border-brand-400 shadow-[0_0_12px_rgba(0,210,255,0.1)] dark:shadow-[0_0_12px_rgba(0,210,255,0.05)]"
             : "border-transparent",
-          error ? "border-red-500/40" : ""
+          error ? "refined-option-card--error" : ""
         )
   );
 
@@ -527,11 +592,11 @@ function RankedOption({
         }}
         className={base}
       >
-        <span className="absolute -left-3.5 top-3.5 flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold bg-brand-500 text-on-brand-500 border-brand-500 dark:bg-brand-400 dark:text-on-brand-400 dark:border-brand-400">
+        <span className="absolute -left-3 top-2 flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-semibold bg-brand-500 text-on-brand-500 border-brand-500 dark:bg-brand-400 dark:text-on-brand-400 dark:border-brand-400 refined-rank-number">
           {index + 1}
         </span>
 
-        <div className={MEDALLION}>
+        <div className={cn(REFINED_MEDALLION)}>
           <Icon
             className="h-5 w-5 shrink-0"
             style={{ fill: "currentColor", stroke: "none" }}
@@ -539,7 +604,7 @@ function RankedOption({
         </div>
 
         <div className="flex-1 min-w-0 pl-4">
-          <span className="block truncate text-fg dark:text-slate-100 font-semibold">
+          <span className="block truncate text-fg dark:text-slate-100 font-semibold refined-option-label">
             {option.label ?? ""}
           </span>
           {option.description && (
@@ -608,13 +673,12 @@ function AvailableOption({
   t,
 }) {
   const base = cn(
-    "relative flex w-full items-center justify-between rounded-2xl border px-4 py-3.5 text-base transition-all duration-200 ease-ui cursor-pointer",
-    GLASS,
+    REFINED_OPTION,
     disabled
-      ? "cursor-not-allowed bg-slate-50/40 dark:bg-slate-800/20 text-slate-400 border-slate-100/40 dark:border-slate-700/30 opacity-60"
-      : GLASS_HOVER,
-    "border-transparent hover:text-slate-900 dark:hover:text-slate-100",
-    error ? "border-red-500/40" : ""
+      ? "cursor-not-allowed refined-option-card--disabled text-slate-400 border-slate-100/40 dark:border-slate-700/30 opacity-50"
+      : REFINED_OPTION_HOVER,
+    "border-transparent",
+    error ? "refined-option-card--error" : ""
   );
 
   const Icon = option.icon ?? ListOrdered;
@@ -647,15 +711,15 @@ function AvailableOption({
           disabled ? "" : "pr-8"
         )}
       >
-        <div className={MEDALLION}>
+        <div className={cn(REFINED_MEDALLION)}>
           <Icon
-            className="h-5 w-5 shrink-0 opacity-60"
+            className="h-4 w-4 shrink-0 opacity-60"
             style={{ fill: "none", stroke: "currentColor" }}
           />
         </div>
 
         <div className="flex-1 min-w-0 pl-4">
-          <span className="block truncate text-fg dark:text-slate-100 font-medium disabled:opacity-50">
+          <span className="block truncate text-fg dark:text-slate-100 font-medium disabled:opacity-50 refined-option-label">
             {option.label ?? ""}
           </span>
           {option.description && (
@@ -692,13 +756,12 @@ export function PremiumRank({
   /*
    * `value` es un array de IDs de opciones en el orden elegido (p. ej.
    * ["opt_2", "opt_0", "opt_1"]). Renderizamos cada posición con su opción
-   * asignada y un número de posición (1.º, 2.º, 3.º…).
+   * asignada y un número de posición (1º, 2º, 3º…).
    */
   const order = useMemo(() => (Array.isArray(value) ? value : []), [value]);
   const orderedSet = new Set(order.map(String));
 
-  const optionById = (id) =>
-    options.find((o) => o.id === id || o.value === id);
+  const optionById = (id) => options.find((o) => o.id === id || o.value === id);
 
   const available = options.filter(
     (o) => !orderedSet.has(String(o.id ?? o.value ?? o.label))
@@ -735,7 +798,7 @@ export function PremiumRank({
     [disabled, order, onChange]
   );
 
-  /* ── Arrastre nativo (HTML5) para reordenar opciones del ranking ── */
+  /* Arrastre nativo (HTML5) para reordenar opciones del ranking */
   const [dragIndex, setDragIndex] = useState(null);
   const [dropIndex, setDropIndex] = useState(null);
 
@@ -798,7 +861,6 @@ export function PremiumRank({
         aria-label={label || (t ? t("rank") : "Clasificación")}
         className="flex flex-col gap-2"
       >
-        {/* ── Orden actual ── */}
         {order.length > 0 && (
           <>
             <div className="flex items-center gap-2 px-2">
@@ -834,7 +896,6 @@ export function PremiumRank({
           </>
         )}
 
-        {/* ── Opciones disponibles para añadir ── */}
         {available.length > 0 && (
           <>
             {order.length > 0 && (
@@ -858,7 +919,6 @@ export function PremiumRank({
           </>
         )}
 
-        {/* ── Estado vacío ── */}
         {order.length === 0 && options.length > 0 && available.length === options.length && (
           <p className="mt-2 text-xs text-ink-muted/60 dark:text-slate-400/60 italic">
             {t ? t("rankEmpty") : "Selecciona opciones para ordenar"}

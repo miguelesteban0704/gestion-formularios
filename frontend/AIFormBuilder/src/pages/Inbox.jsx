@@ -15,6 +15,7 @@ import { timeAgo, formatDate, formatDuration } from "../lib/utils.js";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { responsesPath } from "../lib/routes.js";
+import { answerDisplay as responseDisplay } from "../lib/responseDisplay.js";
 
 export default function Inbox() {
   const navigate = useNavigate();
@@ -74,7 +75,7 @@ export default function Inbox() {
     const email = (idp && r.respondentEmail) || emailed?.value || "";
     const snippet = r.answers
       .filter((a) => !["short_text", "email"].includes(a.type))
-      .map((a) => (Array.isArray(a.value) ? a.value.join(", ") : a.value))
+      .map((a) => responseDisplay(a))
       .filter(Boolean)
       .join(" · ");
     return { name: String(name), email: String(email), snippet: String(snippet).slice(0, 90) };
@@ -170,12 +171,14 @@ export default function Inbox() {
             {active.meta?.userAgent && <Meta icon={Monitor} label={t("device")} value={device(active.meta.userAgent)} wide />}
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t("answers")}</p>
-              {active.answers.map((a, i) => (
-                <div key={i} className="rounded-xl border border-default bg-surface-2/50 p-3.5">
-                  <p className="text-xs font-medium text-muted">{a.label}</p>
-                  <p className="mt-1 text-sm text-fg">{Array.isArray(a.value) ? a.value.join(", ") : String(a.value)}</p>
-                </div>
-              ))}
+              {active.answers.map((a, i) => {
+                return (
+                  <div key={i} className="rounded-xl border border-default bg-surface-2/50 p-3.5">
+                    <p className="text-xs font-medium text-muted">{a.label}</p>
+                    <p className="mt-1 text-sm text-fg">{responseDisplay(a) || "—"}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

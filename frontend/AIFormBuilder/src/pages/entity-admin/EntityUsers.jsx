@@ -23,6 +23,7 @@ import {
   UserPlus,
   UserRound,
   Users as UsersIcon,
+  WifiOff,
 } from "lucide-react";
 import { entityAdminApi } from "../../services/index.js";
 import { useRoleT } from "../../lib/roleI18n.js";
@@ -34,7 +35,7 @@ import { rememberAccessDoor } from "../../lib/accessDoor.js";
 import { copyText } from "../../lib/clipboard.js";
 import { Pill } from "../../components/admin/AdminTable.jsx";
 import { Button } from "../../components/ui/Button.jsx";
-import { FormModal, SuccessModal, InfoModal } from "../../components/ui/Modal.tsx";
+import { FormModal, SuccessModal, InfoModal, ErrorModal } from "../../components/ui/Modal.tsx";
 import { AppleSpotlight } from "../../components/ui/apple-spotlight";
 import { FabSpeedDial } from "../../components/ui/FabSpeedDial";
 import { PasswordToggle } from "../../components/ui/PasswordToggle.jsx";
@@ -66,6 +67,7 @@ import {
   SummaryBar,
   useSpotlightHotkey,
 } from "../../components/admin/ListChrome.jsx";
+import { useOfflineGuard } from "../../lib/connectivity.js";
 
 /**
  * Gestión de los creadores de formularios de la entidad del `entity_admin`.
@@ -104,6 +106,7 @@ export default function EntityUsers() {
   const { confirm } = useConfirm();
   const { user } = useAuth();
   const { language } = useLanguage();
+  const { guard } = useOfflineGuard();
   const isSpanish = language === "es";
   const entityName = user?.entity?.name || "-";
 
@@ -120,6 +123,7 @@ export default function EntityUsers() {
   const [query, setQuery] = useState("");
   const [spotlightOpen, setSpotlightOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [offlineError, setOfflineError] = useState(null); // {message, title, context}
 
   const {
     control,
@@ -223,6 +227,16 @@ export default function EntityUsers() {
     setBusy(true);
     try {
       if (isCreate) {
+        // Verificar conectividad antes de crear usuario (envía correo de bienvenida)
+        try {
+          await guard("register");
+        } catch (err) {
+          if (err.offline) {
+            setOfflineError({ message: err.message, title: err.offlineTitle, context: err.offlineContext });
+            return;
+          }
+          throw err;
+        }
         const { user: createdUser, mail } = await entityAdminApi.createUser({
           name: values.name,
           email: values.email,
@@ -289,6 +303,16 @@ export default function EntityUsers() {
   // nuevo, variante B genera una contraseña temporal nueva. Best-effort.
   const resend = async (target) => {
     try {
+      // Verificar conectividad antes de reenviar correo
+      try {
+        await guard("resend");
+      } catch (err) {
+        if (err.offline) {
+          setOfflineError({ message: err.message, title: err.offlineTitle, context: err.offlineContext });
+          return;
+        }
+        throw err;
+      }
       const { mail } = await entityAdminApi.resendWelcome(target._id, { language });
       if (mail?.sent) notifySaved(rt("resendSent", target.email));
       else notifyError(new Error(rt("resendFailed", target.email)));

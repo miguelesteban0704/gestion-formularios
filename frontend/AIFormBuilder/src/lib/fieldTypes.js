@@ -27,6 +27,11 @@ import {
   Image,
   ListOrdered,
 } from "lucide-react";
+import {
+  GENDER_OPTIONS,
+  CUBA_EDUCATION_OPTIONS,
+  localizedOptions,
+} from "./inclusiveOptions.js";
 
 /**
  * Single source of truth for every supported field type.
@@ -43,8 +48,8 @@ export const FIELD_DEFS = {
   address: { label: "Dirección", icon: MapPin, group: "input", hasOptions: false, placeholder: "Dirección completa" },
   province: { label: "Province", icon: MapPinned, group: "choice", hasOptions: false, placeholder: "Seleccionar…" },
   municipality: { label: "Municipality", icon: MapPinned, group: "choice", hasOptions: false, dependsOn: "province", placeholder: "Seleccionar…" },
-  gender: { label: "Gender", icon: UserRound, group: "choice", hasOptions: false, placeholder: "Seleccionar…" },
-  education_level: { label: "Education level", icon: GraduationCap, group: "choice", hasOptions: false, placeholder: "Seleccionar…" },
+  gender: { label: "Gender", icon: UserRound, group: "choice", hasOptions: true, hasNomenclator: true, placeholder: "Seleccionar…" },
+  education_level: { label: "Education level", icon: GraduationCap, group: "choice", hasOptions: true, hasNomenclator: true, placeholder: "Seleccionar…" },
   dropdown: { label: "Dropdown", icon: ChevronDownSquare, group: "choice", hasOptions: true },
   radio: { label: "Multiple Choice", icon: CircleDot, group: "choice", hasOptions: true },
   checkbox: { label: "Checkboxes", icon: CheckSquare, group: "choice", hasOptions: true },
@@ -73,6 +78,10 @@ export const FIELD_DEFS = {
      en el formulario publicado. El nombre de archivo real se guarda como `content`
      y se sirve desde el backend con vista previa optimizada. */
   image: { label: "Bloque de imagen", icon: Image, group: "layout", hasOptions: false, static: true, upload: true },
+  /* `importancia` es el nuevo tipo "Clasificación por Escala".
+     Permite crear preguntas de priorización con múltiples elementos, escalas
+     numéricas configurables y respuestas independientes. */
+  importancia: { label: "Clasificación por Escala", icon: ListOrdered, group: "choice", hasOptions: true, hasScale: true },
 };
 
 export const FIELD_GROUPS = [
@@ -83,7 +92,7 @@ export const FIELD_GROUPS = [
 ];
 
 export const STATIC_TYPES = Object.keys(FIELD_DEFS).filter((t) => FIELD_DEFS[t].static);
-export const OPTION_TYPES = Object.keys(FIELD_DEFS).filter((t) => FIELD_DEFS[t].hasOptions);
+export const OPTION_TYPES = Object.keys(FIELD_DEFS).filter((t) => FIELD_DEFS[t].hasOptions && !FIELD_DEFS[t].hasNomenclator);
 
 /* Los tres tipos de escala, para que la analítica y los gráficos los traten
    igual que el backend: se promedian y se dibujan como distribución. */
@@ -105,12 +114,31 @@ export function normAnswerText(v) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+export function optionAnswerValue(option, index = 0) {
+  const value = option?.value;
+  if (value !== undefined && value !== null && value !== "") return String(value);
+
+  const label = option?.label;
+  if (label !== undefined && label !== null && label !== "") return String(label);
+
+  return String(option?.id ?? index);
+}
+
 /* Dice si una pregunta se muestra con las respuestas dadas.
    Sin condición, siempre visible. Sin respuesta en la pregunta de la que
    depende, oculta: no se puede evaluar y lo seguro es no pedir el dato. */
 export function isQuestionVisible(question, answers) {
   const cond = question?.visibleIf;
-  if (!cond?.questionId) return true;
+  if (!cond) return true;
+  // IMPORTANTE: Las condiciones de "mismo campo" (sameFieldCondition) NO ocultan la pregunta principal.
+  // Solo controlan la visibilidad de un campo de texto adicional DENTRO de la misma pregunta.
+  // La pregunta siempre debe ser visible para que el usuario pueda seleccionar la opción que la activa.
+  if (cond.sameFieldCondition && !cond.questionId) {
+    return true;
+  }
+
+  // Condición normal (otra pregunta)
+  if (!cond.questionId) return true;
   const raw = answers?.[cond.questionId];
   const vals = Array.isArray(raw) ? raw : [raw];
   const filled = vals.filter((v) => v !== undefined && v !== null && v !== "");
@@ -250,9 +278,38 @@ export function createField(type) {
       { id: uid("opt"), label: "Option 3", value: "" },
     ];
   }
+
+  // Inicializar nomenclator personalizado para gender y education_level
+  if (def.hasNomenclator) {
+    const lang = "es"; // Idioma por defecto para las opciones iniciales
+    if (type === "gender") {
+      base.customOptions = localizedOptions(GENDER_OPTIONS, lang).map((label, i) => ({
+        id: uid("opt"),
+        value: label,
+        label,
+      }));
+    } else if (type === "education_level") {
+      base.customOptions = localizedOptions(CUBA_EDUCATION_OPTIONS, lang).map((label, i) => ({
+        id: uid("opt"),
+        value: label,
+        label,
+      }));
+    }
+  }
+
   /* Las tres escalas llevan `scale`, y solo ellas: meterla en el resto de
      campos sería ruido que ni se lee ni se guarda. */
   if (def.hasScale) base.scale = { ...DEFAULT_SCALE };
+
+  // Inicializar opciones por defecto para campos que las definen explícitamente
+  if (def.defaultOptions) {
+    base.options = def.defaultOptions.map((opt, i) => ({
+      id: uid("opt"),
+      label: opt.label,
+      value: opt.value || "",
+    }));
+  }
+
   /* Lógica condicional: sin condición la pregunta siempre se ve; la puerta de
      consentimiento solo tiene sentido en un sí/no y se activa en el panel. */
   base.visibleIf = null;
@@ -264,4 +321,4 @@ export function createField(type) {
   return base;
 }
 
-export { uid };
+export { uid, GENDER_OPTIONS, CUBA_EDUCATION_OPTIONS };

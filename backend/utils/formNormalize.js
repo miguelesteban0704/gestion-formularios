@@ -7,7 +7,7 @@
  */
 
 import { nanoid } from "./nanoid.js";
-import { FIELD_TYPES, OPTION_FIELD_TYPES, STATIC_FIELD_TYPES, RATING_TYPES, catalogTypeFor } from "./constants.js";
+import { FIELD_TYPES, OPTION_FIELD_TYPES, STATIC_FIELD_TYPES, RATING_TYPES, SCALE_FIELD_TYPES, catalogTypeFor } from "./constants.js";
 import { coerceOptionLabels } from "./optionLabels.js";
 import { CONDITIONAL_OPERATORS } from "./visibility.js";
 
@@ -81,6 +81,9 @@ const TYPE_ALIASES = {
   likert: "score_rating",
   likert_scale: "score_rating",
   satisfaction_scale: "score_rating",
+  classification_by_scale: "importancia",
+  clasificacion_por_escala: "importancia",
+  clasificación_por_escala: "importancia",
 };
 
 function resolveType(rawType, label = "") {
@@ -265,7 +268,9 @@ export function normalizeQuestion(q, index, language = "en") {
       Si el modelo ya pidió estrellas o puntaje, se respeta, porque ahí el
       color con juicio de valor es lo pedido. */
   const likertEnProsa =
-    !RATING_TYPES.includes(type) && /^\s*\d+\s*=/.test(description) ? scaleFromDescription(description) : null;
+    type !== "importancia" && !RATING_TYPES.includes(type) && /^\s*\d+\s*=/.test(description)
+      ? scaleFromDescription(description)
+      : null;
   const tipoFinal = likertEnProsa ? "score_rating" : type;
 
   /* Las opciones solo se piden a los tipos que las muestran. El resto las lleva
@@ -276,6 +281,15 @@ export function normalizeQuestion(q, index, language = "en") {
       : OPTION_FIELD_TYPES.includes(tipoFinal)
         ? coerceOptionLabels(raw.options)
         : [];
+  const otherLabels =
+    tipoFinal === "importancia" && Array.isArray(raw.options)
+      ? new Set(
+          raw.options
+            .filter((option) => option && typeof option === "object" && option.isOther === true)
+            .flatMap((option) => coerceOptionLabels([option]))
+            .map((optionLabel) => optionLabel.toLowerCase()),
+        )
+      : new Set();
 
   return {
     id: nanoid(10),
@@ -289,11 +303,16 @@ export function normalizeQuestion(q, index, language = "en") {
     /* value: "" a proposito: es lo que genera el builder al crear una opcion a
        mano (lib/fieldTypes.js) y lo que espera el renderer, que guarda la
        etiqueta como respuesta. */
-    options: labels.map((label) => ({ id: nanoid(8), label, value: "" })),
+    options: labels.map((label) => ({
+      id: nanoid(8),
+      label,
+      value: "",
+      ...(otherLabels.has(label.toLowerCase()) ? { isOther: true } : {}),
+    })),
     content: typeof raw.content === "string" ? raw.content : "",
     /* Solo tienen sentido en una escala; en el resto viajan como null para no
        ensuciar el jsonb de cada campo del formulario. */
-    scale: RATING_TYPES.includes(tipoFinal) ? normalizeScale(raw.scale, description) : null,
+    scale: SCALE_FIELD_TYPES.includes(tipoFinal) ? normalizeScale(raw.scale, description) : null,
     dependsOn: tipoFinal === "municipality" ? "province" : undefined,
     /* Lógica condicional: se sanea al guardar para que una condición rota no
        esconda la pregunta para siempre. La IA no la emite (la deduce

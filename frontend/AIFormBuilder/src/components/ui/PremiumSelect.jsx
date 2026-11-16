@@ -14,21 +14,25 @@
  *  • Estados: error (borde rojo), disabled (opacidad), required (asterisco)
  *  • Tooltip elegante encima (municipio pendiente de provincia)
  *  • Animaciones fluidas con framer-motion (entrada del dropdown y opciones)
+ *  • Prop `usedValues`: filtra opciones ya seleccionadas en otros campos
+ *  • Prop `compact`: modo compacto para LivePreview
+ *  • Prop `maxWidth`: ancho máximo del trigger
  */
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Search, Check } from "lucide-react";
 import { cn } from "../../lib/utils.js";
+import "./PremiumSelect.css";
 
 const triggerBase =
-  "relative flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-base transition-all duration-300 bg-white/60 dark:bg-slate-900/50 backdrop-blur-sm";
+  "refined-select-trigger relative flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-all duration-150 cursor-pointer text-left";
 
 const triggerInner =
-  "flex items-center gap-3 overflow-hidden";
+  "refined-trigger-inner flex items-center gap-0.625 overflow-hidden";
 
 const optionBase =
-  "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-base transition-all duration-200 cursor-pointer text-left";
+  "refined-select-option flex w-full items-center gap-0.625 rounded-md border px-3 py-1.5 text-sm transition-all duration-120 cursor-pointer text-left";
 
 const DROPDOWN_HEIGHT = 300;
 
@@ -47,6 +51,10 @@ export function PremiumSelect({
   className,
   language = "es",
   t,
+  usedValues = [],      // NEW: valores ya usados en otros campos (para filtrar)
+  compact = false,      // NEW: modo compacto para LivePreview
+  maxWidth,             // NEW: ancho máximo del trigger
+  selectionVariant = "default", // "default" | "scale": estilo del indicador de selección
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -56,11 +64,20 @@ export function PremiumSelect({
 
   const placeholderText = placeholder ?? (t ? t("placeholder") : "Seleccionar…");
 
-  const filtered = options.filter((opt) => {
-    if (!query) return true;
-    const q = query.toLowerCase();
-    return String(opt.label).toLowerCase().includes(q);
-  });
+  const filtered = useMemo(() => {
+    return options.filter((opt) => {
+      // Filtrar por búsqueda
+      if (query) {
+        const q = query.toLowerCase();
+        if (!String(opt.label).toLowerCase().includes(q)) return false;
+      }
+      // Filtrar valores ya usados (excepto el valor actual seleccionado)
+      if (usedValues.length > 0 && usedValues.includes(opt.value) && opt.value !== value) {
+        return false;
+      }
+      return true;
+    });
+  }, [options, query, value, usedValues]);
 
   // Cierra al hacer clic fuera
   useEffect(() => {
@@ -131,20 +148,27 @@ export function PremiumSelect({
 
   const triggerClasses = cn(
     triggerBase,
+    "refined-select-trigger",
+    compact ? "px-2 py-1.5 text-xs" : "px-3 py-2 text-sm",
+    maxWidth ? "max-w-[300px]" : "w-full",
     disabled
-      ? "cursor-not-allowed bg-slate-200/40 text-slate-400 border-slate-200 dark:bg-slate-800/30 dark:border-slate-700/50 opacity-70"
-      : "cursor-pointer hover:border-brand-400/70 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none",
+      ? "cursor-not-allowed bg-slate-200/40 text-slate-400 border-slate-300 dark:bg-slate-800/30 dark:border-slate-600 opacity-70 refined-select-trigger--disabled"
+      : "cursor-pointer hover:border-brand-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none",
     error
-      ? "border-red-500/60 focus:border-red-500 focus:ring-red-500/20"
-      : "border-slate-200/60 dark:border-slate-700/60",
-    required ? "border-brand-500/30" : "",
+      ? "border-red-500 focus:border-red-500 focus:ring-red-500/20 refined-select-trigger--error"
+      : "border-slate-300 dark:border-slate-600",
+    required ? "border-brand-500" : "",
     className
   );
 
   const dropdownClasses = cn(
-    "max-h-[300px] overflow-auto rounded-2xl border border-slate-200/60 bg-white/90 backdrop-blur-xl p-1.5 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.18)] dark:border-slate-700/60 dark:bg-slate-900/85",
+    "max-h-[260px] overflow-auto rounded-md border border-slate-300 bg-white/90 backdrop-blur-xl p-1.5 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.18)] dark:border-slate-600 dark:bg-slate-900/85",
+    "refined-select-panel",
     disabled ? "pointer-events-none opacity-0" : ""
   );
+
+  // Ajustar rect.width para maxWidth en modo compacto
+  const dropdownWidth = maxWidth ? Math.max(rect?.width || 200, 160) : rect?.width;
 
   return (
     <div ref={selectRef} className="w-full">
@@ -169,8 +193,8 @@ export function PremiumSelect({
           >
             <div className={triggerInner}>
               {Icon && (
-                <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-brand-500/10 dark:bg-brand-900/20 border border-brand-500/20 dark:border-brand-900/30">
-                  <Icon className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+                <div className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md bg-brand-500/10 dark:bg-brand-900/20 border border-brand-500/60 dark:border-brand-800/70 refined-trigger-medallion">
+                  <Icon className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                 </div>
               )}
               <span
@@ -184,8 +208,8 @@ export function PremiumSelect({
             </div>
             <ChevronDown
               className={cn(
-                "shrink-0 transition-all duration-300",
-                isOpen ? "rotate-180 scale-110" : ""
+                "shrink-0 transition-all duration-200 refined-trigger-chevron",
+                isOpen ? "refined-trigger-chevron--open rotate-180" : ""
               )}
             />
           </button>
@@ -204,9 +228,10 @@ export function PremiumSelect({
                     position: "fixed",
                     left: rect.left,
                     top: rect.top,
-                    minWidth: rect.width,
-                    width: rect.width,
+                    minWidth: dropdownWidth,
+                    width: dropdownWidth,
                     zIndex: 9999,
+                    transformOrigin: rect.flip ? "bottom center" : "top center",
                   }}
                 >
                   {searchable && filtered.length > 0 && (
@@ -219,7 +244,7 @@ export function PremiumSelect({
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder={t ? t("search") : "Buscar…"}
-                        className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 bg-slate-50/60 dark:bg-slate-800/60 dark:border-slate-700/60 dark:text-slate-100"
+                        className="w-full pl-9 pr-3 py-1.5 rounded-md border border-slate-300 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 bg-surface-2/60 dark:bg-surface-2/80 dark:border-slate-600 dark:text-slate-100 refined-select-search"
                         autoFocus
                       />
                     </div>
@@ -237,22 +262,28 @@ export function PremiumSelect({
                             onClick={(e) => { e.stopPropagation(); handleSelect(opt); }}
                             className={cn(
                               optionBase,
+                              "refined-select-option",
                               isSelected
-                                ? "bg-gradient-to-r from-brand-500/10 to-brand-100/30 border border-brand-500/40 text-brand-700 font-medium dark:bg-brand-900/30 dark:border-brand-800/50 dark:text-brand-300 shadow-[0_0_20px_rgba(59,130,246,0.15)] dark:shadow-[0_0_20px_rgba(16,185,129,0.15)]"
-                                : "border-transparent hover:bg-slate-50/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100"
+                                ? "refined-select-option--selected bg-brand-500/10 border border-brand-500/75 text-brand-700 font-medium dark:bg-brand-900/20 dark:border-brand-700/70 dark:text-brand-300 shadow-[0_0_12px_rgba(0,210,255,0.1)] dark:shadow-[0_0_12px_rgba(0,210,255,0.05)]"
+                                : "border-slate-300 dark:border-slate-600 hover:bg-surface-2/60 dark:hover:bg-surface-2/80 hover:text-slate-900 dark:hover:text-slate-100"
                             )}
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.04, duration: 0.2 }}
                           >
-                            {isSelected && (
+                            {selectionVariant !== "scale" && isSelected && (
                               <div className="h-2 w-2 shrink-0 rounded-full bg-brand-600 dark:bg-brand-400" />
                             )}
                             <Check
                               className={cn(
-                                "h-4 w-4 shrink-0",
+                                "h-3.5 w-3.5 shrink-0 refined-select-check",
                                 isSelected
-                                  ? "text-brand-600 dark:text-brand-400"
+                                  ? cn(
+                                      "refined-select-check--checked",
+                                      selectionVariant === "scale"
+                                        ? "text-white dark:text-white"
+                                        : "text-brand-600 dark:text-brand-400"
+                                    )
                                   : "opacity-0"
                               )}
                             />
@@ -287,8 +318,8 @@ export function PremiumSelect({
           >
             <div className={triggerInner}>
               {Icon && (
-                <div className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-brand-500/10 dark:bg-brand-900/20 border border-brand-500/20 dark:border-brand-900/30">
-                  <Icon className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+                <div className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md bg-brand-500/10 dark:bg-brand-900/20 border border-brand-500/60 dark:border-brand-800/70 refined-trigger-medallion">
+                  <Icon className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                 </div>
               )}
               <span
@@ -302,8 +333,8 @@ export function PremiumSelect({
             </div>
             <ChevronDown
               className={cn(
-                "shrink-0 transition-all duration-300",
-                isOpen ? "rotate-180 scale-110" : ""
+                "shrink-0 transition-all duration-200 refined-trigger-chevron",
+                isOpen ? "refined-trigger-chevron--open rotate-180" : ""
               )}
             />
           </button>
@@ -322,9 +353,10 @@ export function PremiumSelect({
                     position: "fixed",
                     left: rect.left,
                     top: rect.top,
-                    minWidth: rect.width,
-                    width: rect.width,
+                    minWidth: dropdownWidth,
+                    width: dropdownWidth,
                     zIndex: 9999,
+                    transformOrigin: rect.flip ? "bottom center" : "top center",
                   }}
                 >
                   {searchable && filtered.length > 0 && (
@@ -337,7 +369,7 @@ export function PremiumSelect({
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder={t ? t("search") : "Buscar…"}
-                        className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 bg-slate-50/60 dark:bg-slate-800/60 dark:border-slate-700/60 dark:text-slate-100"
+                        className="w-full pl-9 pr-3 py-1.5 rounded-md border border-slate-300 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 bg-surface-2/60 dark:bg-surface-2/80 dark:border-slate-600 dark:text-slate-100 refined-select-search"
                         autoFocus
                       />
                     </div>
@@ -355,22 +387,28 @@ export function PremiumSelect({
                             onClick={(e) => { e.stopPropagation(); handleSelect(opt); }}
                             className={cn(
                               optionBase,
+                              "refined-select-option",
                               isSelected
-                                ? "bg-gradient-to-r from-brand-500/10 to-brand-100/30 border border-brand-500/40 text-brand-700 font-medium dark:bg-brand-900/30 dark:border-brand-800/50 dark:text-brand-300 shadow-[0_0_20px_rgba(59,130,246,0.15)] dark:shadow-[0_0_20px_rgba(16,185,129,0.15)]"
-                                : "border-transparent hover:bg-slate-50/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100"
+                                ? "refined-select-option--selected bg-brand-500/10 border border-brand-500/75 text-brand-700 font-medium dark:bg-brand-900/20 dark:border-brand-700/70 dark:text-brand-300 shadow-[0_0_12px_rgba(0,210,255,0.1)] dark:shadow-[0_0_12px_rgba(0,210,255,0.05)]"
+                                : "border-slate-300 dark:border-slate-600 hover:bg-surface-2/60 dark:hover:bg-surface-2/80 hover:text-slate-900 dark:hover:text-slate-100"
                             )}
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.04, duration: 0.2 }}
                           >
-                            {isSelected && (
+                            {selectionVariant !== "scale" && isSelected && (
                               <div className="h-2 w-2 shrink-0 rounded-full bg-brand-600 dark:bg-brand-400" />
                             )}
                             <Check
                               className={cn(
-                                "h-4 w-4 shrink-0",
+                                "h-3.5 w-3.5 shrink-0 refined-select-check",
                                 isSelected
-                                  ? "text-brand-600 dark:text-brand-400"
+                                  ? cn(
+                                      "refined-select-check--checked",
+                                      selectionVariant === "scale"
+                                        ? "text-white dark:text-white"
+                                        : "text-brand-600 dark:text-brand-400"
+                                    )
                                   : "opacity-0"
                               )}
                             />

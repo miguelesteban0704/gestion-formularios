@@ -8,11 +8,14 @@ import {
 } from "lucide-react";
 import { PhoneField } from "./PhoneField.jsx";
 import { PremiumSelect } from "../ui/PremiumSelect.jsx";
+import { ChronoSelect } from "../ui/ChronoSelect.jsx";
 import { PremiumDateField } from "../ui/PremiumDateTime.jsx";
 import { FileUploadField } from "../ui/FileUploadField.jsx";
 import { PremiumRadio, PremiumCheckbox, PremiumYesNo, PremiumRank } from "../ui/PremiumChoice.jsx";
+import { PremiumImportancia } from "../ui/PremiumImportancia.jsx";
+
 import { specialOptionsFor } from "../../lib/specialOptions.js";
-import { getSpecialFieldType, scaleOf, RATING_TYPES } from "../../lib/fieldTypes.js";
+import { getSpecialFieldType, scaleOf, RATING_TYPES, optionAnswerValue, FIELD_DEFS, GENDER_OPTIONS } from "../../lib/fieldTypes.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { ScoreRating, StarRating } from "../ui/Rating.jsx";
 
@@ -47,6 +50,15 @@ const dictionary = {
     "rankMoveUp": "Subir posición",
     "rankMoveDown": "Bajar posición",
     "rankRemove": "Quitar",
+    "rankRemove": "Quit",
+    "importancia": "Clasificación por Escala",
+    "importanciaAdd": "Añadir más elementos",
+    "importanciaEmpty": "Selecciona elementos para clasificar",
+    "importanciaOrder": "Orden actual",
+    "importanciaAvailable": "Elementos disponibles",
+    "importanciaMoveUp": "Subir elemento",
+    "importanciaMoveDown": "Bajar elemento",
+    "importanciaRemove": "Quitar elemento",
     "select": "Seleccionar…",
     "province": "Provincia",
     "municipality": "Municipio",
@@ -90,6 +102,14 @@ const dictionary = {
     "rankMoveUp": "Move up",
     "rankMoveDown": "Move down",
     "rankRemove": "Remove",
+    "importancia": "Classification by scale",
+    "importanciaAdd": "Add more options to the order",
+    "importanciaEmpty": "Select priority",
+    "importanciaOrder": "Current order",
+    "importanciaAvailable": "Available to add",
+    "importanciaMoveUp": "Move up",
+    "importanciaMoveDown": "Move down",
+    "importanciaRemove": "Remove",
     "select": "Select…",
     "province": "Province",
     "municipality": "Municipality",
@@ -120,7 +140,10 @@ export function FieldRenderer({
   if (!field) return null;
 
   const lang = language || field.language || "en";
-  const translate = (key) => dictionary[lang]?.[key] || dictionary.en[key] || key;
+  const translate = (key) => {
+    const value = t ? t(key) : "";
+    return value && value !== key ? value : dictionary[lang]?.[key] || key;
+  };
 
   // La etiqueta propia del campo (la que escribió el autor) tiene prioridad
   // sobre el nombre genérico del tipo; se traduce si hay entrada para ella.
@@ -198,15 +221,71 @@ export function FieldRenderer({
     else field.content = val;
   };
 
+  // Helper para verificar si se cumple la condición de mismo campo
+  // Se define AQUÍ (antes de usarse) para evitar "Cannot access before initialization"
+  const checkSameFieldCondition = (field, answers) => {
+    if (!field.visibleIf?.sameFieldCondition) return false;
+    const conditionValue = field.visibleIf.sameFieldCondition;
+    const conditionScale = field.visibleIf?.sameFieldScale;
+    const answer = answers?.[field.id];
+
+    if (answer == null || answer === "") return false;
+
+    // Compara dos valores de respuesta. Para Género, las opciones del catálogo
+    // se guardan y seleccionan en el idioma activo (es/en), así que la misma
+    // opción puede tener un valor distinto según el idioma: se comparan por
+    // identidad de opción para que "autodescribir mi identidad" funcione aunque
+    // constructor y respondiente usen idiomas distintos. Otros campos comparan
+    // por igualdad estricta, sin cambios.
+    const sameValue = (a, b) => {
+      if (a === b) return true;
+      if (field.type === "gender" && typeof a === "string" && typeof b === "string") {
+        return GENDER_OPTIONS.some(
+          (opt) => (opt.es === a || opt.en === a) && (opt.es === b || opt.en === b),
+        );
+      }
+      return false;
+    };
+
+    // Clasificación por escala: respuesta { [optionId]: scaleValue | { value:"other", otherText } }
+    if (field.type === "importancia" && typeof answer === "object" && !Array.isArray(answer)) {
+      const entry = answer[conditionValue];
+      if (entry == null || entry === "") return false;
+
+      if (conditionScale) {
+        const scaleVal = typeof entry === "object" ? (entry.value ?? entry.priority ?? "") : entry;
+        return String(scaleVal) === String(conditionScale);
+      }
+
+      // Sin escala específica: se activa cuando la opción tiene cualquier valor asignado
+      return true;
+    }
+
+    // Para checkbox/múltiple respuesta
+    if (Array.isArray(answer)) {
+      return answer.some((v) => sameValue(v, conditionValue));
+    }
+
+    // Para respuesta simple
+    return sameValue(answer, conditionValue);
+  };
+
+  // Helper para obtener el placeholder personalizado del campo extra
+  const getSameFieldPlaceholder = (field) => {
+    if (field.visibleIf?.sameFieldPlaceholder) return field.visibleIf.sameFieldPlaceholder;
+    return "Especifica...";
+  };
+
   /* ── Campos especiales de elección con opciones dinámicas ── */
 
   if (field.type === "province") {
     const options = specialOptionsFor("province", { language: lang });
+    const showAdditionalText = checkSameFieldCondition(field, answers);
     return (
       <div>
         <label className="block text-sm font-medium mb-1 text-fg dark:text-slate-100">{fieldLabel}</label>
         {field.required && <span className="ml-1 text-red-500">*</span>}
-        <PremiumSelect
+        <ChronoSelect
           label=""
           icon={null}
           options={options}
@@ -221,6 +300,19 @@ export function FieldRenderer({
           t={t}
         />
         {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {showAdditionalText && (
+          <div className="mt-2">
+            <input
+              type="text"
+              placeholder={getSameFieldPlaceholder(field)}
+              value={answers?.[`${field.id}_other`] || ""}
+              onChange={(e) => handleChange({ id: `${field.id}_other`, value: e.target.value })}
+              className={inputClass(false)}
+              disabled={isDisabled}
+              id={`q-${field.id}-other`}
+            />
+          </div>
+        )}
       </div>
     );
   }
@@ -242,12 +334,13 @@ export function FieldRenderer({
     const options = waitingForProvince
       ? []
       : specialOptionsFor("municipality", { province: provinceAnswer, language: lang });
+    const showAdditionalText = checkSameFieldCondition(field, answers);
 
     return (
       <div>
         <label className="block text-sm font-medium mb-1 text-fg dark:text-slate-100">{fieldLabel}</label>
         {field.required && <span className="ml-1 text-red-500">*</span>}
-        <PremiumSelect
+        <ChronoSelect
           label=""
           icon={null}
           options={options}
@@ -257,11 +350,9 @@ export function FieldRenderer({
           placeholder={waitingForProvince ? translate("selectProvinceFirst") : translate("select")}
           error={!!error}
           required={field.required}
-          searchable
-          tooltip={waitingForProvince ? translate("selectProvinceFirst") : undefined}
-          tooltipSide="top"
           language={lang}
           t={t}
+          searchable
         />
         {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
         {waitingForProvince && !error && (
@@ -269,17 +360,31 @@ export function FieldRenderer({
             {translate("selectProvinceFirst")}
           </p>
         )}
+        {showAdditionalText && (
+          <div className="mt-2">
+            <input
+              type="text"
+              placeholder={getSameFieldPlaceholder(field)}
+              value={answers?.[`${field.id}_other`] || ""}
+              onChange={(e) => handleChange({ id: `${field.id}_other`, value: e.target.value })}
+              className={inputClass(false)}
+              disabled={isDisabled}
+              id={`q-${field.id}-other`}
+            />
+          </div>
+        )}
       </div>
     );
   }
 
   if (field.type === "gender") {
-    const options = specialOptionsFor("gender", { language: lang });
+    const options = specialOptionsFor("gender", { language: lang, field });
+    const showAdditionalText = checkSameFieldCondition(field, answers);
     return (
       <div>
         <label className="block text-sm font-medium mb-1 text-fg dark:text-slate-100">{fieldLabel}</label>
         {field.required && <span className="ml-1 text-red-500">*</span>}
-        <PremiumSelect
+        <ChronoSelect
           label=""
           icon={null}
           options={options}
@@ -294,17 +399,31 @@ export function FieldRenderer({
           t={t}
         />
         {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {showAdditionalText && (
+          <div className="mt-2">
+            <input
+              type="text"
+              placeholder={getSameFieldPlaceholder(field)}
+              value={answers?.[`${field.id}_other`] || ""}
+              onChange={(e) => handleChange({ id: `${field.id}_other`, value: e.target.value })}
+              className={inputClass(false)}
+              disabled={isDisabled}
+              id={`q-${field.id}-other`}
+            />
+          </div>
+        )}
       </div>
     );
   }
 
   if (field.type === "education_level") {
-    const options = specialOptionsFor("education_level", { language: lang });
+    const options = specialOptionsFor("education_level", { language: lang, field });
+    const showAdditionalText = checkSameFieldCondition(field, answers);
     return (
       <div>
         <label className="block text-sm font-medium mb-1 text-fg dark:text-slate-100">{fieldLabel}</label>
         {field.required && <span className="ml-1 text-red-500">*</span>}
-        <PremiumSelect
+        <ChronoSelect
           label=""
           icon={null}
           options={options}
@@ -319,17 +438,37 @@ export function FieldRenderer({
           t={t}
         />
         {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {showAdditionalText && (
+          <div className="mt-2">
+            <input
+              type="text"
+              placeholder={getSameFieldPlaceholder(field)}
+              value={answers?.[`${field.id}_other`] || ""}
+              onChange={(e) => handleChange({ id: `${field.id}_other`, value: e.target.value })}
+              className={inputClass(false)}
+              disabled={isDisabled}
+              id={`q-${field.id}-other`}
+            />
+          </div>
+        )}
       </div>
     );
   }
 
   if (field.type === "dropdown") {
-    const options = (field.options || []).map((o) => ({ value: o.value ?? "", label: o.label ?? "" }));
+    const options = (field.options || []).map((o, i) => ({
+      value: optionAnswerValue(o, i),
+      label: o.label ?? "",
+    }));
+    // Verificar si hay una condición de mismo campo que se cumple
+    const showAdditionalText = field.visibleIf?.sameFieldCondition &&
+      fieldValue === field.visibleIf.sameFieldCondition;
+
     return (
       <div>
         <label className="block text-sm font-medium mb-1 text-fg dark:text-slate-100">{fieldLabel}</label>
         {field.required && <span className="ml-1 text-red-500">*</span>}
-        <PremiumSelect
+        <ChronoSelect
           label=""
           icon={null}
           options={options}
@@ -344,6 +483,19 @@ export function FieldRenderer({
           t={t}
         />
         {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {showAdditionalText && (
+          <div className="mt-2">
+            <input
+              type="text"
+              placeholder={getSameFieldPlaceholder(field)}
+              value={answers?.[`${field.id}_other`] || ""}
+              onChange={(e) => handleChange({ id: `${field.id}_other`, value: e.target.value })}
+              className={inputClass(false)}
+              disabled={isDisabled}
+              id={`q-${field.id}-other`}
+            />
+          </div>
+        )}
       </div>
     );
   }
@@ -502,17 +654,20 @@ export function FieldRenderer({
 
   /* ── Campos de elección premium (radio, checkbox, yes_no, rank) ── */
   if (field.type === "radio") {
+    // Verificar si hay una condición de mismo campo que se cumple
+    const showAdditionalText = field.visibleIf?.sameFieldCondition &&
+      answers?.[field.id] === field.visibleIf.sameFieldCondition;
+
     return (
       <div>
         <label className="block text-sm font-medium mb-1 text-fg dark:text-slate-100">{fieldLabel}</label>
         {field.required && <span className="ml-1 text-red-500">*</span>}
         <PremiumRadio
           label=""
-          icon={CircleDot}
           options={(field.options || []).map((o, i) => ({
             id: o.id,
             label: o.label ?? "",
-            value: o.value ?? o.id ?? o.label ?? String(i),
+            value: optionAnswerValue(o, i),
             description: o.description ?? "",
           }))}
           value={fieldValue}
@@ -520,27 +675,42 @@ export function FieldRenderer({
           disabled={isDisabled}
           error={!!error}
           required={field.required}
-          language={lang}
           t={t}
         />
         {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {showAdditionalText && (
+          <div className="mt-2">
+            <input
+              type="text"
+              placeholder={getSameFieldPlaceholder(field)}
+              value={answers?.[`${field.id}_other`] || ""}
+              onChange={(e) => handleChange({ id: `${field.id}_other`, value: e.target.value })}
+              className={inputClass(false)}
+              disabled={isDisabled}
+              id={`q-${field.id}-other`}
+            />
+          </div>
+        )}
       </div>
     );
   }
 
   if (field.type === "checkbox") {
     const values = Array.isArray(fieldValue) ? fieldValue : fieldValue ? [fieldValue] : [];
+    // Verificar si hay una condición de mismo campo que se cumple
+    const showAdditionalText = field.visibleIf?.sameFieldCondition &&
+      values.includes(field.visibleIf.sameFieldCondition);
+
     return (
       <div>
         <label className="block text-sm font-medium mb-1 text-fg dark:text-slate-100">{fieldLabel}</label>
         {field.required && <span className="ml-1 text-red-500">*</span>}
         <PremiumCheckbox
           label=""
-          icon={CheckSquare}
           options={(field.options || []).map((o, i) => ({
             id: o.id,
             label: o.label ?? "",
-            value: o.value ?? o.id ?? o.label ?? String(i),
+            value: optionAnswerValue(o, i),
             description: o.description ?? "",
           }))}
           value={values}
@@ -552,11 +722,26 @@ export function FieldRenderer({
           t={t}
         />
         {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {showAdditionalText && (
+          <div className="mt-2">
+            <input
+              type="text"
+              placeholder={getSameFieldPlaceholder(field)}
+              value={answers?.[`${field.id}_other`] || ""}
+              onChange={(e) => handleChange({ id: `${field.id}_other`, value: e.target.value })}
+              className={inputClass(false)}
+              disabled={isDisabled}
+              id={`q-${field.id}-other`}
+            />
+          </div>
+        )}
       </div>
     );
   }
 
   if (field.type === "yes_no") {
+    const showAdditionalText = checkSameFieldCondition(field, answers);
+
     return (
       <div>
         <label className="block text-sm font-medium mb-1 text-fg dark:text-slate-100">{fieldLabel}</label>
@@ -574,18 +759,55 @@ export function FieldRenderer({
           noLabel={translate("no")}
         />
         {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {showAdditionalText && (
+          <div className="mt-2">
+            <input
+              type="text"
+              placeholder={getSameFieldPlaceholder(field)}
+              value={answers?.[`${field.id}_other`] || ""}
+              onChange={(e) => handleChange({ id: `${field.id}_other`, value: e.target.value })}
+              className={inputClass(false)}
+              disabled={isDisabled}
+              id={`q-${field.id}-other`}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (field.type === "importancia") {
+    return (
+      <div>
+        <label className="block text-sm font-medium mb-1 text-fg dark:text-slate-100">{fieldLabel}</label>
+        {field.required && <span className="ml-1 text-red-500">*</span>}
+        <PremiumImportancia
+          field={field}
+          value={
+            fieldValue && typeof fieldValue === "object" && !Array.isArray(fieldValue)
+              ? fieldValue
+              : {}
+          }
+          onChange={handleChange}
+          disabled={isDisabled}
+          error={!!error}
+          required={field.required}
+          language={lang}
+          t={t}
+        />
+        {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
       </div>
     );
   }
 
   if (field.type === "rank") {
+    const showAdditionalText = checkSameFieldCondition(field, answers);
     return (
       <div>
         <label className="block text-sm font-medium mb-1 text-fg dark:text-slate-100">{fieldLabel}</label>
         {field.required && <span className="ml-1 text-red-500">*</span>}
         <PremiumRank
           label=""
-          icon={ListOrdered}
           options={(field.options || []).map((o) => ({
             id: o.id,
             label: o.label ?? "",
@@ -601,9 +823,23 @@ export function FieldRenderer({
           t={t}
         />
         {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {showAdditionalText && (
+          <div className="mt-2">
+            <input
+              type="text"
+              placeholder={getSameFieldPlaceholder(field)}
+              value={answers?.[`${field.id}_other`] || ""}
+              onChange={(e) => handleChange({ id: `${field.id}_other`, value: e.target.value })}
+              className={inputClass(false)}
+              disabled={isDisabled}
+              id={`q-${field.id}-other`}
+            />
+          </div>
+        )}
       </div>
     );
   }
+
 
   /* ── Campos avanzados (fecha y hora premium) ── */
   if (field.type === "date") {

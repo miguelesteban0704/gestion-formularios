@@ -16,12 +16,15 @@ import {
   User,
   GraduationCap,
   List,
+  ListOrdered,
 } from "lucide-react";
 import { Input, Label } from "../ui/Input.jsx";
 import { PremiumSelect } from "../ui/PremiumSelect.jsx";
+
 import { cn } from "../../lib/utils.js";
 import { validateField } from "../../lib/validate.js";
 import { specialOptionsFor } from "../../lib/specialOptions.js";
+import { scaleOf } from "../../lib/fieldTypes.js";
 import { PHONE_COUNTRIES, buildPhonePattern, digitsFor, digitsLabel, ANY_PHONE_PATTERN, countryLabel } from "../../lib/phoneRules.js";
 import { PhoneFlag } from "../ui/PhoneFlag.jsx";
 import { CountrySelect, CountryOption } from "../ui/CountrySelect.jsx";
@@ -36,6 +39,17 @@ const SELECT_ICONS = {
   education_level: GraduationCap,
   dropdown: List,
 };
+
+// Helper para opciones de prioridad en LivePreview
+function getPriorityOptions(min, max, t) {
+  return Array.from({ length: max - min + 1 }, (_, i) => {
+    const val = min + i;
+    return {
+      value: String(val),
+      label: t ? t(`priority${val}`) : `Prioridad ${val}`,
+    };
+  });
+}
 
 /*
  * Editor premium de la validaciÃ³n de un campo.
@@ -583,8 +597,15 @@ function LivePreview({ field, t, es, language, digitsOnly = false }) {
         label: o.label ?? "",
       }));
     }
-    return specialOptionsFor(field.type, { language });
-  }, [field.type, field.options, language]);
+    if (field.type === "importancia") {
+      return (field.options || []).map((o) => ({
+        id: o.id ?? "",
+        label: o.label ?? "",
+        isOther: o.isOther === true,
+      }));
+    }
+    return specialOptionsFor(field.type, { language, field });
+  }, [field, language]);
 
   // Para los selects el "texto escrito" es la opción elegida.
   const sample = isSelect ? raw : digitsOnly ? raw.replace(/\D/g, "") : raw;
@@ -604,7 +625,36 @@ function LivePreview({ field, t, es, language, digitsOnly = false }) {
         <LiveBadge touched={touched} ok={ok} t={t} />
       </div>
 
-      {isSelect ? (
+      {field.type === "importancia" ? (
+        <div className="imp-live-preview">
+          <div className="mb-1 flex justify-between gap-2 text-[10px] text-ink-muted">
+            <span>{scaleOf(field).minLabel || scaleOf(field).min}</span>
+            <span>{scaleOf(field).maxLabel || scaleOf(field).max}</span>
+          </div>
+          {selectOptions.map((opt) => (
+            <div key={opt.id} className="imp-live-row">
+              <span className="imp-live-service">
+                {opt.label || (t ? t("serviceLabelPlaceholder") : "Servicio")}
+                {opt.isOther && <span className="ml-1 text-[10px] text-ink-muted">({t("otherOptionLabel")})</span>}
+              </span>
+              <PremiumSelect
+                options={getPriorityOptions(scaleOf(field).min, scaleOf(field).max, t)}
+                value=""
+                onChange={() => {}}
+                disabled
+                compact
+                maxWidth="140px"
+                language={language}
+                t={t}
+                placeholder={t ? t("selectPriority") : "Seleccionar prioridad"}
+              />
+            </div>
+          ))}
+          {selectOptions.length === 0 && (
+            <span className="imp-live-hint">{t ? t("importanciaEmpty") : "Seleccionar prioridad"}</span>
+          )}
+        </div>
+      ) : isSelect ? (
         <PremiumSelect
           label=""
           icon={SelectIcon}

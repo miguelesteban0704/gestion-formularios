@@ -153,11 +153,21 @@ app.get("/api/meta/network", protect, (_req, res) => {
     // Puerto y protocolo del frontend (ahora https)
   let frontendPort = "5173";
   let frontendProto = "https:";
+  let frontendHost = "";
   try {
     const u = new URL(env.frontendUrl || env.clientUrl || "https://localhost:5173");
     frontendPort = u.port || "5173";
     frontendProto = u.protocol;
+    frontendHost = u.hostname;
   } catch {}
+  /* La IP del FRONTEND_URL configurado manda: es la que ya usa la app y evita
+     que un interfaz virtual (VPN/túnel, p. ej. 10.2.0.2) gane a la LAN real
+     (192.168.x.x) solo por el orden en que os.networkInterfaces() los devuelve.
+     Si el FRONTEND_URL es un dominio (no IPv4), se respeta el orden detectado. */
+  if (frontendHost && ips.includes(frontendHost) && ips[0] !== frontendHost) {
+    ips.splice(ips.indexOf(frontendHost), 1);
+    ips.unshift(frontendHost);
+  }
   const networkUrls = ips.map((ip) => `${frontendProto}//${ip}:${frontendPort}`);
   res.json({ success: true, data: { ips, networkUrls, frontendPort } });
 });

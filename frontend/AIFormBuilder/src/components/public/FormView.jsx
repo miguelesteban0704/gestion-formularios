@@ -9,6 +9,7 @@ import {
   isQuestionVisible,
   isConsentDeclined,
   visibleRenderList,
+  GENDER_OPTIONS,
 } from "../../lib/fieldTypes.js";
 import { validateField, validateForm } from "../../lib/validate.js";
 import { checkOnAccent } from "../../lib/accent.js";
@@ -90,17 +91,8 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
   const logoUrl = form.settings?.logo || "";
   const logoFailed = logoUrl !== "" && logoFailedFor === logoUrl;
 
-  /* En preview se muestran todas las preguntas, ignorando la lógica
-     condicional (`visibleIf`): el objetivo es ver cómo queda el formulario
-     completo, no simular respuestas. Se hace una copia ligera sin el campo
-     `visibleIf` para no mutar el estado original. */
-  const previewQuestions = useMemo(
-    () => preview ? form.questions.map((q) => (q?.visibleIf ? { ...q, visibleIf: null } : q)) : form.questions,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [form.questions, preview],
-  );
   const answerable = useMemo(
-    () => previewQuestions.filter((q) => !isStatic(q.type) && isQuestionVisible(q, answers)),
+    () => form.questions.filter((q) => !isStatic(q.type) && isQuestionVisible(q, answers)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [form.questions, JSON.stringify(answers)],
   );
@@ -108,7 +100,7 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
      `visibleRenderList`), así que al responder No en un sí/no del que dependen
      preguntas, el formulario se encoge solo. */
   const rendered = useMemo(
-    () => visibleRenderList(previewQuestions, answers),
+    () => visibleRenderList(form.questions, answers),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [form.questions, JSON.stringify(answers)],
   );
@@ -149,12 +141,36 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
        causa de una dependencia provincia→municipio). Así el respondiente ve el
        error mientras escribe, no al pulsar Enviar. Un campo que aún está vacío no
        se marca (solo se limpia su error previo). */
-    const field = form.questions.find((q) => q.id === id);
+    const baseId = id.endsWith("_other") ? id.slice(0, -6) : id;
+    const field = form.questions.find((q) => q.id === id) || form.questions.find((q) => q.id === baseId);
     setErrors((prev) => {
       const updated = { ...prev };
       const touched = [field, ...form.questions.filter((q) => next[q.id] === "" && prev[q.id])].filter(Boolean);
       for (const q of touched) {
         const err = validateField(q, next[q.id], t, language);
+        // Género: autodescripción activa requiere texto adicional.
+        if (!err && q?.type === "gender" && q.visibleIf?.sameFieldCondition) {
+          const cond = q.visibleIf.sameFieldCondition;
+          const ans = next[q.id];
+          const match =
+            ans != null &&
+            ans !== "" &&
+            (ans === cond ||
+              (typeof ans === "string" &&
+                typeof cond === "string" &&
+                GENDER_OPTIONS.some(
+                  (opt) => (opt.es === ans || opt.en === ans) && (opt.es === cond || opt.en === cond),
+                )));
+          if (match) {
+            const other = next[`${q.id}_other`];
+            if (typeof other !== "string" || other.trim() === "") {
+              if (prev[q.id] || id === `${q.id}_other`) {
+                updated[q.id] = String(t("requiredError")).replace("{label}", typeof q.label === "string" ? q.label : "Género");
+                continue;
+              }
+            }
+          }
+        }
         if (err) updated[q.id] = err;
         else delete updated[q.id];
       }
@@ -162,17 +178,68 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
     });
   };
 
+  // Género (solo): condición de mismo campo activa -> el texto de autodescripción
+  // es la respuesta que se debe enviar. Compara por identidad es/en de la opción
+  // del catálogo para funcionar aunque constructor y respondiente usen idiomas
+  // distintos. Otros campos no se tocan.
+  const genderSelfDescribeValue = (q) => {
+    if (q?.type !== "gender") return null;
+    const cond = q.visibleIf?.sameFieldCondition;
+    if (!cond) return null;
+    const ans = answers[q.id];
+    if (ans == null || ans === "") return null;
+    const match =
+      ans === cond ||
+      (typeof ans === "string" &&
+        typeof cond === "string" &&
+        GENDER_OPTIONS.some(
+          (opt) => (opt.es === ans || opt.en === ans) && (opt.es === cond || opt.en === cond),
+        ));
+    if (!match) return null;
+    const other = answers[`${q.id}_other`];
+    return typeof other === "string" && other.trim() !== "" ? other.trim() : null;
+  };
+
+  /* Texto «Otros» del campo condicional (`answers[<id>_other]`). Viaja junto al
+     valor para que la analítica lo enseñe como respuesta efectiva; el valor
+     principal no se toca (sigue gobernando condicional, validación y
+     exportación). */
+  const otherTextFor = (q) => {
+    const other = answers[`${q.id}_other`];
+    return typeof other === "string" && other.trim() !== "" ? other.trim() : "";
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     /* Solo lo visible se valida: lo oculto por condición no existe para quien
        responde y no puede exigir nada. */
     const found = validateForm(answerable, answers, t, language);
+    // Género: si la condición de autodescripción está activa, el texto adicional
+    // es obligatorio (el valor principal es solo el disparador).
+    for (const q of answerable) {
+      if (q?.type !== "gender") continue;
+      const cond = q.visibleIf?.sameFieldCondition;
+      if (!cond) continue;
+      const ans = answers[q.id];
+      if (ans == null || ans === "") continue;
+      const match =
+        ans === cond ||
+        (typeof ans === "string" &&
+          typeof cond === "string" &&
+          GENDER_OPTIONS.some(
+            (opt) => (opt.es === ans || opt.en === ans) && (opt.es === cond || opt.en === cond),
+          ));
+      if (!match) continue;
+      const other = answers[`${q.id}_other`];
+      if (typeof other !== "string" || other.trim() === "") {
+        const label = typeof q.label === "string" ? q.label : "Género";
+        found[q.id] = String(t("requiredError")).replace("{label}", label);
+      }
+    }
     if (Object.keys(found).length) {
       setErrors(found);
       const faltan = Object.keys(found).length;
       const primera = answerable.find((q) => found[q.id]);
-      /* `t` no interpola: el `{count}` se sustituye aquí, igual que hace
-         `validate.js` con sus mensajes. */
       toast.error(
         String(t("validationErrors")).replace("{count}", String(faltan)) +
           (primera ? ` — ${String(primera.label).slice(0, 60)}` : ""),
@@ -182,8 +249,34 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
       return;
     }
     const payload = answerable
-      .filter((q) => answers[q.id] !== undefined && answers[q.id] !== "")
-      .map((q) => ({ questionId: q.id, value: answers[q.id] }));
+      .map((q) => {
+        const self = genderSelfDescribeValue(q);
+        let value = answers[q.id];
+        const otherText = otherTextFor(q);
+
+        /* Los componentes de elección pueden enviar la opción «Otros» como
+           `{ value: "other", otherText }`: el valor que se guarda es la opción
+           y el texto viaja aparte. La clasificación por escala NO: su valor es
+           el mapa completo de puntuaciones, que ya incluye el texto anidado. */
+        if (
+          q.type !== "importancia" &&
+          value !== null &&
+          typeof value === "object" &&
+          !Array.isArray(value) &&
+          "value" in value &&
+          "otherText" in value
+        ) {
+          const entry = { questionId: q.id, value: value.value };
+          if (otherText) entry.otherText = otherText;
+          return entry;
+        }
+
+        if (self != null) value = self;
+        const entry = { questionId: q.id, value };
+        if (otherText) entry.otherText = otherText;
+        return entry;
+      })
+      .filter((a) => a.value !== undefined && a.value !== "");
     /* El borrador se borra solo si el envío se confirmó. Si falla (red caída,
        sesión caducada) lo que estaba escrito tiene que seguir ahí para el
        reintento; borrarlo en el `finally` dejaría a la persona con el
@@ -261,7 +354,11 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
                       <span
                         className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold"
                         style={{
-                          color: accentInk,
+                          /* El número va siempre en blanco (petición del usuario): con
+                             acentos claros el cálculo de contraste devolvería negro y se
+                             pierde sobre el degradado. Coherente con los números de
+                             ranking premium. */
+                          color: "#ffffff",
                           background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 82%, ${gradientTarget}))`,
                           boxShadow: `0 4px 12px -4px ${accent}66`,
                         }}
@@ -277,7 +374,14 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
                   <FieldRenderer
                     field={q}
                     value={answers[q.id]}
-                    onChange={(val) => setAnswer(q.id, val)}
+                    onChange={(val) => {
+                      // Permitir actualizar cualquier clave (ej. campo "_other") sin corromper el valor del campo
+                      if (val && typeof val === "object" && !Array.isArray(val) && "id" in val && "value" in val) {
+                        setAnswer(val.id, val.value);
+                      } else {
+                        setAnswer(q.id, val);
+                      }
+                    }}
                     error={errors[q.id]}
                     accent={accent}
                     language={language}
@@ -295,7 +399,9 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
               disabled={submitting}
               className="mt-9 w-full rounded-lg py-3 text-sm font-semibold transition-all hover:brightness-[1.07] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60"
               style={{
-                color: accentInk,
+                /* El texto del botón de envío va siempre en blanco (petición del
+                   usuario), igual que el número de pregunta. */
+                color: "#ffffff",
                 background: `linear-gradient(145deg, ${accent}, color-mix(in srgb, ${accent} 84%, ${gradientTarget}))`,
                 boxShadow: `0 8px 22px -8px ${accent}80`,
               }}

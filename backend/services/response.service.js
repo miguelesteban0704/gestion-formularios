@@ -36,7 +36,37 @@ export async function submitResponse(
     respondentUsername = respondent.username || null;
   }
 
-  const answerById = new Map(answers.map((a) => [a.questionId, a.value]));
+  /* Texto «Otros»: llega junto al valor (`otherText`) o, en envíos de clientes
+     antiguos, como una respuesta aparte con la clave `<id>_other`. También se
+     admite la forma `{ value: "other", otherText }` que emiten algunos
+     componentes de elección. Se adjunta a la respuesta para que la analítica lo
+     enseñe como respuesta efectiva; el valor principal no se toca. */
+  const answerById = new Map();
+  const otherTextById = new Map();
+  for (const a of answers) {
+    if (!a || typeof a.questionId !== "string") continue;
+    let value = a.value;
+    if (
+      value !== null &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      value.value === "other" &&
+      typeof value.otherText === "string" &&
+      value.otherText.trim() !== ""
+    ) {
+      otherTextById.set(a.questionId, value.otherText.trim());
+      value = "other";
+    } else if (typeof a.otherText === "string" && a.otherText.trim() !== "") {
+      otherTextById.set(a.questionId, a.otherText.trim());
+    } else if (a.questionId.endsWith("_other")) {
+      const baseId = a.questionId.slice(0, -"_other".length);
+      if (typeof a.value === "string" && a.value.trim() !== "") {
+        otherTextById.set(baseId, a.value.trim());
+      }
+    }
+    answerById.set(a.questionId, value);
+  }
+
   const normalized = [];
 
   /* Puerta de consentimiento: si la persona dijo que No, se guarda SOLO esa
@@ -71,7 +101,14 @@ export async function submitResponse(
     if (isEmpty) continue;
 
     validateAnswer(q, value);
-    normalized.push({ questionId: q.id, label: q.label, type: q.type, value });
+    const otherText = otherTextById.get(q.id);
+    normalized.push({
+      questionId: q.id,
+      label: q.label,
+      type: q.type,
+      value,
+      ...(otherText ? { otherText } : {}),
+    });
   }
 
   const response = await responseRepo.createResponse({
@@ -169,7 +206,7 @@ function validateAnswer(q, value) {
       yaPuestas.add(etiqueta);
     }
   }
-  if (OPTION_FIELD_TYPES.includes(q.type) && q.options.length && !isCatalogQuestion(q)) {
+  if (OPTION_FIELD_TYPES.includes(q.type) && q.options.length && !isCatalogQuestion(q) && q.type !== "importancia") {
     const allowed = new Set(q.options.map((o) => o.label));
     const selected = Array.isArray(value) ? value : [value];
     for (const sel of selected) {

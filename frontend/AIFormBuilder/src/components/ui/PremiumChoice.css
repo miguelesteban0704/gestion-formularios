@@ -1,0 +1,268 @@
+/*
+ * PremiumChoice.css — "Refined Minimal" design system
+ *
+ * Elegante, compacto y sofisticado para campos de elección:
+ * radio (Opción múltiple), checkbox (Casillas), yes_no (Sí/No) y rank (Clasificación).
+ *
+ * Principios:
+ *   • Compacto: altura reducida, padding ajustado, menos separación entre opciones.
+ *   • Minimalista refinado: bordes sutiles, superficies limpias, sin efectos decorativos excesivos.
+ *   • Texto siempre alineado a la izquierda (desktop y mobile).
+ *   • Jerarquía visual clara: seleccionado se distingue con suavidad y precisión.
+ *   • Microinteracciones discretas: transiciones suaves, escala al presionar, foco definido.
+ *   • Tokens CSS únicamente (--color-brand-*, --surface-*, --fg-*, --border, etc.).
+ *   • Respeta dark mode y prefers-reduced-motion.
+ *
+ * Funcionalidad 100% intacta: solo se añaden clases visuales.
+ */
+
+/* ── Base de tarjeta de opción: compacta, refinada, izquierda alineada ── */
+.refined-option-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 2.25rem; /* h-9 compacto */
+  min-height: 2.25rem;
+  border-radius: 0.75rem; /* rounded-lg */
+  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  padding: 0 0.875rem; /* px-3.5 compacto */
+  gap: 0.75rem;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+  cursor: pointer;
+  outline: none;
+}
+
+.refined-option-card:hover:not(.refined-option-card--selected):not(.refined-option-card--disabled) {
+  border-color: color-mix(in srgb, var(--color-brand-400) 40%, var(--border));
+  background: color-mix(in srgb, var(--surface-2) 85%, transparent);
+}
+
+.refined-option-card:active:not(.refined-option-card--disabled) {
+  transform: scale(0.99);
+}
+
+/* ── Seleccionado: distingue con sutileza, sin exceso ── */
+.refined-option-card--selected {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand-500) 10%, transparent),
+    color-mix(in srgb, var(--color-brand-100) 6%, transparent)
+  );
+  border-color: color-mix(in srgb, var(--color-brand-500) 45%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 25%, transparent);
+}
+
+/* ── Disabled ── */
+.refined-option-card--disabled {
+  opacity: 0.5;
+  filter: grayscale(0.35);
+  pointer-events: none;
+  border-color: color-mix(in srgb, var(--border) 35%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 50%, transparent);
+  cursor: not-allowed;
+}
+
+/* ── Error ── */
+.refined-option-card--error {
+  border-color: color-mix(in srgb, var(--color-danger) 45%, var(--border));
+}
+
+/* ── Medallón de icono: pequeño, refinado, consistente ── */
+.refined-medallion {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.625rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  color: color-mix(in srgb, var(--color-brand-500) 70%, var(--fg-muted));
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.refined-option-card--selected .refined-medallion {
+  background: var(--color-brand-500);
+  color: color-mix(in srgb, var(--color-brand-950) 85%, transparent);
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-brand-500) 35%, transparent);
+}
+
+/* ── Indicador de selección: punto/check de marca ── */
+.refined-selection-mark {
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--border) 55%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  flex-shrink: 0;
+  transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.refined-selection-mark--checked {
+  background: var(--color-brand-500);
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-brand-500) 40%, transparent);
+  transform: scale(1.05);
+}
+
+.refined-selection-mark--unchecked {
+  box-shadow: none;
+}
+
+/* Para checkbox: marca cuadrada redondeada con check */
+.refined-selection-mark--checkbox {
+  border-radius: 0.375rem;
+}
+
+.refined-selection-mark--checkbox.refined-selection-mark--checked {
+  background: var(--color-brand-500);
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-brand-500) 40%, transparent);
+  transform: scale(1.05);
+}
+
+/* ── Etiqueta de opción: siempre a la izquierda, texto limpio ── */
+.refined-option-label {
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+  text-align: left;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.refined-option-label--selected {
+  color: color-mix(in srgb, var(--color-brand-700) 80%, var(--fg));
+  font-weight: 500;
+}
+
+.refined-option-label--disabled {
+  color: color-mix(in srgb, var(--fg-muted) 60%, transparent);
+}
+
+/* ── Descripción (opcional) ── */
+.refined-option-description {
+  font-size: 0.75rem; /* text-xs */
+  color: color-mix(in srgb, var(--fg-muted) 70%, transparent);
+  margin-top: 0.125rem;
+  letter-spacing: -0.02em;
+  text-align: left;
+  line-height: 1.2;
+}
+
+/* ── Número de posición (ranking) ── */
+.refined-rank-number {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--color-brand-500);
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-brand-500) 35%, transparent);
+}
+
+/* ── Control segmentado Sí/No ── */
+.refined-seg-control {
+  display: flex;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 65%, transparent);
+  padding: 0.25rem;
+  flex-wrap: nowrap;
+}
+
+.refined-seg-item {
+  flex: 1;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
+  text-align: center;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.refined-seg-item:hover:not(.refined-seg-item--selected):not(.refined-seg-item--disabled) {
+  background: color-mix(in srgb, var(--surface-2) 85%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand-400) 30%, var(--border));
+  color: var(--fg);
+}
+
+.refined-seg-item--selected {
+  background: var(--color-brand-500);
+  color: color-mix(in srgb, var(--color-brand-950) 85%, transparent);
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-brand-500) 35%, transparent);
+}
+
+.refined-seg-item--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* ── Medallón del ítem Sí/No ── */
+.refined-seg-medallion {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.5rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 50%, transparent);
+  color: color-mix(in srgb, var(--color-brand-500) 60%, var(--fg-muted));
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.refined-seg-item--selected .refined-seg-medallion {
+  background: var(--color-brand-500);
+  color: color-mix(in srgb, var(--color-brand-950) 85%, transparent);
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-brand-500) 30%, transparent);
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .refined-option-card,
+  .refined-option-card:hover,
+  .refined-option-card:active,
+  .refined-medallion,
+  .refined-selection-mark,
+  .refined-seg-item,
+  .refined-seg-medallion {
+    transition: none !important;
+    animation: none !important;
+  }
+  .refined-option-card:active {
+    transform: none;
+  }
+  .refined-selection-mark--checked {
+    transform: none;
+  }
+}

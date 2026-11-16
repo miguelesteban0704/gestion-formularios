@@ -28,6 +28,7 @@ import { DownloadDoneIcon } from "../components/ui/animated-state-icons";
 import { formatDate, formatDuration, downloadBlob } from "../lib/utils.js";
 import { isStatic } from "../lib/fieldTypes.js";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
+import { answerDisplay } from "../lib/responseDisplay.js";
 
 export default function Responses() {
   const { id } = useParams();
@@ -155,9 +156,9 @@ export default function Responses() {
   };
 
   const identity = (r) => {
-    const byId = new Map(r.answers.map((a) => [a.questionId, a.value]));
-    const name = nameQ && byId.get(nameQ.id);
-    const email = emailQ && byId.get(emailQ.id);
+    const byId = new Map(r.answers.map((a) => [a.questionId, a]));
+    const name = nameQ && byId.get(nameQ.id)?.value;
+    const email = emailQ && byId.get(emailQ.id)?.value;
     return { name: name || "Anonymous", email: email || "", byId };
   };
 
@@ -340,7 +341,7 @@ export default function Responses() {
 
 function ResponseDetail({ response, questions }) {
   const { t } = useLanguage();
-  const byId = new Map(response.answers.map((a) => [a.questionId, a.value]));
+  const byId = new Map(response.answers.map((a) => [a.questionId, a]));
   return (
     <div className="space-y-5">
       {/* Meta */}
@@ -391,9 +392,6 @@ function shortUA(ua) {
   return [m?.[1], os].filter(Boolean).join(" · ") || "Unknown";
 }
 
-function formatValue(value) {
-  if (value === undefined || value === null || value === "") return "";
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  return String(value);
+function formatValue(a) {
+  return answerDisplay(a);
 }

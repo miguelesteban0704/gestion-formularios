@@ -266,6 +266,73 @@
 .cr-tone-blue-solid  { --toast-tint: var(--color-info); --cr-orb: var(--color-info); --card-tint: var(--color-info); }
 .cr-tone-amber-solid { --toast-tint: var(--color-warning); --cr-orb: var(--color-warning); --card-tint: var(--color-warning); }
 
+/* ─── Variante "boxed": ventana de cristal para el tooltip de deshabilitado ─
+   Mismo `cr-tooltip` (portal, volteo, animación), pero con superficie, borde,
+   radio y sombra definidos para que se lea como una ventana moderna y no como
+   un texto suelto. La usan los disparadores deshabilitados con explicación
+   (hoy, el Select de Municipio hasta elegir Provincia). Respeta el color del
+   acento en el borde superior (::after), sin hex de marca.                  */
+.cr-tooltip--boxed {
+  background: var(--color-surface);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 0.5rem 0.75rem;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.cr-tooltip--boxed::after {
+  background: linear-gradient(90deg, transparent, var(--color-brand-500), transparent);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.cr-tooltip--boxed[data-visible="true"]::after,
+.cr-tooltip--boxed:hover::after {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cr-tooltip--boxed::after { transition: none; }
+}
+
+/* El tooltip se monta en un portal: su envoltura NO lleva .cr-tooltip, así que
+   la caja (superficie, borde, radio, sombra) vive en esta clase y no puede
+   apoyarse en el padre. Es la que cablea `Tooltip variant="crystal"`. */
+.cr-tooltip-box {
+  position: relative;
+  max-width: 260px;
+  padding: 0.5rem 0.75rem;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  animation: cr-fade var(--duration) var(--ease-out);
+}
+
+/* Filo de acento: mismo degradado que `.cr-tooltip--boxed::after`, pero sobre
+   la propia caja (la envoltura del portal no lleva clase de cristal). */
+.cr-tooltip-box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg,
+      color-mix(in srgb, var(--color-brand-500) 50%, transparent) 0%,
+      transparent 55%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
 /* ─── Chip de cristal: píldora de dato dentro de una superficie de vidrio ─
    El color se inyecta con --chip-tint.                                 */
 .cr-chip {

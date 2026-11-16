@@ -1,12 +1,16 @@
 import { useState } from "react";
+import { DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
-import { Plus, X, Wand2, GripVertical, AlertTriangle } from "lucide-react";
+import { Plus, X, Wand2, GripVertical, AlertTriangle, ArrowDown, ArrowUp } from "lucide-react";
 import { Input, Textarea, Label } from "../ui/Input.jsx";
 import { Switch } from "../ui/Switch.jsx";
 import { Button } from "../ui/Button.jsx";
 import { ImageUpload } from "./ImageUpload.jsx";
 import { BuilderSelect } from "./BuilderSelect.jsx";
-import { FIELD_DEFS, OPTION_TYPES, MIN_CHOICE_OPTIONS, uid, scaleOf, DEFAULT_SCALE, MIN_SCALE_STEPS, MAX_SCALE_STEPS, isStatic } from "../../lib/fieldTypes.js";
+import { FIELD_DEFS, OPTION_TYPES, MIN_CHOICE_OPTIONS, uid, scaleOf, DEFAULT_SCALE, MIN_SCALE_STEPS, MAX_SCALE_STEPS, isStatic, optionAnswerValue } from "../../lib/fieldTypes.js";
+import { specialOptionsFor } from "../../lib/specialOptions.js";
 import { aiApi } from "../../services/index.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { ValidationSettings } from "./ValidationSettings.jsx";
@@ -18,6 +22,7 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
   const [improving, setImproving] = useState(false);
   const [followUps, setFollowUps] = useState([]);
   const { t, language } = useLanguage();
+  const optionSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const set = (patch) => onChange({ ...field, ...patch });
   const setValidation = (patch) => set({ validation: { ...field.validation, ...patch } });
@@ -26,7 +31,61 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
     set({ options: field.options.map((o) => (o.id === id ? { ...o, label } : o)) });
   const addOption = () =>
     set({ options: [...field.options, { id: uid("opt"), label: `Option ${field.options.length + 1}`, value: "" }] });
-  const removeOption = (id) => set({ options: field.options.filter((o) => o.id !== id) });
+  const removeOption = (id) => {
+    const option = field.options.find((item) => item.id === id);
+    const clearOtherCondition =
+      option?.isOther === true && field.visibleIf?.sameFieldCondition === "__other__";
+    set({
+      options: field.options.filter((item) => item.id !== id),
+      ...(clearOtherCondition
+        ? {
+            visibleIf: {
+              ...field.visibleIf,
+              sameFieldCondition: undefined,
+              sameFieldScale: undefined,
+            },
+          }
+        : {}),
+    });
+  };
+  const toggleOtherOption = (id, enabled) => {
+    const current = field.options.find((option) => option.id === id);
+    const options = field.options.map((option) => {
+      const rest = { ...option };
+      delete rest.isOther;
+      return option.id === id && enabled ? { ...rest, isOther: true } : rest;
+    });
+    const clearOtherCondition =
+      !enabled &&
+      current?.isOther === true &&
+      field.visibleIf?.sameFieldCondition === "__other__";
+
+    set({
+      options,
+      ...(clearOtherCondition
+        ? {
+            visibleIf: {
+              ...field.visibleIf,
+              sameFieldCondition: undefined,
+              sameFieldScale: undefined,
+            },
+          }
+        : {}),
+    });
+  };
+  const moveOption = (id, direction) => {
+    const index = field.options.findIndex((option) => option.id === id);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= field.options.length) return;
+    set({ options: arrayMove(field.options, index, nextIndex) });
+  };
+  const reorderOptions = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const oldIndex = field.options.findIndex((option) => option.id === active.id);
+    const newIndex = field.options.findIndex((option) => option.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    set({ options: arrayMove(field.options, oldIndex, newIndex) });
+  };
 
   const suggestValidation = async () => {
     setAiBusy(true);
@@ -121,7 +180,7 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
       {/* AI feature hidden - retained in code: the "Suggested follow-up questions"
           panel used to render here whenever `improve()` was called. */}
 
-      {!["yes_no", "rating", "quality_rating", "score_rating", "file", "date", "time", "rank"].includes(field.type) && (
+      {!["yes_no", "rating", "quality_rating", "score_rating", "importancia", "file", "date", "time", "rank"].includes(field.type) && (
         <div>
           <Label>{t("placeholder")}</Label>
           <Input value={field.placeholder} onChange={(e) => set({ placeholder: e.target.value })} />
@@ -148,21 +207,46 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
               {t("noOptionsYet")}
             </p>
           )}
-          <div className="space-y-1.5">
-            {field.options.map((o) => (
-              <div key={o.id} className="flex items-center gap-1.5">
-                <GripVertical className="h-4 w-4 shrink-0 text-muted" />
-                <Input
-                  value={o.label}
-                  onChange={(e) => updateOption(o.id, e.target.value)}
-                  className="h-9"
-                />
-                <Button variant="ghost" size="icon-sm" onClick={() => removeOption(o.id)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
+          {field.type === "importancia" ? (
+            <DndContext sensors={optionSensors} onDragEnd={reorderOptions}>
+              <SortableContext
+                items={field.options.map((option) => option.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-1.5">
+                  {field.options.map((option, index) => (
+                    <SortableOption
+                      key={option.id}
+                      option={option}
+                      index={index}
+                      count={field.options.length}
+                      t={t}
+                      onChange={(label) => updateOption(option.id, label)}
+                      onRemove={() => removeOption(option.id)}
+                      onMove={(direction) => moveOption(option.id, direction)}
+                      onToggleOther={(enabled) => toggleOtherOption(option.id, enabled)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          ) : (
+            <div className="space-y-1.5">
+              {field.options.map((o) => (
+                <div key={o.id} className="flex items-center gap-1.5">
+                  <GripVertical className="h-4 w-4 shrink-0 text-muted" />
+                  <Input
+                    value={o.label}
+                    onChange={(e) => updateOption(o.id, e.target.value)}
+                    className="h-9"
+                  />
+                  <Button variant="ghost" size="icon-sm" onClick={() => removeOption(o.id)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
           <Button variant="ghost" size="sm" className="mt-1.5" onClick={addOption}>
             <Plus className="h-3.5 w-3.5" /> {t("addOption")}
           </Button>
@@ -228,6 +312,72 @@ export function FieldSettings({ field, onChange, allQuestions = [], fieldIndex =
   );
 }
 
+function SortableOption({ option, index, count, t, onChange, onRemove, onMove, onToggleOther }) {
+  const { listeners, setNodeRef, transform, isDragging } = useSortable({ id: option.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    zIndex: isDragging ? 1 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex flex-wrap items-center gap-1.5 rounded-lg ${isDragging ? "opacity-70" : ""}`}
+    >
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden="true"
+        {...listeners}
+        className="grid h-9 w-6 shrink-0 cursor-grab place-items-center text-muted active:cursor-grabbing"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <Input
+        aria-label={`${t("options")} ${index + 1}`}
+        value={option.label}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-9 min-w-[8rem] flex-1"
+      />
+      <Switch
+        checked={option.isOther === true}
+        onChange={onToggleOther}
+        label={`${t("classificationScaleMarkOther")}: ${option.label}`}
+        className="w-full sm:w-auto"
+      />
+      <div className="ml-auto flex shrink-0 items-center gap-0.5">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`${t("classificationScaleMoveUp")} ${option.label}`}
+          disabled={index === 0}
+          onClick={() => onMove(-1)}
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`${t("classificationScaleMoveDown")} ${option.label}`}
+          disabled={index === count - 1}
+          onClick={() => onMove(1)}
+        >
+          <ArrowDown className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`${t("removeOption")} ${option.label}`}
+          onClick={onRemove}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function NumberInput({ label, value, onChange }) {
   return (
     <div>
@@ -251,6 +401,7 @@ function NumberInput({ label, value, onChange }) {
  * cuando las tiene (lista, sí/no), o se escribe a mano si es texto libre.
  */
 function ConditionEditor({ field, set, allQuestions, fieldIndex, t }) {
+  const { language } = useLanguage();
   const prev = (allQuestions || [])
     .slice(0, Math.max(0, fieldIndex))
     .filter((q) => q && !isStatic(q.type) && q.id !== field.id);
@@ -264,9 +415,43 @@ function ConditionEditor({ field, set, allQuestions, fieldIndex, t }) {
     return "";
   };
 
-  if (!prev.length) {
-    return <p className="text-xs text-muted">{t("noPreviousQuestion")}</p>;
-  }
+  // Verifica si el campo es de tipo texto (sin opciones predefinidas)
+  const isTextField = (f) => {
+    const def = FIELD_DEFS[f.type];
+    if (!def) return false;
+    return !def.hasOptions && !def.static;
+  };
+
+  // Opciones para el select de Valor cuando se activa "Misma Pregunta"
+  const getSameFieldConditionOptions = (lang) => {
+    if (field.type === "gender") {
+      // Se pasa `field` para que las opciones salgan del MISMO origen que usa
+      // FieldRenderer (customOptions del autor). Si aquí se usara el catálogo
+      // por defecto, el valor guardado en sameFieldCondition nunca coincidiría
+      // con la respuesta y el campo extra no aparecería.
+      return specialOptionsFor("gender", { language: lang, field }).map((o) => ({
+        value: o.value,
+        label: o.label,
+      }));
+    }
+    if (field.type === "province") {
+      return specialOptionsFor("province", { language: lang }).map((o) => ({
+        value: o.value,
+        label: o.label,
+      }));
+    }
+    if (field.type === "education_level") {
+      return specialOptionsFor("education_level", { language: lang }).map((o) => ({
+        value: o.value,
+        label: o.label,
+      }));
+    }
+    // Para otros campos con opciones (radio, checkbox, dropdown, etc.)
+    return (field.options || []).map((o, i) => ({
+      value: optionAnswerValue(o, i),
+      label: o.label ?? "",
+    }));
+  };
 
   if (!field.visibleIf) {
     return (
@@ -275,13 +460,24 @@ function ConditionEditor({ field, set, allQuestions, fieldIndex, t }) {
         size="sm"
         onClick={() => {
           const first = prev[0];
-          set({
-            visibleIf: {
-              questionId: first.id,
-              operator: first.type === "checkbox" ? "includes" : "equals",
-              value: defaultValueFor(first),
-            },
-          });
+          if (first) {
+            set({
+              visibleIf: {
+                questionId: first.id,
+                operator: first.type === "checkbox" ? "includes" : "equals",
+                value: defaultValueFor(first),
+              },
+            });
+          } else {
+            set({
+              visibleIf: {
+                questionId: undefined,
+                sameFieldCondition: "",
+                operator: undefined,
+                value: undefined,
+              },
+            });
+          }
         }}
       >
         <Plus className="h-3.5 w-3.5" /> {t("showOnlyIf")}
@@ -290,6 +486,16 @@ function ConditionEditor({ field, set, allQuestions, fieldIndex, t }) {
   }
 
   const patch = (p) => set({ visibleIf: { ...field.visibleIf, ...p } });
+  const updateConditionalOption = (patch) => {
+    const current =
+      field.conditionalOption || {
+        id: uid("opt"),
+        label: t("classificationScaleConditionalDefaultLabel"),
+        defaultValue: scaleOf(field).min,
+      };
+    set({ conditionalOption: { ...current, ...patch } });
+  };
+
   const pickDep = (id) => {
     const next = prev.find((q) => q.id === id) || prev[0];
     patch({
@@ -308,16 +514,204 @@ function ConditionEditor({ field, set, allQuestions, fieldIndex, t }) {
         <Label className="text-xs">{t("conditionQuestion")}</Label>
         <BuilderSelect
           label=""
-          options={prev.map((q) => ({
-            value: q.id,
-            label: String(q.label || q.type).slice(0, 60),
-          }))}
-          value={cond.questionId}
-          onChange={(v) => pickDep(v)}
+          options={[
+            ...prev.map((q) => ({
+              value: q.id,
+              label: String(q.label || q.type).slice(0, 60),
+            })),
+            { value: "__same_field__", label: t("sameQuestion") || "Misma Pregunta" },
+          ]}
+          value={cond.sameFieldCondition !== undefined ? "__same_field__" : cond.questionId}
+          onChange={(v) => {
+            if (v === "__same_field__") {
+              // Activar condición de mismo campo (Misma Pregunta)
+              patch({
+                sameFieldCondition: "",
+                questionId: undefined,
+                operator: undefined,
+                value: undefined,
+              });
+            } else {
+              // Activar condición normal (otra pregunta)
+              const next = prev.find((q) => q.id === v) || prev[0];
+              if (!next?.id) return;
+              patch({
+                questionId: next.id,
+                operator: next.type === "checkbox" ? "includes" : "equals",
+                value: defaultValueFor(next),
+                sameFieldCondition: undefined,
+              });
+            }
+          }}
           placeholder={t("conditionQuestion")}
         />
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      {cond.sameFieldCondition !== undefined && field.type !== "importancia" && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs">{t("condition")}</Label>
+            <BuilderSelect
+              label=""
+              options={[
+                { value: "equals", label: t("opEquals") },
+                { value: "not_equals", label: t("opNotEquals") },
+                { value: "includes", label: t("opIncludes") },
+                { value: "not_includes", label: t("opNotIncludes") },
+              ]}
+              value={cond.operator || "equals"}
+              onChange={(v) => patch({ operator: v })}
+              placeholder={t("conditionOperator")}
+              className="col-span-2"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">{t("value")}</Label>
+            {isTextField(field.type) ? (
+              <div>
+                <Input
+                  label=""
+                  value={cond.sameFieldCondition || ""}
+                  onChange={(e) => patch({ sameFieldCondition: e.target.value })}
+                  placeholder={t("conditionValueTextPlaceholder")}
+                  className="h-9 col-span-2"
+                />
+              </div>
+            ) : (
+              <div>
+                <BuilderSelect
+                  label=""
+                  options={getSameFieldConditionOptions(language)}
+                  value={cond.sameFieldCondition || ""}
+                  onChange={(v) => patch({ sameFieldCondition: v })}
+                  placeholder={t("conditionValuePlaceholder")}
+                  className="col-span-2"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {cond.sameFieldCondition !== undefined && field.type === "importancia" && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs">{t("conditionValue")}</Label>
+            <BuilderSelect
+              label=""
+              options={[
+                ...(field.options || []).flatMap((option, index) =>
+                  option.isOther === true
+                    ? []
+                    : [
+                        {
+                          value: optionAnswerValue(option, index),
+                          label: option.label ?? `Opción ${index + 1}`,
+                        },
+                      ],
+                ),
+                ...((field.options || []).some((option) => option.isOther === true) ||
+                cond.sameFieldCondition === "__other__"
+                  ? [
+                      {
+                        value: "__other__",
+                        label: t("classificationScaleOtherTrigger"),
+                      },
+                    ]
+                  : []),
+              ]}
+              value={cond.sameFieldCondition || ""}
+              onChange={(value) => {
+                if (value === "__other__") {
+                  set({
+                    visibleIf: {
+                      ...field.visibleIf,
+                      sameFieldCondition: value,
+                      sameFieldScale: undefined,
+                    },
+                    conditionalOption:
+                      field.conditionalOption || {
+                        id: uid("opt"),
+                        label: t("classificationScaleConditionalDefaultLabel"),
+                        defaultValue: scaleOf(field).min,
+                      },
+                  });
+                } else {
+                  patch({ sameFieldCondition: value, sameFieldScale: undefined });
+                }
+              }}
+              placeholder={t("conditionValuePlaceholder")}
+            />
+          </div>
+          {cond.sameFieldCondition !== "__other__" && (
+          <div>
+            <Label className="text-xs">{t("sameFieldScale")}</Label>
+            <BuilderSelect
+              label=""
+              options={Array.from(
+                { length: scaleOf(field).max - scaleOf(field).min + 1 },
+                (_, i) => {
+                  const n = scaleOf(field).min + i;
+                  return { value: String(n), label: String(n) };
+                },
+              )}
+              value={cond.sameFieldScale || ""}
+              onChange={(v) => patch({ sameFieldScale: v })}
+              placeholder={t("sameFieldScalePlaceholder")}
+            />
+          </div>
+          )}
+        </div>
+      )}
+      {cond.sameFieldCondition === "__other__" && field.type === "importancia" && (
+        <div className="space-y-2 rounded-lg border border-default bg-surface-2 p-3">
+          <p className="text-xs font-medium text-fg">{t("classificationScaleConditionalTitle")}</p>
+          <div>
+            <Label className="text-xs">{t("classificationScaleConditionalLabel")}</Label>
+            <Input
+              value={field.conditionalOption?.label || ""}
+              placeholder={t("classificationScaleConditionalDefaultLabel")}
+              className="h-9"
+              onChange={(event) =>
+                updateConditionalOption({ label: event.target.value })
+              }
+            />
+          </div>
+          <div>
+            <Label className="text-xs">{t("classificationScaleConditionalDefaultScore")}</Label>
+            <BuilderSelect
+              label=""
+              options={Array.from(
+                { length: scaleOf(field).max - scaleOf(field).min + 1 },
+                (_, index) => {
+                  const score = scaleOf(field).min + index;
+                  return { value: String(score), label: String(score) };
+                },
+              )}
+              value={String(field.conditionalOption?.defaultValue ?? scaleOf(field).min)}
+              onChange={(value) =>
+                updateConditionalOption({ defaultValue: Number(value) })
+              }
+              placeholder={t("conditionValuePlaceholder")}
+            />
+          </div>
+          <p className="text-xs text-muted">{t("classificationScaleConditionalHint")}</p>
+        </div>
+      )}
+      {cond.sameFieldCondition && field.type !== "importancia" && (
+        <div className="mt-2">
+          <Label className="text-xs">{t("sameFieldPlaceholder")}</Label>
+          <Input
+            value={cond.sameFieldPlaceholder || ""}
+            placeholder={t("sameFieldPlaceholderHint")}
+            className="h-9"
+            onChange={(e) => patch({ sameFieldPlaceholder: e.target.value })}
+          />
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {t("sameFieldHint")}
+          </p>
+        </div>
+      )}
+      {cond.sameFieldCondition === undefined && (
+        <div className="grid grid-cols-2 gap-2">
         <div>
           <Label className="text-xs">{t("conditionOperator")}</Label>
           <BuilderSelect
@@ -344,7 +738,7 @@ function ConditionEditor({ field, set, allQuestions, fieldIndex, t }) {
               }))}
               value={cond.value || ""}
               onChange={(v) => patch({ value: v })}
-              placeholder={t("conditionValue")}
+              placeholder={t("conditionValuePlaceholder")}
             />
           ) : (
             <Input
@@ -356,6 +750,7 @@ function ConditionEditor({ field, set, allQuestions, fieldIndex, t }) {
           )}
         </div>
       </div>
+      )}
       <Button variant="ghost" size="sm" onClick={() => set({ visibleIf: null })}>
         <X className="h-3.5 w-3.5" /> {t("removeCondition")}
       </Button>
@@ -386,7 +781,21 @@ function ScaleEditor({ field, set }) {
       siguiente.min + MIN_SCALE_STEPS - 1,
       Math.min(siguiente.min + MAX_SCALE_STEPS - 1, Number(siguiente.max) || DEFAULT_SCALE.max),
     );
-    set({ scale: siguiente });
+    const conditionalOption = field.conditionalOption;
+    const conditionalDefault = Number(conditionalOption?.defaultValue);
+    set({
+      scale: siguiente,
+      ...(conditionalOption
+        ? {
+            conditionalOption: {
+              ...conditionalOption,
+              defaultValue: Number.isFinite(conditionalDefault)
+                ? Math.min(siguiente.max, Math.max(siguiente.min, Math.round(conditionalDefault)))
+                : siguiente.min,
+            },
+          }
+        : {}),
+    });
   };
 
   const sinAnclas = !escala.minLabel && !escala.maxLabel;

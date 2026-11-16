@@ -184,7 +184,7 @@ test("dashboard card arrow uses a contrasting ink on every card accent", () => {
   }
 });
 
-test("public form and image upload apply contrast-aware accent text", () => {
+test("public form uses white accent text and image upload uses contrast-aware text", () => {
   const formView = readFileSync(
     new URL("../src/components/public/FormView.jsx", import.meta.url),
     "utf8",
@@ -195,7 +195,7 @@ test("public form and image upload apply contrast-aware accent text", () => {
   );
 
   assert.match(formView, /const accentInk = checkOnAccent\(accent\);/);
-  assert.match(formView, /color:\s*accentInk/);
+  assert.match(formView, /color:\s*"#ffffff"/);
   assert.match(imageUpload, /const accentInk = checkOnAccent\(contrastAccent\);/);
   assert.match(imageUpload, /color:\s*mode === "upload" \? accentInk : undefined/);
   assert.match(imageUpload, /color:\s*mode === "url" \? accentInk : undefined/);

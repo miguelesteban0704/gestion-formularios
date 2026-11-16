@@ -1,4 +1,5 @@
 import { isStatic } from "./fieldTypes.js";
+import { validateClassificationScaleAnswer } from "./classificationScale.js";
 import { validatePhone, digitsLabel, countryFromPattern } from "./phoneRules.js";
 import { translateLabel } from "./fieldTexts.js";
 
@@ -15,6 +16,12 @@ export function validateField(field, value, t = (key) => key, language = "en") {
 
   // Traducir la etiqueta al idioma activo para que el mensaje de error salga en el idioma correcto
   const label = translateLabel(field.label, language);
+
+  if (field.type === "importancia") {
+    if (field.required && isEmpty) return format("requiredError", { label });
+    if (isEmpty) return null;
+    return validateClassificationScaleAnswer(field, value, t);
+  }
 
   if (field.required && isEmpty) return format("requiredError", { label });
   if (isEmpty) return null;

@@ -13,6 +13,7 @@ export const FIELD_TYPES = [
   "quality_rating",
   "score_rating",
   "rank",
+  "importancia",
   "file",
   "yes_no",
   "address",
@@ -35,13 +36,14 @@ export const STATIC_FIELD_TYPES = ["section", "heading", "paragraph", "image", "
    numérico (`score_rating`). Los tres guardan `scale` y se promedian igual en
    la analítica; solo cambia cómo se pintan. */
 export const RATING_TYPES = ["rating", "quality_rating", "score_rating"];
+export const SCALE_FIELD_TYPES = [...RATING_TYPES, "importancia"];
 /* `rank` entra aquí porque también es un catálogo cerrado: lo que se puede
    ordenar son exactamente las opciones, y sin esa lista no hay nada que
    ordenar. Comparte con el resto la interfaz de opciones, el aviso de "sin
    opciones" y la reparación automática de la IA. La validación de la respuesta
    lo trata aparte, porque un ranking es un ARRAY ordenado de etiquetas y no una
    etiqueta suelta. */
-export const OPTION_FIELD_TYPES = ["dropdown", "radio", "checkbox", "rank"];
+export const OPTION_FIELD_TYPES = ["dropdown", "radio", "checkbox", "rank", "importancia"];
 export const FORM_STATUS = ["draft", "published"];
 
 /* Los cuatro campos "de catálogo" que ya vienen diseñados en el constructor: su

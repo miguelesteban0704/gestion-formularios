@@ -1784,11 +1784,11 @@ Context of the whole survey, so you can tell a demographic question from an opin
 
 Types — use the full catalog, never a generic text field when a specific one fits
 - One possible answer: "radio". Several possible answers: "checkbox". A long list to pick from: "dropdown".
-- Attitude, agreement, confidence, perceived importance on a named scale (Likert 1-5) → "score_rating", and ALWAYS give it a "scale" with "min", "max" and BOTH end labels filled in with real words, e.g. { "min": 1, "max": 5, "minLabel": "Strongly disagree", "maxLabel": "Strongly agree" }. The end labels must be non-empty strings, never "". Painted as numbers.
+- Attitude, agreement, confidence, perceived scale on a named scale (Likert 1-5) → "score_rating", and ALWAYS give it a "scale" with "min", "max" and BOTH end labels filled in with real words, e.g. { "min": 1, "max": 5, "minLabel": "Strongly disagree", "maxLabel": "Strongly agree" }. The end labels must be non-empty strings, never "". Painted as numbers.
 - Quality of a service, product or experience as stars → "quality_rating", with a "scale" (usually 1 to 5). Painted with traffic-light colors, so use it only when more really means better.
 - Any other numeric score from 1 to 5 (or 1 to 10) → "score_rating", with a "scale" and end labels when the meaning is not obvious.
 - Never use "rating": it only exists for forms created before, and anything you label "rating" cannot be created again in the builder.
-- "Order these by importance" / "rank the top N" → "rank".
+- "Order these by scale" / "rank the top N" → "rank".
 - Opinion with no fixed answers → "long_text". A name or something short → "short_text".
 - A number, an age, a year → "number". An email → "email". A phone → "phone". A date → "date". A time of day → "time". An address → "address". A file to attach → "file".
 - A link the respondent should VISIT (an official page, a participation site) is NOT a question: it goes inside a closing message ("More information at https://…"). Only use "url" when the respondent must TYPE an address of their own.

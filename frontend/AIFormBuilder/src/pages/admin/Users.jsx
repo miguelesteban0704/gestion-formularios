@@ -22,13 +22,14 @@ import {
   UserRound,
   UserShield,
   Users as UsersIcon,
+  WifiOff,
 } from "lucide-react";
 import { adminApi, localAuthApi } from "../../services/index.js";
 import { useRoleT } from "../../lib/roleI18n.js";
 import { ROLE_LABEL } from "../../lib/roles.js";
 import { Pill } from "../../components/admin/AdminTable.jsx";
 import { Button } from "../../components/ui/Button.jsx";
-import { FormModal, SuccessModal, InfoModal } from "../../components/ui/Modal.tsx";
+import { FormModal, SuccessModal, InfoModal, ErrorModal } from "../../components/ui/Modal.tsx";
 import { AppleSpotlight } from "../../components/ui/apple-spotlight";
 import { FabSpeedDial } from "../../components/ui/FabSpeedDial";
 import { cn } from "../../lib/utils.js";
@@ -64,6 +65,7 @@ import {
   useSpotlightHotkey,
 } from "../../components/admin/ListChrome.jsx";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
+import { useOfflineGuard } from "../../lib/connectivity.js";
 
 // ─── Zod schemas: una fuente de verdad para validación y tipos ──────────────
 // Los campos del backend y del cliente coinciden aquí.
@@ -116,6 +118,7 @@ export default function Users() {
   const rt = useRoleT();
   const { language } = useLanguage();
   const { confirm } = useConfirm();
+  const { guard } = useOfflineGuard();
   const [users, setUsers] = useState([]);
   const [entities, setEntities] = useState([]);
   const [accessUrls, setAccessUrls] = useState([]);
@@ -129,6 +132,7 @@ export default function Users() {
   const [query, setQuery] = useState("");
   const [spotlightOpen, setSpotlightOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [offlineError, setOfflineError] = useState(null); // {message, title, context}
 
   // react-hook-form: un solo estado para todos los campos del modal.
   // Al editar el super_admin se cambia al `superSchema` (sin rol/entidad/URL).
@@ -225,6 +229,16 @@ export default function Users() {
     setBusy(true);
     try {
       if (modal.mode === "create") {
+        // Verificar conectividad antes de crear usuario (envía correo de bienvenida)
+        try {
+          await guard("register");
+        } catch (err) {
+          if (err.offline) {
+            setOfflineError({ message: err.message, title: err.offlineTitle, context: err.offlineContext });
+            return;
+          }
+          throw err;
+        }
         const { user: createdUser, mail } = await localAuthApi.register({
           name: values.name,
           email: values.email,
@@ -296,6 +310,16 @@ export default function Users() {
   // best-effort, así que se distinguen éxito y no-entrega.
   const resend = async (user) => {
     try {
+      // Verificar conectividad antes de reenviar correo
+      try {
+        await guard("resend");
+      } catch (err) {
+        if (err.offline) {
+          setOfflineError({ message: err.message, title: err.offlineTitle, context: err.offlineContext });
+          return;
+        }
+        throw err;
+      }
       const { mail } = await adminApi.resendWelcome(user._id, { language });
       if (mail?.sent) notifySaved(rt("resendSent", user.email));
       else notifyError(new Error(rt("resendFailed", user.email)));
@@ -641,6 +665,15 @@ export default function Users() {
         onClose={() => setCreated(null)}
         title={rt("credentialsNotSentTitle")}
         description={created ? rt("credentialsNotSentBody", created.mail?.to || created.user?.email) : ""}
+      />
+      {/* Error de conexión offline */}
+      <ErrorModal
+        open={!!offlineError}
+        onClose={() => setOfflineError(null)}
+        title={offlineError?.title || (language === "es" ? "Sin conexión" : "Offline")}
+        description={offlineError?.message || (language === "es" ? "No hay conexión a internet. Inténtalo más tarde." : "No internet connection. Please try again later.")}
+        size="sm"
+        headerPt="pt-10"
       />
     </div>
   );

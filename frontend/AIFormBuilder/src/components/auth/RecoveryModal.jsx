@@ -18,6 +18,7 @@ import { Button } from "../ui/Button.jsx";
 import { SuccessModal } from "../ui/Modal.tsx";
 import { localAuthApi } from "../../services/index.js";
 import { cn } from "../../lib/utils.js";
+import { useOfflineGuard } from "../../lib/connectivity.js";
 
 /**
  * RecoveryModal — tarjeta de cristal para restablecer la contraseña por correo.
@@ -46,6 +47,9 @@ export default function RecoveryModal({ open, onClose, onBack, expectedEmail }) 
   const [emailTouched, setEmailTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [emailSent, setEmailSent] = useState(null);
+  const [offlineError, setOfflineError] = useState(null);
+
+  const { guard } = useOfflineGuard();
 
   // Schema de validación con doble restricción:
   // 1. Formato de email obligatorio y válido
@@ -112,16 +116,26 @@ export default function RecoveryModal({ open, onClose, onBack, expectedEmail }) 
     if (!validateEmail(email)) return;
     setBusy(true);
     try {
+      /* Verificar conectividad antes de enviar el correo de recuperación. */
+      await guard("forgot");
       /* `localAuthApi.forgot` responde igual exista o no el correo: nunca
          revela si una dirección está registrada (seguridad). */
       await localAuthApi.forgot(email);
       setEmailSent(email);
       /* Mostramos la alerta de éxito informando que, si el correo está
-         registrado, se enviaron las instrucciones. */
+         registrado, se enviaron las instrucciones. El usuario podrá continuar
+         al restablecer su contraseña. */
     } catch (err) {
-      toast.error(
-        err?.message || (es ? "No se pudo enviar. Inténtalo de nuevo." : "Could not send. Try again."),
-      );
+      if (err?.offline) {
+        setOfflineError({
+          title: err.offlineTitle,
+          description: err.message,
+        });
+      } else {
+        toast.error(
+          err?.message || (es ? "No se pudo enviar. Inténtalo de nuevo." : "Could not send. Try again."),
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -358,6 +372,19 @@ export default function RecoveryModal({ open, onClose, onBack, expectedEmail }) 
                       {t("recoveryBack")}
                     </button>
                   </form>
+                  {offlineError && (
+                    <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm" role="alert">
+                      <p className="font-semibold">{offlineError.title}</p>
+                      <p className="mt-1">{offlineError.description}</p>
+                      <button
+                        type="button"
+                        onClick={() => setOfflineError(null)}
+                        className="mt-2 text-xs underline hover:no-underline"
+                      >
+                        {es ? "Cerrar" : "Close"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             </motion.div>

@@ -1,0 +1,780 @@
+/*
+ * PremiumImportancia.css — "Refined Minimal" design system
+ *
+ * Campo de clasificación por escala unificado con el sistema de campos de elección.
+ * 
+ * Principios:
+ *   • Consistencia: usa clases refined-* compartidas con Radio/Checkbox/YesNo/Select
+ *   • Compacto: trigger 2rem, opciones 1.875rem, gap optimizado
+ *   • Minimalista refinado: bordes sutiles, superficies limpias
+ *   • Texto siempre alineado a la izquierda (text-left)
+ *   • Animaciones origin-aware con easing custom (--ease-out)
+ *   • Estados hover/focus/selected bien diferenciados
+ *   • Tokens CSS únicamente (--color-brand-*, --surface-*, --fg, --border)
+ *   • Respeta dark mode (clase .dark) y prefers-reduced-motion
+ *   • Campo "Otros" integrado con animación slide-down
+ *   • Escala visual indicadora (track de prioridades)
+ *
+ * Funcionalidad 100% intacta: solo se añaden clases visuales.
+ */
+
+/* ── Variables de animación (compartidas con PremiumSelect) ── */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Contenedor principal ── */
+.imp-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.imp-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--fg);
+  text-align: left;
+}
+
+.imp-required {
+  color: var(--color-danger);
+  font-size: 0.75rem;
+}
+
+/* ── Escala visual indicadora ── */
+.imp-scale-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 50%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+.imp-scale-track {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.imp-scale-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition:
+    background-color 0.2s var(--ease-out),
+    border-color 0.2s var(--ease-out),
+    color 0.2s var(--ease-out);
+  border: 1px solid;
+}
+
+.imp-scale-step:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--color-brand-500) 30%, transparent);
+}
+
+.imp-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Lista de servicios ── */
+.imp-services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ── Tarjeta de servicio (refinada) ── */
+.imp-service-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 40%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    border-color 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out),
+    transform 0.12s var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-service-card:hover:not(.imp-service-card--disabled) {
+    border-color: color-mix(in srgb, var(--color-brand-400) 40%, var(--border));
+    background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+    box-shadow: 0 4px 20px -4px color-mix(in srgb, var(--color-brand-500) 12%, transparent);
+    transform: translateY(-2px);
+  }
+
+  .imp-service-card:active:not(.imp-service-card--disabled) {
+    transform: scale(0.995);
+  }
+}
+
+.imp-service-card--has-priority {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--border) 40%, transparent) inset,
+    0 6px 24px -6px color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+}
+
+.imp-service-card--duplicate {
+  border-color: var(--color-danger) !important;
+  background: color-mix(in srgb, var(--color-danger-soft) 50%, transparent) !important;
+  animation: imp-shake 0.35s var(--ease-spring);
+}
+
+@keyframes imp-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  60% { transform: translateX(3px); }
+}
+
+.imp-service-card--other {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--color-brand-400) 60%, var(--border));
+  background: color-mix(in srgb, var(--color-brand-50) 30%, transparent);
+}
+
+/* ── Fila de opción disparadora (trigger) de condición condicional ── */
+.imp-option-card--trigger {
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-option-card--trigger:hover:not(.imp-service-card--disabled) {
+    border-color: color-mix(in srgb, var(--color-brand-400) 50%, var(--border));
+    background: color-mix(in srgb, var(--surface-2) 65%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .imp-option-card--trigger:active:not(.imp-service-card--disabled) {
+    transform: scale(0.995);
+  }
+}
+
+.imp-option-card--trigger-active {
+  border-color: var(--color-brand-500) !important;
+  background: color-mix(in srgb, var(--color-brand-500) 12%, transparent) !important;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--color-brand-500) 35%, transparent),
+    0 6px 24px -6px color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+}
+
+/* ── Badge de opción disparadora (sin select de escala) ── */
+.imp-option-trigger-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px dashed color-mix(in srgb, var(--border) 50%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 40%, transparent);
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition:
+    border-color 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-option-trigger-badge:hover {
+    border-color: color-mix(in srgb, var(--color-brand-400) 50%, var(--border));
+    background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+    color: var(--fg);
+  }
+}
+
+.imp-option-trigger-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-brand-500);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-brand-500) 50%, transparent);
+}
+
+.imp-option-trigger-text {
+  font-size: 0.7rem;
+}
+
+/* ── Bloque de entrada condicional (misma pregunta) ── */
+.imp-conditional {
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px dashed color-mix(in srgb, var(--border) 50%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 30%, transparent);
+  margin-top: 0.5rem;
+  animation: imp-fade-in 0.25s var(--ease-out);
+}
+
+.imp-conditional-header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 0.625rem;
+}
+
+.imp-conditional-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 40%, var(--border));
+  background: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  color: var(--color-brand-700);
+}
+
+.imp-conditional-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.imp-conditional-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.imp-conditional-subtitle {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+.imp-conditional-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.imp-conditional-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.imp-conditional-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.imp-conditional-input {
+  height: 2.125rem;
+  padding: 0 0.875rem;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  font-size: 0.875rem;
+  color: var(--fg);
+  outline: none;
+  transition:
+    border-color 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out);
+}
+
+.imp-conditional-input::placeholder {
+  color: color-mix(in srgb, var(--fg-muted) 60%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-conditional-input:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--color-brand-400) 40%, var(--border));
+    background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  }
+}
+
+.imp-conditional-input:focus-visible {
+  border-color: color-mix(in srgb, var(--color-brand-500) 55%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 25%, transparent);
+}
+
+.imp-conditional-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.imp-conditional-field--scale .refined-select-wrapper,
+.imp-conditional-field--scale > * {
+  width: 100%;
+  max-width: none !important;
+}
+
+/* Contenido del servicio/opción */
+.imp-service-content,
+.imp-option-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.imp-option-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+}
+
+.imp-service-index {
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  width: 1.5rem;
+  text-align: right;
+  color: var(--fg-muted);
+}
+
+.imp-option-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--fg);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.imp-option-select {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 160px;
+}
+
+.imp-option-card {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.imp-score-row {
+  min-width: 0;
+  align-items: stretch;
+}
+
+.imp-score-row .imp-option-main {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.imp-score-select-controls {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+  gap: 0.375rem;
+}
+
+.imp-score-select-controls > .w-full {
+  flex: 0 0 4.5rem;
+  width: 4.5rem;
+  min-width: 4.5rem;
+}
+
+.imp-score-select-controls .chrono-select-trigger {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+}
+
+.imp-score-select-trigger > div > span,
+.imp-score-select-option > span {
+  color: var(--fg) !important;
+}
+
+.imp-score-select-controls .chrono-select-trigger:hover:not(:disabled) {
+  transform: none;
+}
+
+.imp-score-clear {
+  display: grid;
+  place-items: center;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 65%, transparent);
+  color: var(--fg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out),
+    color 0.15s var(--ease-out),
+    transform 0.15s var(--ease-out);
+}
+
+.imp-score-clear:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-brand-500) 55%, var(--border));
+  transform: translateY(-1px);
+}
+
+.imp-score-clear:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+.imp-score-clear:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.imp-score-clear {
+  color: var(--fg-muted);
+}
+
+.imp-other-badge {
+  flex-shrink: 0;
+  width: auto;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 30%, var(--border));
+  border-radius: var(--radius-full, 999px);
+  color: var(--color-brand-700);
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.imp-conditional--row {
+  border-style: dashed;
+}
+
+.imp-other-field {
+  min-width: 0;
+}
+
+.imp-other-field .imp-conditional-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.imp-option-other-inline {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.imp-other-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-out),
+    border-color 0.15s var(--ease-out),
+    color 0.15s var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-other-toggle:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-brand-500) 40%, var(--border));
+    color: var(--color-brand-700);
+  }
+}
+
+.imp-other-toggle--active {
+  background: color-mix(in srgb, var(--color-brand-500) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand-500) 45%, var(--border));
+  color: var(--color-brand-700);
+}
+
+.imp-other-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Prioridad Select (usa PremiumSelect compartido) ── */
+/* Estilos heredados de .refined-select-* en PremiumSelect.css */
+
+/* ── Campo "Otros" ── */
+.imp-other-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  animation: imp-slide-down 0.2s var(--ease-out) forwards;
+}
+
+@keyframes imp-slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.imp-other-field-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.imp-other-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--color-brand-500) 70%, var(--fg-muted));
+}
+
+.imp-other-input {
+  flex: 1;
+  min-width: 0;
+  height: 2.125rem;
+  padding: 0 0.875rem;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--fg);
+  transition:
+    border-color 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out);
+  outline: none;
+}
+
+.imp-other-input::placeholder {
+  color: color-mix(in srgb, var(--fg-muted) 60%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-other-input:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--color-brand-400) 40%, var(--border));
+    background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  }
+}
+
+.imp-other-input:focus-visible {
+  border-color: color-mix(in srgb, var(--color-brand-500) 55%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 25%, transparent);
+}
+
+.imp-other-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Botones de acción (compat, ya no se usan en la vista de respuesta) ── */
+.imp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+}
+
+/* ── Mensajes de estado ── */
+.imp-error,
+.imp-warning,
+.imp-success {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  animation: imp-fade-in 0.2s var(--ease-out);
+}
+
+@keyframes imp-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.imp-error {
+  background: color-mix(in srgb, var(--color-danger-soft) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+  color: var(--color-danger-ink);
+}
+
+.imp-warning {
+  background: color-mix(in srgb, var(--color-warning-soft) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
+  color: var(--color-warning-ink);
+}
+
+.imp-success {
+  background: color-mix(in srgb, var(--color-success-soft) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+  color: var(--color-success-ink);
+}
+
+.imp-error-icon,
+.imp-warning-icon,
+.imp-success-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .imp-service-card,
+  .imp-score-clear,
+  .imp-score-select-controls .chrono-select-trigger,
+  .imp-service-label-input,
+  .imp-action-btn,
+  .imp-other-input,
+  .imp-action-btn--add,
+  .imp-other-field,
+  .imp-error,
+  .imp-warning,
+  .imp-success {
+    transition: none !important;
+    animation: none !important;
+  }
+  .imp-service-card--duplicate {
+    animation: none !important;
+  }
+  .imp-other-field {
+    animation: none !important;
+  }
+}
+
+/* ── Responsive ── */
+@media (max-width: 520px) {
+  .imp-service-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.875rem 0.875rem;
+  }
+
+  .imp-option-main {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.625rem;
+  }
+
+  .imp-score-select-controls {
+    width: auto;
+    flex-basis: auto;
+    align-self: flex-start;
+  }
+
+  .imp-option-label-wrap {
+    align-items: flex-start;
+  }
+
+  .imp-service-index {
+    width: 1.25rem;
+  }
+
+  .imp-option-select {
+    width: 100%;
+    min-width: 0;
+    justify-content: stretch;
+  }
+
+  .imp-option-select .refined-select-wrapper,
+  .imp-option-select > * {
+    width: 100%;
+    max-width: none !important;
+  }
+
+  .imp-option-other-inline,
+  .imp-other-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .imp-scale-track {
+    gap: 0.25rem;
+  }
+
+  .imp-scale-step {
+    min-height: 1.5rem;
+    font-size: 0.6875rem;
+  }
+}
+
+@media (max-width: 768px) and (min-width: 521px) {
+  .imp-option-main {
+    flex-wrap: wrap;
+  }
+
+  .imp-option-label-wrap {
+    flex: 1 1 220px;
+  }
+
+  .imp-option-select {
+    flex: 0 0 auto;
+  }
+}
+
+/* ── LivePreview ligero ── */
+.imp-live-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.imp-live-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.375rem 0;
+}
+
+.imp-live-service {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--fg);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imp-live-hint {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  font-style: italic;
+  padding-top: 0.25rem;
+}

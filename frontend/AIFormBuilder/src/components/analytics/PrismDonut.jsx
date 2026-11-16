@@ -43,22 +43,36 @@ export default function PrismDonut({ data = [], className, palette, idBase = "pd
 
   const gid = useMemo(() => makeGid(idBase), [idBase]);
 
+  // Normalizar los datos para asegurar que tengan el formato { label, value }
+  const normalizedData = useMemo(() => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((d) => {
+      // Si el objeto ya tiene label y value, úsalo directamente
+      if (d && typeof d === 'object' && !Array.isArray(d) && 'label' in d && 'value' in d) {
+        return { label: String(d.label), value: Number(d.value) };
+      }
+      // Si el objeto tiene otras propiedades (ej. breakdown con IDs opt_...),
+      // intentar extraer label y value de forma segura
+      const label = d.label !== undefined ? String(d.label) : String(d);
+      const value = d.value !== undefined ? Number(d.value) : 0;
+      return { label, value };
+    }).filter((d) => d.value > 0);
+  }, [data]);
+
   const rows = useMemo(() => {
     const isArray = Array.isArray(palette);
-    return (data || [])
-      .map((d, i) => {
-        let pal;
-        if (palette) {
-          pal = isArray
-            ? palette[i % palette.length] || FALLBACK
-            : palette[d.label] || FALLBACK;
-        } else {
-          pal = PALETTE[d.label] || FALLBACK;
-        }
-        return { label: d.label, value: Number(d.value) || 0, pal };
-      })
-      .filter((d) => d.value > 0);
-  }, [data, palette]);
+    return normalizedData.map((d, i) => {
+      let pal;
+      if (palette) {
+        pal = isArray
+          ? palette[i % palette.length] || FALLBACK
+          : palette[d.label] || FALLBACK;
+      } else {
+        pal = PALETTE[d.label] || FALLBACK;
+      }
+      return { label: d.label, value: d.value, pal };
+    }).filter((d) => d.value > 0);
+  }, [normalizedData, palette]);
 
   const total = useMemo(() => rows.reduce((s, d) => s + d.value, 0), [rows]);
 

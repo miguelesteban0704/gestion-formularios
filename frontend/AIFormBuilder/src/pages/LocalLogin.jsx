@@ -15,6 +15,7 @@ import { Button } from "../components/ui/Button.jsx";
 import { Modal, ErrorModal } from "../components/ui/Modal.tsx";
 import { notifyAuthAlert } from "../components/admin/AdminKit.jsx";
 import NotFound from "./NotFound.jsx";
+import { useOfflineGuard } from "../lib/connectivity.js";
 
 /**
  * Portal oculto del super_admin: URL fija, el nombre del sitio en español
@@ -56,7 +57,10 @@ export default function LocalLogin() {
   const [busy, setBusy] = useState(false);
   const [doorError, setDoorError] = useState(false);
   const [superAdminEmail, setSuperAdminEmail] = useState("");
+  const [offlineError, setOfflineError] = useState(null);
   const isSpanish = language === "es";
+
+  const { guard } = useOfflineGuard();
 
   /* El portal solo existe si el backend reconoce el slug fijo.
    *
@@ -263,6 +267,10 @@ export default function LocalLogin() {
     setForgotErrorOpen(false);
   };
 
+  const handleOfflineErrorClose = () => {
+    setOfflineError(null);
+  };
+
   const submitForgot = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -280,6 +288,8 @@ export default function LocalLogin() {
         setForgotErrorOpen(true);
         return;
       }
+      /* Verificar conectividad antes de enviar el correo de recuperación. */
+      await guard("forgot");
       /* `localAuthApi.forgot` responde igual exista o no el correo: nunca
          revela si una dirección está registrada (seguridad).
          El interceptor de api.js ya no dispara alertas de diagnóstico para
@@ -287,7 +297,14 @@ export default function LocalLogin() {
       await localAuthApi.forgot(email);
       setForgotModalOpen(true);
     } catch (err) {
-      toast.error(err.message);
+      if (err?.offline) {
+        setOfflineError({
+          title: err.offlineTitle,
+          description: err.message,
+        });
+      } else {
+        toast.error(err.message);
+      }
     } finally {
       setBusy(false);
     }
@@ -445,6 +462,16 @@ export default function LocalLogin() {
             onClose={handleForgotErrorClose}
             title={rt("forgotNotSuperAdminTitle")}
             description={rt("forgotNotSuperAdminBody", email)}
+            size="sm"
+            headerPt="pt-10"
+          />
+        )}
+        {offlineError && (
+          <ErrorModal
+            open={!!offlineError}
+            onClose={handleOfflineErrorClose}
+            title={offlineError.title}
+            description={offlineError.description}
             size="sm"
             headerPt="pt-10"
           />
