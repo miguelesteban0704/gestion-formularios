@@ -1,5 +1,408 @@
 # AGENTS.md — Gestor de Formularios
 
+### 2026-11-16 — Bandeja de entrada: corrección definitiva del texto de «Otros» en Casillas (y `undefined` en la escala)
+
+**Objetivo (petición del usuario):** en la **Bandeja de entrada** seguían sin verse los textos reales de «Otros» **en las preguntas de Casillas (checkbox)** y la clasificación por escala (`importancia`) mostraba `undefined` en la página de respuestas.
+
+**Causa raíz (dos, verificadas contra los datos reales de la BD):**
+1. Las opciones de «Otros» **no siempre se llaman «Otros»**: los formularios guardan la etiqueta de la opción tal como la escribió el autor o la generó la IA. La sonda sobre `responses` encontró valores `"Otra"`, `"Otros"` y `"Otras"`. La sustitución de `Inbox.jsx`/`Responses.jsx` solo reconocía `"Otros"`, `"Otro"` y `"other"`, así que `"Otra"` y `"Otras"` se mostraban tal cual e ignoraban `otherText`.
+2. `Responses.jsx` trataba el valor de `importancia` como si fuera un único objeto `{ value, otherText }` (`value.otherText || String(value.value)`), pero su forma real es un mapa `{ [opciónId]: score | { value, otherText } }`. Ambos accesos daban `undefined` y la celda mostraba literalmente `"undefined"`.
+
+**Cambios:**
+- **`src/lib/responseDisplay.js` (nuevo)** — helper compartido `answerDisplay(answer)`: normaliza las variantes de «Otros» (`otro`, `otra`, `otros`, `otras`, `other`, `others`, sin distinguir mayúsculas ni espacios), sustituye la etiqueta por `otherText` dentro de los arrays de Casillas y, si la etiqueta guardada no coincide con ninguna variante conocida, añade el texto al final para no ocultar la respuesta real. Para `importancia` recorre las filas del mapa y devuelve el `otherText` anidado; sin él, presenta las puntuaciones como `clave: valor`.
+- **`src/pages/Inbox.jsx`** — se retira la copia local `responseDisplay` y se importa `answerDisplay as responseDisplay` del helper compartido. El snippet del feed y el Drawer de detalle no cambian de llamada.
+- **`src/pages/Responses.jsx`** — `formatValue(a)` delega en `answerDisplay(a)`; la columna de respuestas adicionales y el `ResponseDetail` quedan cubiertos con la misma lógica, sin el `undefined` de la escala.
+
+**Contrato de datos intacto:** no se tocan valores almacenados ni el backend. Solo se amplía la lectura de `otherText` que ya llegaba a los componentes.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- Sonda pura `qa/_probe-response-display.mjs` (temporal, eliminada): 10/10 casos — `Otra`, `Otros`, `Otras` + otras opciones, Casillas sin texto, `importancia` con texto anidado y sin él, autodescripción de Género, texto corto, respuesta vacía y `Other` en inglés.
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0.
+- `npm run qa:brand` → **TODO CORRECTO** (0 congelamientos · 28 excepciones justificadas · 0 conflictos semánticos).
+- `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes de la baseline (sin regresión).
+
+### 2026-11-16 — Backend: el *watch* del servidor deja de vigilar `node_modules` (fin del bucle de reinicios por `media-typer`)
+
+**Objetivo (petición del usuario):** el backend entraba en un bucle de reinicios porque `node --watch server.js` detectaba cambios en `backend/node_modules/media-typer/index.js` y reiniciaba el servidor sin parar, impidiendo trabajar.
+
+**Causa raíz:** `node --watch` vigila **todo el grafo de módulos importados**, incluidos los archivos de `node_modules`; cualquier escritura externa sobre una dependencia (sincronización de archivos, antivirus, instalación en curso) disparaba un reinicio.
+
+**Cambio — `backend/package.json`:** el script `dev` pasa de `node --watch server.js` a `node --watch-path=./server.js --watch-path=./app.js --watch-path=./config --watch-path=./controllers --watch-path=./middleware --watch-path=./repositories --watch-path=./routes --watch-path=./services --watch-path=./utils --watch-path=./db server.js`, de modo que solo se vigila el código propio del backend. `start` sigue siendo `node server.js` (sin watch).
+
+**Contrato de datos intacto:** sin cambios de lógica, endpoints ni persistencia.
+
+**Puertas:** `node --watch-path=… qa/_watch-flag-test.js` (prueba temporal del flag, eliminada) → aceptado y a la espera de cambios; backend reiniciado con `npm run dev` → `GET /api/health` responde **200**.
+
+### 2026-11-16 — Bandeja de entrada y respuestas: el texto personalizado de «Otros» se muestra
+
+**Objetivo (petición del usuario):** la **Bandeja de entrada** (`Inbox.jsx`) y la página de **respuestas individuales** (`Responses.jsx`) mostraban la etiqueta genérica «Otras»/«Otro» en vez del texto que escribió el encuestado cuando eligió «Otros». El texto personalizado viaja como `otherText` en cada respuesta y el backend ya lo almacena correctamente; solo faltaba leerlo en la capa de presentación.
+
+**Causa raíz:** los componentes de visualización ignoraban `a.otherText` y solo renderizaban `a.value`. En `Inbox.jsx` la función `primaryAnswer` (snippet del feed) y el `valueDisplay` del Drawer de detalle tenían una rama especial para `importancia` (donde `otherText` va anidado dentro de `value`), pero no generalizaban el patrón al resto de tipos. En `Responses.jsx` la función `identity` construía `byId` como `Map(questionId → value)`, losing `otherText` por completo, y `formatValue` solo recibía el valor, sin acceso a `otherText`.
+
+**Cambios:**
+- **`src/pages/Inbox.jsx`** — nueva función `responseDisplay(a)` centraliza la lógica: para `importancia` lee `a.value.otherText` (anidado); para el resto, si existe `a.otherText` lo usa (reemplazando «Otros»/«Otro»/«other` en arrays), con fallback a `a.value`. `primaryAnswer` (snippet) y el Drawer de detalle la usan en vez de la lógica duplicada.
+- **`src/pages/Responses.jsx`** — `identity(r)` ahora mapea `Map(questionId → answerObject)` (no solo `value`); `formatValue(a)` recibe el objeto completo y aplica la misma lógica: `importancia` con `otherText` anidado, resto con `a.otherText` (sustituyendo «Otros» en arrays), fallback a `value`. `ResponseDetail` y la columna de `extraCols` se benefician sin cambios de su llamada.
+
+**Contrato de datos intacto:** no se tocan valores almacenados ni el backend. Solo se lee `otherText` que ya llegaba a los componentes. `importancia` sigue guardando `otherText` anidado dentro de `value`; el resto de tipos, como propiedad hermana.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0 (1.45 s; los avisos `Unknown at rule: @utility` de `admin.css` y chunks >500 kB son preexistentes, ver §9).
+- `npm run qa:brand` → **TODO CORRECTO** (0 congelamientos · 28 excepciones justificadas · 0 conflictos semánticos).
+- `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes de la baseline (sin regresión).
+
+### 2026-11-13 — Analítica: el texto de «Otros» se ve como respuesta efectiva (y el backend vuelve a exportar `getFormAnalytics`)
+
+**Objetivo (petición del usuario):** cuando la persona elige «Otros» y escribe su texto, en «Desglose de preguntas» debe verse **ese texto** como respuesta efectiva: agrupando los idénticos, manteniendo separados los distintos y usando «Otros»/«Otras» sólo si no hay texto recuperable. De paso, el backend estaba roto: `SyntaxError: The requested module './analytics.service.js' does not provide an export named 'getFormAnalytics'`.
+
+**Causa raíz (dos):**
+1. `backend/services/analytics.service.js` se había reescrito con handlers de controller (importaba `asyncHandler`/`sendSuccess` y se autoconsumía), así que dejó de exportar `getFormAnalytics`, que `response.controller.js` importa.
+2. El texto de «Otros» no se guardaba ni se leía: `FormView` descartaba `answers[<id>_other]` al enviar y `buildQuestionAnalytics` sólo miraba `value`. La clasificación por escala guarda el texto **anidado** (`{ [opcionId]: { value, otherText } }`), que tampoco se leía.
+
+**Cambios:**
+- **`backend/services/analytics.service.js`** — restaurado desde HEAD: exporta sólo `getFormAnalytics` y `getPublicFormAnalytics` (los handlers siguen en `response.controller.js`). `buildQuestionAnalytics` se exporta (es pura) y sustituye la etiqueta «Otros» por el texto escrito: lee `otherText` junto al valor, la forma `{ value: "other", otherText }`, el texto anidado de `importancia` y la condición `visibleIf.sameFieldCondition` (excluido el marcador interno `__other__`). Los textos idénticos se agrupan y los distintos quedan separados; sin texto recuperable se conserva la etiqueta genérica. El desglose de `importancia` sigue siendo **por opción** (no se colapsa a un escalar).
+- **`backend/services/response.service.js`** — normaliza las tres formas de entrada (`otherText` junto al valor, `{ value: "other", otherText }` y la clave heredada `<id>_other`) y adjunta `otherText` a la respuesta guardada sólo cuando no está vacío. El `value` principal no se toca.
+- **`frontend/AIFormBuilder/src/components/public/FormView.jsx`** — el payload de envío incluye `otherText` (`answers[<id>_other]`); la clasificación por escala queda fuera del colapso escalar porque su valor es el mapa completo de puntuaciones.
+- **`frontend/AIFormBuilder/src/components/analytics/QuestionChart.jsx`** — se revierte el parche de cliente que reetiquetaba «Others» con un único `question.otherText`: con el desglose resuelto en el backend era código muerto y, en inglés, cambiaba la etiqueta «Others» a «Otros». Sin cambios netos frente a HEAD.
+- **`backend/qa/analytics-other-text.test.js`** (nuevo) — 6 sondas puras sobre `buildQuestionAnalytics` (agrupación, separación, respaldo genérico, checkbox, `importancia`, filas históricas sin `otherText`, marcador `__other__`).
+
+**Contrato de datos intacto:** sin migración (las respuestas son JSONB opaco); el `value` principal sigue gobernando condiciones, validación y exportación; el texto viaja como metadato de la respuesta.
+
+**Puertas (ejecutadas):**
+- Backend: `node --check services/analytics.service.js services/response.service.js app.js` → OK; `import()` dinámico → `buildQuestionAnalytics, getFormAnalytics, getPublicFormAnalytics`; `GET /api/health` → **200** (el `SyntaxError` desapareció).
+- `node --test qa/analytics-other-text.test.js qa/classification-scale.test.js` (backend) → **10/10**.
+- `node --test qa/classification-scale.test.js qa/conditional-fields.test.js` (frontend) → **22/22**.
+- Frontend: `npx tsc --noEmit` → 0 · `npm run lint` → exit 0 (sólo warnings preexistentes) · `npm run build` → exit 0 · `npm run qa:brand` → **TODO CORRECTO** (0/28/0) · `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes de la baseline.
+
+### 2026-11-13 — Selects: tooltip moderno de deshabilitado compartido por los cinco campos
+
+**Objetivo (petición del usuario):** al deshabilitar un Select (hoy solo ocurre con **Municipio** hasta elegir **Provincia**), el estado deshabilitado y el **tooltip** que explica «Selecciona primero una provincia» debían verse **modernos** y **iguales en todos los campos de selección**.
+
+**Causa raíz:** los cinco selects ya compartían `ChronoSelect`, pero el **contenedor** del tooltip era específico de cada componente (`premium-tooltip` en `PremiumSelect`, `chrono-tooltip` en `ChronoSelect`), con animación y radios distintos. La ventana que usa el formulario público era la de `PremiumSelect`.
+
+**Cambios (solo CSS y una prop; sin lógica nueva):**
+- **`src/components/ui/Tooltip.jsx`** — nueva prop opcional `variant?: "default" | "crystal"` (por defecto `"default"`, sin cambios para los consumidores existentes). Con `variant="crystal"`, `getTooltipped` añade la clase `cr-tooltip-box`: fondo `var(--color-surface)`, borde `color-mix(in srgb, var(--color-ink) 12%, transparent)`, `radius: var(--radius-md)`, `box-shadow: var(--shadow-md)`, `padding: .5rem .75rem`, `font-size: var(--text-xs)` y `::after` que tiñe el borde con `var(--color-brand-500)` (degradado, opacidad 0 → .5 en hover). Respeta `prefers-reduced-motion`. **Nota de implementación:** la clase se aplica al **hijo del portal** (`.cr-tooltip-box`), no al envoltorio `.cr-tooltip`; por eso la receta vive en `crystal.css` y no como utility del envoltorio.
+- **`src/components/ui/ChronoSelect.jsx`** — el `Tooltip` que envuelve el disparador pasa a `variant="crystal"`; el disparador deshabilitado conserva `disabled={disabled && !tooltip}` + `aria-disabled` (un `<button disabled>` real se traga los eventos de ratón), y `toggle()` ya bloqueaba la apertura.
+- Se retira el bloque CSS muerto `.premium-tooltip`/`.premium-tooltip--visible` de `PremiumSelect.css` (ya no se renderiza: `PremiumSelect` usa el componente compartido) y se dejan de emitir las dos clases `chrono-tooltip*` en `ChronoSelect.jsx` (no tienen reglas). Las transiciones del disparador (`transition-all duration-200 ease-ui`) se acotan a `transition-[background-color,border-color,box-shadow,color] duration-200` para que el color y el borde del estado deshabilitado no queden en un easing genérico.
+
+**Resultado:** los cinco selects (`province`, `municipality`, `gender`, `education_level`, `dropdown`) comparten disparador (`ChronoSelect`) **y** ventana de tooltip (`.cr-tooltip` con `.cr-tooltip-box`): mismo tamaño, mismos colores, misma animación. El deshabilitado usa `color-mix(in srgb, var(--fg-muted) 30%, transparent)` (borde y texto atenuados, `cursor: not-allowed`), medible en claro y oscuro.
+
+**Archivos modificados (3) + registro:**
+- `frontend/AIFormBuilder/src/components/ui/crystal.css` — `.cr-tooltip-box` (fondo, borde, radio, sombra, `::after` con acento) + guard de `prefers-reduced-motion`.
+- `frontend/AIFormBuilder/src/components/ui/Tooltip.jsx` — prop `variant` + clase `cr-tooltip-box`.
+- `frontend/AIFormBuilder/src/components/ui/ChronoSelect.jsx` — `variant="crystal"`, clases muertas fuera, transición acotada.
+- `frontend/AIFormBuilder/src/components/ui/PremiumSelect.css` — bloque `.premium-tooltip` eliminado.
+
+**Contrato de datos intacto:** sin cambios de props públicas, handlers, estados, `onChange`, persistencia, backend ni APIs. `Tooltip` sigue siendo el mismo componente para el resto del sitio (variante por defecto idéntica).
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):** `npx tsc --noEmit` → 0 · `npm run lint` → exit 0 (sin avisos nuevos) · `npm run build` → exit 0 (`.cr-tooltip--boxed` en `dist/assets/index-*.css`; `.premium-tooltip`/`.chrono-tooltip` ya no se emiten) · `npm run qa:brand` → TODO CORRECTO (0/28/0) · `npm run qa:routes` → 124 · 2 fallos preexistentes. **Verificación visual pendiente** (navegador): abrir Municipio sin provincia en claro/oscuro.
+
+### 2026-11-13 — Municipio: misma apariencia que Provincia, deshabilitado hasta elegir provincia y con tooltip
+
+**Objetivo (petición del usuario):** el campo **Municipio** debía verse **exactamente igual** que **Provincia** (mismo tamaño, colores, lista de opciones y **buscador**), permanecer **deshabilitado** hasta que el usuario elija una provincia, y explicar ese requisito con un **tooltip moderno** (junto con la señal visual de deshabilitado). Solo se permitía la diferencia de «deshabilitado hasta elegir provincia».
+
+**Causa raíz:** los cinco selects ya compartían `ChronoSelect` tras el arreglo de bordes, pero `municipality` era el único con un tratamiento propio heredado del `PremiumSelect` que había usado antes (placeholder/tamaño diferenciados y sin buscador en algunas rutas), por lo que no tenía paridad real con `province`.
+
+**Cambios:**
+- **`src/components/public/FieldRenderer.jsx`** — la rama temprana `if (field.type === "municipality")` (~L317–377) se reescribió para renderizar **`ChronoSelect`** con las mismas props de paridad que `province`: `label=""`, `icon={null}`, opciones de `specialOptionsFor("municipality", { province: provinceAnswer, language: lang })` mapeadas a `{ value, label }`, `value={fieldValue || ""}`, `onChange` al `handleChange` de siempre, `disabled={isDisabled || waitingForProvince}`, `placeholder={field.placeholder || translate("municipality")}`, `error`, `required`, **`searchable`**, `language`, `t` y `tooltip={waitingForProvince ? translate("selectProvinceFirst") : undefined}`. Se conservan los locales `provinceAnswer` / `waitingForProvince` / `options`.
+- El **tooltip** lo sirve el componente compartido `components/ui/Tooltip.jsx` (portal, volteo, `side="top"`, `maxWidth={260}`), al que `ChronoSelect` ya daba soporte mediante su prop `tooltip`; se cableó esa rama.
+- **Accesibilidad del disparador deshabilitado:** un `<button disabled>` real se traga los eventos de ratón en varios navegadores, así que en la rama con tooltip el disparador usa `disabled={disabled && !tooltip}` + `aria-disabled`; `toggle()` ya bloqueaba la apertura cuando `disabled`.
+- Se retiró el **aviso de texto inline** bajo el campo Municipio: el tooltip pasa a ser la única explicación, como se pidió.
+- **`src/components/ui/PremiumSelect.jsx` / `.css`** ya tenían el tratamiento de borde visible del arreglo anterior; no se tocan más.
+
+**Archivos modificados (1) + registro:**
+- `frontend/AIFormBuilder/src/components/public/FieldRenderer.jsx` — rama `municipality` a `ChronoSelect` (paridad con `province`, `searchable`, `tooltip`).
+- `frontend/AIFormBuilder/AGENTS.md` — esta entrada.
+
+**Contrato de datos intacto:** mismos valores (`answers[field.id]` sigue siendo el id/valor de municipio), mismo `specialOptionsFor`, mismo `handleChange`, sin cambios de backend, esquema ni persistencia. `selectProvinceFirst` ya existía en es/en (`LanguageContext.jsx` L513 / L1417) y en el diccionario local de `FieldRenderer`.
+
+**Superficies:** la vista previa del builder (modal «Vista Previa» → `FormView`) y el formulario publicado comparten `FormView`/`FieldRenderer`, así que ambos quedan cubiertos.
+
+**Nota (pendiente opcional, no aplicado):** el `LivePreview` de `ValidationSettings.jsx` (~L658–676) sigue usando `PremiumSelect` para su muestra de Municipio; es visualmente consistente y no forma parte del formulario publicado.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en `FieldRenderer.jsx`/`ChronoSelect.jsx`).
+- `npm run build` → exit 0.
+- `npm run qa:brand` → TODO CORRECTO (0/28/0).
+- `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes de la baseline.
+- Verificado en `dist/assets/FormView-*.css` que `.chrono-select-trigger`/`.chrono-select-panel` compilan con el `color-mix` del arreglo anterior.
+
+### 2026-11-13 — Selects: bordes visibles en todos los campos de selección
+
+**Objetivo (petición del usuario):** el borde/contorno de **todos** los campos Select del constructor y del formulario (Género, Provincia, Municipio, Nivel de Escolaridad, Lista desplegable y cualquier otro) no se veía, ni en la vista previa ni en el formulario publicado. Se pidió arreglar únicamente eso: «no cambies nada más» — sin tocar funcionalidad, estilos no relacionados ni datos/API.
+
+**Causa raíz (dos, y la segunda era la que de verdad dejaba los campos sin borde):**
+
+1. **Tokens inexistentes en `ChronoSelect.css`.** El componente que renderizan cuatro de los cinco selects (`province`, `gender`, `education_level`, `dropdown`) usaba `var(--surface-50/100/200)`, `var(--border-light)`, `var(--brand-primary)`, `var(--brand-primary-rgb)`, `var(--surface-dark/darkest/darker)`, `var(--border-dark)`, `var(--ink-dark)`, `var(--brand-surface)`, `var(--brand-surface-hover)` y `var(--danger-light)`. **Ninguno existe en `index.css`.** Un `var()` sin definir y sin `fallback` invalida la declaración completa, así que `border: 1px solid var(--border-light)` se descartaba y el borde quedaba en `none` (0 px). No era un color demasiado claro: era un borde inexistente. Por eso el cambio anterior, correcto en `PremiumSelect.css`, no se notaba: solo afectaba a `municipality`, el único de los cinco que usa `PremiumSelect`.
+
+2. **Alfa del 35–55 % en `PremiumSelect.css`/`PremiumSelect.jsx`** (el caso de `municipality`): sobre fondos translúcidos con `backdrop-filter` el contorno quedaba prácticamente invisible. Además la rama de opción **no seleccionada** usaba `border-transparent`, que anulaba el borde del CSS.
+
+**Alcance de la auditoría:** `FieldRenderer.jsx` renderiza `province`, `gender`, `education_level` y `dropdown` con **`ChronoSelect`** (líneas 285, 386, 425, 470) y `municipality` con `PremiumSelect` (línea 340). `ChronoSelect` es también el desplegable interno de `PremiumImportancia` (escala). No se tocaron `BuilderSelect.jsx`, `EntitySelect.jsx`, `AccessUrlSelect.jsx`, `AdminKit.jsx`, `FormFields.jsx` ni `phone-field.css` (ya tenían borde visible), ni `PremiumChoice.css` (no está en la ruta: `FieldRenderer` usa `PremiumChoice.jsx`, no `ChronoChoice.jsx`). `ChronoChoice.css` arrastra los mismos tokens rotos, pero `Chrono.jsx` no se importa en ningún sitio (código muerto); queda anotado, no aplicado.
+
+**Archivos modificados (4):**
+
+- `frontend/AIFormBuilder/src/components/ui/ChronoSelect.css` — **reescrito con los tokens reales del sistema** (`--surface`, `--surface-2`, `--border`, `--fg`, `--fg-muted`, `--color-brand-*`, `--color-danger`, `--color-danger-soft`). El borde del trigger y del panel pasa a `color-mix(in srgb, var(--fg-muted) 45%, var(--border))`; hover `brand-400`; foco `brand-500` + anillo 20 %; disabled `fg-muted 30 %`; opciones con borde visible y seleccionada `brand-500 75 %`; buscador igual que el trigger. Los `rgba(var(--brand-primary-rgb), …)` pasan a `color-mix` con `--color-brand-500`. Se eliminó el `@keyframes` duplicado.
+- `frontend/AIFormBuilder/src/components/ui/ChronoSelect.jsx` — retirado el alfa de `triggerClasses` (normal, hover, error, disabled, required) y `dropdownClasses`; buscador y opciones a `border-slate-300 dark:border-slate-600`; opción seleccionada `border-brand-500/75 dark:border-brand-700/70`; **opción no seleccionada** de `border-transparent` a `border-slate-300 dark:border-slate-600`.
+- `frontend/AIFormBuilder/src/components/ui/PremiumSelect.css` — el único de los cinco que usa este componente (`municipality`): trigger y panel a `color-mix(in srgb, var(--fg-muted) 45%, var(--border))`; hover `brand-400 70%`; foco `brand-500 85%`; error `danger 75%`; disabled `fg-muted 30%`; medallón `fg-muted 45%`; opción `fg-muted 40%`; seleccionada `brand-500 75%`; check `fg-muted 45%`; buscador y foco acordes.
+- `frontend/AIFormBuilder/src/components/ui/PremiumSelect.jsx` — `border-slate-300 dark:border-slate-600` en `triggerClasses`, `dropdownClasses`, buscador (dos ramas) y opción no seleccionada (antes `border-transparent`); medallón `border-brand-500/60`; opción seleccionada `border-brand-500/75`.
+
+**Contraste medido** ( script temporal, ya borrado): el borde claro `#adb5c3` sobre `#f8fafc` da **1.97:1** y el oscuro `#515968` sobre `#171b25` da **2.44:1**, frente al `slate-300` del builder (`#cbd5e1` sobre blanco) que es **1.48:1**. El borde nuevo es más visible que el del resto del panel.
+
+**Contrato de datos intacto:** sin cambios de props, handlers, estados, `onChange`, persistencia, backend ni APIs. Solo color de borde y tokens.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0; verificado en `dist/assets/FormView-*.css` que `.chrono-select-trigger` y `.chrono-select-panel` compilan con `color-mix(in srgb, var(--fg-muted) 45%, var(--border))`.
+- `npm run qa:brand` → **TODO CORRECTO** (0 congelamientos · 28 excepciones justificadas · 0 conflictos semánticos).
+- `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes de la baseline (sin regresión).
+
+### 2026-11-12 — Compartir formulario: la opción de red usa la IP del FRONTEND_URL (192.168.5.174)
+
+**Objetivo (petición del usuario):** al publicar un formulario, el modal «Compartir» muestra tres opciones: el enlace localhost, el enlace de red y el iframe. La opción de red salía con la IP `10.2.0.2` (un interfaz ProTUN/VPN) y el usuario quería que mostrara la IP real de su máquina, `192.168.5.174`. No tocar nada más.
+
+**Causa raíz:** `GET /api/meta/network` (`backend/app.js`) enumeraba `os.networkInterfaces()` y devolvía todas las IPv4 no internas en el orden que devuelve el SO. El primer `networkUrls[0]` era `10.2.0.2` (túnel ProTUN), que ganaba a la LAN real `192.168.5.174` solo por orden. El modal (`ShareModal.jsx`) y `FormCard.jsx` usan `networkUrls[0]`.
+
+**Cambio — `backend/app.js`:** el endpoint lee el host de `env.frontendUrl` (`FRONTEND_URL=https://192.168.5.174:5173` en `.env`) y, si es una IPv4 detectada, la mueve al principio de la lista. Así `networkUrls[0]` = `https://192.168.5.174:5173` y la opción 2 del modal muestra esa IP. No se hardcodea ninguna IP: se reutiliza la configuración existente. Si `FRONTEND_URL` fuera un dominio (no IPv4), se respeta el orden detectado.
+
+**Archivos modificados (1):**
+- `backend/app.js` — `/api/meta/network` prioriza el host de `FRONTEND_URL` en la lista de IPs.
+
+**Contrato de datos intacto:** la respuesta sigue siendo `{ ips, networkUrls, frontendPort }`; solo cambia el orden de `ips`/`networkUrls`. Sin cambios de frontend, persistencia ni otros endpoints.
+
+**Puertas (ejecutadas):**
+- `node --check app.js` → OK.
+- Comprobación con la lógica real de la máquina: `networkUrls[0]` = `https://192.168.5.174:5173`.
+- El backend corre con `node --watch server.js` → recarga automática; `GET /api/health` → 200.
+
+**Nota:** si el backend se arranca sin `--watch`, hay que reiniciarlo (`npm start`) para que sirva el cambio.
+
+### 2026-11-12 — Vista previa y publicación: número de pregunta y botón de envío en blanco
+
+**Objetivo (petición del usuario):** en la vista previa del builder y en el formulario publicado, el número de cada pregunta y el texto del botón de envío se veían en **negro** (el cálculo de contraste `checkOnAccent` devuelve negro con acentos claros, p. ej. el teal `#0c8b7c` del tema *modern* o el cyan `#0891b2` de *glassmorphism*). Se pidió fijarlos en **blanco**. Solo este cambio.
+
+**Cambio — `src/components/public/FormView.jsx`:** el `color` del `<span>` de numeración y del `<button type="submit">` pasa de `accentInk` a `"#ffffff"` fijo. No se toca el fondo (degradado del acento) ni el resto de estilos; `accentInk` sigue usándose para `gradientTarget`, así que no queda ningún identificador sin uso. Coherente con los números de ranking premium, que ya usan blanco.
+
+**Archivos modificados (1):**
+- `frontend/AIFormBuilder/src/components/public/FormView.jsx` — color del número de pregunta y del texto del botón de envío → `#ffffff`.
+
+**Contrato de datos intacto:** sin cambios de datos, APIs ni persistencia. Solo color de texto.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno en `FormView.jsx`).
+- `npm run build` → exit 0 (warnings `@utility` de `admin.css` y chunks >500 kB preexistentes, ver §9).
+- `npm run qa:brand` → TODO CORRECTO (0 congelamientos · 28 excepciones justificadas · 0 conflictos semánticos).
+
+### 2026-11-12 — Género: autodescripción por condicional «Misma Pregunta» funcional en vista previa y formulario publicado
+
+**Objetivo (petición del usuario):** solo en el campo **Género**, al configurar la lógica condicional con `Pregunta: Misma Pregunta` y elegir el valor **«Prefiero autodescribir mi identidad»**, debe activarse la condición y mostrarse debajo un campo de texto para que la persona se autodescriba. Debe funcionar en la **vista previa** (modal del builder) y en la **publicación del formulario**, sin afectar a otros campos.
+
+**Decisiones de diseño / cambios:**
+- `src/components/public/FieldRenderer.jsx` — se importa `GENDER_OPTIONS` desde `lib/fieldTypes.js` y `checkSameFieldCondition` compara los valores de Género por **identidad de opción es/en** (`sameValue`), además de la igualdad estricta. Así la condición se activa aunque el valor guardado en `visibleIf.sameFieldCondition` y la respuesta seleccionada estén en idiomas distintos (p. ej. builder en español y respondiente en inglés, o viceversa). El bloque de Género ya renderiza el input adicional bajo la condición y lo enlaza a `answers[field.id + "_other"]`; no se toca el diseño ni otros tipos.
+- `src/components/public/FormView.jsx` — se importa `GENDER_OPTIONS`. En `setAnswer`, al escribir en `*_other` se revalida el campo base (Género) para limpiar/mostrar el error en vivo cuando la autodescripción está activa. Se añade `genderSelfDescribeValue` (mismo criterio es/en). En `handleSubmit`, si la autodescripción de Género está activa y el texto adicional está vacío se marca error requerido; si es válido, el payload envía como `value` el texto autodescrito (no la etiqueta disparadora) para que la respuesta quede persistida en el envío/publicación. Solo se aplica a `type === "gender"`.
+
+**Superficies cubiertas:** modal «Vista Previa» del builder (`Builder.jsx` → `<FormView form={form} preview />`) y formulario publicado (`PublicForm.jsx` → `<FormView ... />`), ambos comparten `FormView`/`FieldRenderer`. El preview inline del lienzo (`SortableField`) no pasa `answers`, por diseño no muestra el campo extra activado.
+
+**Contrato de datos intacto:** `field.visibleIf.sameFieldCondition` (opción disparadora), `field.visibleIf.sameFieldPlaceholder`, `answers[field.id]` (selección) y `answers[field.id + "_other"]` (texto). `FieldSettings.jsx` ya expone las opciones de Género vía `specialOptionsFor("gender", { language: lang, field })` para guardar el valor correcto. Sin cambios de esquema/backend: Género es campo de catálogo y el backend acepta el valor enviado.
+
+**Archivos modificados (2) + registro:**
+- `frontend/AIFormBuilder/src/components/public/FieldRenderer.jsx`
+- `frontend/AIFormBuilder/src/components/public/FormView.jsx`
+- `frontend/AIFormBuilder/AGENTS.md` — esta entrada.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → exit 0.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0 (warnings `@utility` de `admin.css` y chunks >500 kB preexistentes, ver §9).
+- `npm run qa:brand` → TODO CORRECTO (0 congelamientos · 28 excepciones justificadas · 0 conflictos semánticos).
+- `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes de la baseline (ruta inexistente/título 404 dentro del panel), sin regresión.
+
+**Verificación manual recomendada:** en un formulario con campo Género, configurar condicional `Misma Pregunta` = `Prefiero autodescribir mi identidad`; en modal «Vista Previa» y en el formulario publicado, al seleccionar esa opción aparece el campo de texto debajo; al cambiar la selección se oculta; si se intenta enviar sin texto se exige; al enviar con texto, la respuesta guardada es la autodescripción.
+
+### 2026-11-12 — Fix: la condicional "Misma Pregunta" del campo **Género** no mostraba el campo extra al elegir una opción
+
+**Objetivo (petición del usuario):** solo en el campo **Género** del builder, al configurar la condicional "Misma Pregunta" (`__same_field__`) y elegir una de las opciones del propio campo, debía aparecer al final de esa misma pregunta un campo de texto extra para escribir "la otra opción". No aparecía. Se pidió corregir únicamente el campo Género, sin tocar diseño ni nada más.
+
+**Causa raíz:** `getSameFieldConditionOptions` (`FieldSettings.jsx`) construía las opciones del select "Valor" llamando a `specialOptionsFor("gender", …)` **sin pasar `field`**. Sin `field`, `specialOptionsFor` devuelve el catálogo por defecto de `inclusiveOptions.js`, mientras que `FieldRenderer` pinta el select de Género con `specialOptionsFor("gender", { language, field })`, que respeta `field.customOptions` (con `value: opt.value ?? opt.label`). Si el autor personalizó las opciones, el valor guardado en `visibleIf.sameFieldCondition` pertenecía a un origen distinto del que usa la respuesta, así que la comparación estricta (`===`) de `checkSameFieldCondition` nunca coincidía y `showAdditionalText` se quedaba en `false`.
+
+**Arreglo — `src/components/builder/FieldSettings.jsx`:** en la rama `gender` de `getSameFieldConditionOptions` se pasa `field` a `specialOptionsFor` (`{ language: lang, field }`), con un comentario en español explicando por qué es necesario. El resto de ramas (`province`, `education_level` y el genérico) quedan intactas; no se toca UI ni diseño.
+
+**Archivos modificados (1) + registro:**
+- `frontend/AIFormBuilder/src/components/builder/FieldSettings.jsx` — rama `gender` de `getSameFieldConditionOptions` con `field`.
+- `frontend/AIFormBuilder/AGENTS.md` — esta entrada.
+
+**Contrato de datos intacto:** `field.visibleIf.sameFieldCondition` sigue siendo el valor de la opción disparadora; `field.visibleIf.sameFieldPlaceholder` el placeholder del campo extra; `answers[field.id]` el valor del campo y `answers[field.id + "_other"]` el texto personalizado. Sin cambios de autosave, backend ni persistencia.
+
+**Nota de verificación:** el campo extra solo puede verse en una superficie interactiva que pase `answers` (formulario público o modal "Vista Previa" del builder, ambos vía `FormView`). El preview inline del lienzo (`SortableField`) no recibe `answers`, así que por diseño nunca muestra el campo extra.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en `FieldSettings.jsx`).
+- `npm run build` → exit 0 (warnings `@utility` de `admin.css` y chunks >500 kB preexistentes, ver §9).
+- `npm run qa:brand` → TODO CORRECTO (0 congelamientos · 28 excepciones justificadas · 0 conflictos semánticos).
+- `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes de la baseline (títulos de panel 404), sin regresión.
+
+### 2026-11-11 — Fix: campo "Otro" de checkboxes/dropdown se cerraba al escribir + error "Objects are not valid as a React child"
+
+**Objetivo (petición del usuario):** corregir dos defectos en la lógica condicional de campos de elección (checkboxes, opciones múltiples, dropdown, género, etc.):
+1. Al escribir en el campo de texto de "Otro" de un checkbox, el campo se cerraba inesperadamente.
+2. Al seleccionar "Quiero autodescribirme" en un select de género y escribir en el campo de texto, la pantalla se ponía en blanco con el error: `Objects are not valid as a React child`.
+
+**Causa raíz:** En `FieldRenderer.jsx`, el patrón `{ ...fieldValue, [field.id]: fieldValue, ... }` en los handlers `onChange` de los campos de texto "otro" hacía spread de `fieldValue`. Cuando `fieldValue` era un array (checkboxes con múltiples selecciones), `{ ...array }` convertía los índices numéricos en claves del objeto (0, 1, 2, ...), corrompiendo el objeto de respuestas. Esto hacía que `answers[field.id]` dejara de ser un array y `showAdditionalText` se volviera falso, cerrando el campo de texto al escribir. Además, el objeto corrupto terminaba renderizándose como hijo de React, provocando el error de "Objects are not valid as a React child".
+
+**Decisiones de diseño:**
+- `FormView.jsx`: se modificó `onChange` en el llamado a `FieldRenderer` para aceptar objetos `{ id, value }`, permitiendo actualizar cualquier clave de respuestas (ej. `field.id + "_other"`) sin corromper el valor principal del campo.
+- `FieldRenderer.jsx`: se cambiaron los 9 patrones rotos `onChange={(e) => handleChange({ ...fieldValue, [field.id]: fieldValue, ... })}` en los campos `province`, `municipality`, `gender`, `education_level`, `dropdown`, `radio`, `checkbox`, `yes_no` y `rank` por `onChange={(e) => handleChange({ id: \`${field.id}_other\`, value: e.target.value })}`, que solo actualiza la clave `_other` sin tocar el valor del campo principal.
+- `FieldSettings.jsx`: se revirtió el `ConditionEditor` a su diseño original (sin la opción "Misma Pregunta" en el selector de pregunta). Los campos `sameFieldCondition` y `sameFieldScale` solo se manejan desde `FieldRenderer.jsx` en preview/published, no desde el editor del builder.
+
+**Archivos modificados (2):**
+- `frontend/AIFormBuilder/src/components/public/FormView.jsx` — `onChange` acepta objetos `{ id, value }`.
+- `frontend/AIFormBuilder/src/components/public/FieldRenderer.jsx` — 9 patrones de "otro" corregidos.
+- `frontend/AIFormBuilder/AGENTS.md` — esta entrada.
+
+**Contrato de datos intacto:** `answers[field.id]` sigue siendo el valor del campo (string, array u objeto según el tipo). `answers[field.id + "_other"]` guarda el texto personalizado. Sin cambios de persistencia ni backend.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0 (warnings `@utility` de `admin.css` preexistentes, ver §9).
+- `npm run qa:brand` → TODO CORRECTO (0 congelamientos · 28 excepciones justificadas · 0 conflictos semánticos).
+- `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes de la baseline (sin relación con este cambio).
+
+
+### 2026-11-11 — Condicional "Misma Pregunta" para TODOS los campos de la paleta del builder
+
+**Objetivo (petición del usuario):** agregar la opción "Misma Pregunta" (`__same_field__`) al selector de condición en el `ConditionEditor` de `FieldSettings.jsx` para TODOS los tipos de campo de la paleta excepto `importancia`. Al seleccionarla, se muestran tres controles: un select de condición (igual a, es distinto de, incluye, no incluye), un select de valor (con las opciones del campo mismo) y un campo de texto para el placeholder del campo "Otro".
+
+**Decisiones de diseño:**
+- `FieldSettings.jsx` — `ConditionEditor`:
+  - Agregada la opción `__same_field__` ("Misma Pregunta") al `BuilderSelect` de la pregunta, junto con todas las preguntas anteriores.
+  - Al seleccionar `__same_field__`, se muestra un select de operador (`equals`, `not_equals`, `includes`, `not_includes`), un select de valor con las opciones del campo mismo, y un campo de texto para el placeholder del campo extra (`sameFieldPlaceholder`).
+  - Al seleccionar una pregunta normal, se limpia `sameFieldCondition`.
+  - Para el campo `importancia`, NO se muestra la sección de "Misma Pregunta" (ya tiene su propia lógica condicional con escala).
+  - Agregada importación de `optionAnswerValue` desde `lib/fieldTypes.js`.
+- `LanguageContext.jsx`: claves i18n `sameFieldCondition`, `sameFieldPlaceholder`, `sameFieldPlaceholderHint` ya existían (es/en). Se reutilizan `conditionOperator` y `conditionValue` existentes.
+- `FieldRenderer.jsx` y `FormView.jsx`: ya contienen el fix para evitar el error "Objects are not valid as a React child" y el cierre del campo "Otro" al escribir (patrones `{ id: ..., value: ... }` en lugar de spread de `fieldValue`).
+
+**Archivos modificados (3):**
+- `frontend/AIFormBuilder/src/components/builder/FieldSettings.jsx` — opción "Misma Pregunta" en `ConditionEditor` con select de operador, select de valor y campo de texto para placeholder.
+- `frontend/AIFormBuilder/src/components/public/FieldRenderer.jsx` — 9 patrones de "otro" corregidos (ya estaban aplicados).
+- `frontend/AIFormBuilder/src/components/public/FormView.jsx` — `onChange` acepta objetos `{ id, value }` (ya estaba aplicado).
+- `frontend/AIFormBuilder/AGENTS.md` — esta entrada.
+
+**Contrato de datos intacto:** `visibleIf.sameFieldCondition` sigue siendo una clave opcional en `field.visibleIf`. `visibleIf.sameFieldPlaceholder` guarda el texto del placeholder del campo extra. `answers[field.id]` sigue siendo el valor del campo. `answers[field.id + "_other"]` guarda el texto personalizado. Sin cambios de persistencia ni backend.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0 (warnings `@utility` de `admin.css` preexistentes, ver §9).
+- `npm run qa:brand` → TODO CORRECTO (0 congelamientos · 28 excepciones justificadas · 0 conflictos semánticos).
+- `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes de la baseline (sin relación con este cambio).
+
+
+### 2026-11-10 — Condicional "Misma Pregunta" para el campo `importancia` (Clasificación por escala)
+
+**Objetivo (petición del usuario):** completar la lógica condicional de mismo campo para `importancia` en builder y preview/publicado, de modo que las opciones (incluida "Otros") puedan disparar lógica por opción/escala, con una UI premium para capturar texto personalizado de opción + escala al activarse.
+
+**Decisiones de diseño:**
+- `PremiumImportancia.jsx`: nueva prop `conditional = null`; estado `conditionalExtra` (`{ text, scale }`) derivado de `__conditionalExtra` en `value`; estado `conditionalActive` derivado de `conditional.active`; `emitChange` preserva/emite `__conditionalExtra` sin dejar caer claves desconocidas; handlers `activateConditional(id)` y `handleConditionalExtraChange(updates)`; filas de opción disparadora son clickeables y navegables por teclado (Enter/Espacio) con `role="button"` y `tabIndex=0`; los controles internos (select/toggle) usan `stopPropagation` para no disparar la activación de la tarjeta.
+- `PremiumImportancia.css`: estilos para `.imp-option-card--trigger` (cursor pointer, hover), `.imp-option-card--trigger-active` (borde y fondo de marca), y todo el bloque condicional (`.imp-conditional`, `.imp-conditional-header`, `.imp-conditional-body`, `.imp-conditional-field`, `.imp-conditional-label`, `.imp-conditional-input`, `.imp-conditional-badge`, `.imp-conditional-titles`, `.imp-conditional-title`, `.imp-conditional-subtitle`).
+- `FieldRenderer.jsx`: `checkSameFieldCondition` ya maneja `importancia` con `sameFieldScale`; el caso `importancia` ya pasa `conditional={conditionalConfig}` a `PremiumImportancia`.
+- `FormView.jsx`: `setAnswer` almacena la respuesta completa (incluido `__conditionalExtra`) y `handleSubmit` la envía; `validateField`/`validateForm` no se ven afectados porque `__conditionalExtra` es metadata complementaria, no un valor de respuesta obligatorio.
+- `FieldSettings.jsx`: ya configuraba `sameFieldCondition` con ids de opción y `sameFieldScale` opcional basado en `scaleOf(field)`.
+
+**Archivos modificados (4):**
+- `frontend/AIFormBuilder/src/components/ui/PremiumImportancia.jsx` — prop `conditional`, estado `conditionalExtra`/`conditionalActive`, `emitChange` con `__conditionalExtra`, `activateConditional`/`handleConditionalExtraChange`, filas clickeables, `<Edit>` en vez de `<Pencil>` no importado, bloque condicional re-cableado.
+- `frontend/AIFormBuilder/src/components/ui/PremiumImportancia.css` — estilos trigger/active y bloque condicional.
+- `frontend/AIFormBuilder/AGENTS.md` — esta entrada.
+
+**Contrato de datos intacto:** la respuesta de `importancia` sigue siendo `{[optionId]: scaleValue | { value:"other", otherText }}`; `__conditionalExtra` es una clave adicional no destructiva. Otros tipos de campo sin cambios.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0 (warnings `@utility` de `admin.css` preexistentes, ver §9).
+- `npm run qa:brand` → TODO CORRECTO (0 congelamientos · 28 excepciones justificadas · 0 conflictos semánticos).
+- `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes de la baseline (sin relación con este cambio).
+
+
+### 2026-11-09 — Builder: rediseño premium "Refined Minimal" de campos de elección (radio, checkbox, dropdown)
+
+**Objetivo (petición del usuario):** rediseñar visualmente los campos de elección múltiple (radio/Opción múltiple), casillas (checkbox) y lista desplegable (dropdown) con una estética moderna, sofisticada, elegante y premium. **Sin tocar en absoluto la funcionalidad** de estos campos. Enfoque: diseño refinado y minimalista, presentación más compacta, texto siempre alineado a la izquierda, coherencia visual entre los tres componentes, microinteracciones sutiles.
+
+**Decisiones de diseño:**
+- Nuevo sistema de diseño llamado **"Refined Minimal"** — diseño refinado, minimalista y elegante, sin efectos decorativos excesivos.
+- Archivos CSS nuevos con prefijo `refined-*`: `src/components/ui/PremiumChoice.css` y `src/components/ui/PremiumSelect.css`.
+- Compactez: altura de opciones reducida (2.25rem), padding ajustado (px-3 py-2), menos separación entre opciones (gap-1.5), radio de bordes reducido (rounded-lg/rounded-md), tipografía más pequeña (text-sm).
+- Texto siempre alineado a la izquierda (text-align: left, text-left) en desktop y mobile, con truncamiento para textos largos.
+- Estados visuales bien definidos: seleccionado con fondo suave de marca + borde de marca + punto/check de marca; hover con borde tintado de marca y superficie ligeramente elevada; disabled con opacidad y escala de grises; error con borde de peligro.
+- Microinteracciones: transición suave (150ms), escala al presionar (scale(0.99)), foco con anillo de marca, apertura/cierre fluido del dropdown.
+- Todo usa tokens CSS (`var(--color-brand-*)`, `var(--surface-*)`, `var(--fg)`, `var(--border)`, etc.); **cero hex de marca a fuego** → `qa:brand` verde.
+- Respeta `prefers-reduced-motion` (desactiva transiciones y animaciones).
+- La estructura JSX, props, handlers, estados y lógica de los componentes son idénticos — solo se añaden clases CSS visuales.
+
+**Familia de componentes coherente:** los tres componentes comparten radios de bordes, grosor y color de bordes, tipografía, alturas de controles, espaciados, transiciones, estados interactivos, tratamiento de superficies e indicadores de selección.
+
+**Archivos nuevos (2):**
+- `frontend/AIFormBuilder/src/components/ui/PremiumChoice.css` — sistema Refined Minimal para radio/checkbox/yes_no/rank.
+- `frontend/AIFormBuilder/src/components/ui/PremiumSelect.css` — sistema Refined Minimal para dropdown.
+
+**Archivos modificados (2):**
+- `frontend/AIFormBuilder/src/components/ui/PremiumChoice.jsx` — importa `PremiumChoice.css`; reemplaza clases decorativas por clases `refined-*` (cards de opción, medallones, indicadores de selección, etiquetas, número de ranking, control segmentado Sí/No). Elimina constantes GLASS/GLASS_HOVER/SELECTED_BASE/MEDALLION.
+- `frontend/AIFormBuilder/src/components/ui/PremiumSelect.jsx` — importa `PremiumSelect.css`; reemplaza clases decorativas por clases `refined-*` (trigger, panel, opciones, check, chevron, buscador). Reduce altura del trigger (2.25rem), padding del menú, tamaño de opciones (2rem).
+
+**Contrato de datos intacto:** mismas props, mismos handlers, mismos estados, mismo comportamiento de `onChange`, validación y accesibilidad (WAI-ARIA, roving tabindex, teclado). Solo cambia la capa visual.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los archivos tocados).
+- `npm run build` → exit 0 (1.62s; warnings `@utility` de `admin.css` preexistentes).
+- `npm run qa:brand` → TODO CORRECTO (0 congelamientos · 28 excepciones justificadas · 0 conflictos semánticos).
+
+### 2026-11-09 — Fix: Classification (rank) field rendering, all field types, and UI improvements
+
+**Objetivo (petición del usuario):** arreglar el campo Classification (rank) para que se renderice sin errores en tiempo de ejecución, asegurar que todos los tipos de campo se muestren correctamente, resolver el problema de página en blanco y mejorar los componentes UI en todo el proyecto. Esto incluye corregir `ReferenceError: PremiumSelect is not defined`, la visualización del campo rango (con íconos completos y visibilidad), el texto blanco en los números de rango (no oscuro), el ícono de medallón sin recortar por el círculo del número, y aplicar diseños glassmorphism/Refined Minimal premium a los campos de elección y selección. Mejoras de accesibilidad (roles, aria-checked, navegación por teclado, prefers-reduced-motion, modo oscuro).
+
+**Decisiones de diseño:**
+- Migración de componentes de elección desde `PremiumChoice.jsx` hacia `PremiumRadio`, `PremiumCheckbox`, `PremiumYesNo`, `PremiumRank`.
+- `PremiumSelect.jsx` reescrito con colocación en portal (`document.body`), ancho de campo, detección de tooltip, reubicación al hacer scroll/resize.
+- `PremiumDateTime.jsx` / `PremiumDatePicker.jsx` / `PremiumTimePicker.jsx` rediseñados con colores de rango dinámicos y lenguaje activo.
+- `PremiumRating.jsx` actualizado con rangos rojo/ámbar/verde.
+- Campos Select (Province, Municipality, Gender, Education level, Dropdown) con íconos correctos por formato, colores dinámicos, lenguaje activo.
+- `FieldRenderer.jsx`: corrección de selección de campo para casos radio/checkbox/yes_no/rank/rating; se añadió la importación de PremiumSelect.
+- Sistema de tema/acento premium; solo tokens de marca (ningún hex de marca duro) — `qa:brand` verde.
+- Accesibilidad: roles ARIA, `aria-checked`, navegación por teclado, `prefers-reduced-motion`, modo oscuro.
+
+**Archivos modificados (15):**
+- `frontend/AIFormBuilder/src/components/public/FieldRenderer.jsx` — PremiumSelect import añadido; casos de selección corregidos para radio/checkbox/yes_no/rank/rating.
+- `frontend/AIFormBuilder/src/components/ui/PremiumChoice.jsx` — medallón de opción, ranking, diseño premium.
+- `frontend/AIFormBuilder/src/components/ui/PremiumSelect.jsx` — colocación en portal, ancho de campo, detección de tooltip, reubicación al scroll/resize.
+- `frontend/AIFormBuilder/src/components/public/FormView.jsx` — pasa lenguaje a FieldRenderer.
+- `frontend/AIFormBuilder/src/components/builder/BuilderSelect.jsx` — campos select con íconos y colores correctos.
+- `frontend/AIFormBuilder/src/components/builder/FieldSettings.jsx` — configuración de campos mejorada.
+- `frontend/AIFormBuilder/src/components/builder/ValidationSettings.jsx` — validación de campos actualizada.
+- `frontend/AIFormBuilder/src/contexts/LanguageContext.jsx` — claves i18n añadidas.
+- `frontend/AIFormBuilder/src/lib/fieldTypes.js` — definiciones de tipos de campo actualizadas.
+- `frontend/AIFormBuilder/src/lib/specialOptions.js` — opciones especiales actualizadas.
+- `frontend/AIFormBuilder/src/components/auth/RecoveryModal.jsx` — soporte de pegada, SuccessModal.
+- `frontend/AIFormBuilder/src/pages/LocalLogin.jsx` — flujo de recuperación con modal premium.
+- `frontend/AIFormBuilder/src/pages/admin/Users.jsx` — actualizaciones de usuario.
+- `frontend/AIFormBuilder/src/pages/entity-admin/EntityUsers.jsx` — actualizaciones de usuario de entidad.
+
+**Contrato de datos intacto:** las props, handlers, estados y comportamiento de `onChange`, validación y accesibilidad se mantienen idénticos. Solo se añaden mejoras visuales y corrección de errores de renderizado.
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → warnings preexistentes solo (ningún warning nuevo en los archivos tocados).
+- `npm run build` → éxito (warnings `@utility` preexistentes en `admin.css`, sin regresión).
+- `npm run qa:brand` → passed.
+- `npm run qa:routes` → 124 checks, baseline conocida (27 falla), sin regresión.
+
 ### 2026-11-08 — Super Admin: revisión y verificación de Usuarios, Entidades y URLs de acceso
 
 **Objetivo (petición del usuario):** revisar al detalle las tres páginas del dashboard de super_admin —`src/pages/admin/Users.jsx`, `src/pages/admin/Entities.jsx` y `src/pages/admin/AccessUrls.jsx`— para confirmar que están en sintonía (los mismos usuarios de rol gestor de formularios aparecen en Usuarios que como `assignedUsers` en AccessUrls) y que se cumple la regla de «un solo gestor de entidad por entidad».
