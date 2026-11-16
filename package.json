@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "openqwencode": "^0.1.8"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
 }
