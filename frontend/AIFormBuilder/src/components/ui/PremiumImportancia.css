@@ -527,6 +527,68 @@
   cursor: not-allowed;
 }
 
+/* ── Botón agregar "Otros" dinámico (+) ── */
+.imp-add-dynamic-other {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 30%, var(--border));
+  background: color-mix(in srgb, var(--color-brand-500) 8%, transparent);
+  color: var(--color-brand-600);
+  cursor: pointer;
+  transition:
+    background-color 0.15s var(--ease-out),
+    border-color 0.15s var(--ease-out),
+    color 0.15s var(--ease-out),
+    transform 0.2s var(--ease-spring);
+  flex-shrink: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-add-dynamic-other:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+    border-color: var(--color-brand-500);
+    color: var(--color-brand-700);
+    transform: scale(1.1);
+  }
+  .imp-add-dynamic-other:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+}
+
+.imp-add-dynamic-other:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+.imp-add-dynamic-other:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.imp-add-dynamic-other svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* ── Tarjetas "Otros" dinámicas (sin label, solo input + select) ── */
+.imp-service-card--dynamic-other {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--color-brand-400) 50%, var(--border));
+  background: color-mix(in srgb, var(--color-brand-500) 5%, transparent);
+}
+
+.imp-service-card--dynamic-other .imp-option-label-wrap {
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.imp-service-card--dynamic-other .imp-other-badge {
+  flex-shrink: 0;
+}
+
 /* ── Prioridad Select (usa PremiumSelect compartido) ── */
 /* Estilos heredados de .refined-select-* en PremiumSelect.css */
 

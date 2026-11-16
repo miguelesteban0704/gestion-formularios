@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { X } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 import { scaleOf } from "../../lib/fieldTypes.js";
 import { ChronoSelect } from "./ChronoSelect.jsx";
@@ -7,6 +7,7 @@ import {
   activateClassificationScaleOther,
   getClassificationScaleItems,
   updateClassificationScaleAnswer,
+  addClassificationScaleDynamicOther,
 } from "../../lib/classificationScale.js";
 import "./PremiumImportancia.css";
 
@@ -49,7 +50,7 @@ export function PremiumImportancia({
     [scale.min, scale.max],
   );
   const scoreOptions = scores.map((score) => ({ value: String(score), label: String(score) }));
-  const items = getClassificationScaleItems(field, value, { includeConditional: false });
+  const items = getClassificationScaleItems(field, value, { includeConditional: false, t });
   const answers = answerObject(value);
   const fieldLabel = label || (t ? t("importancia") : "Clasificación por escala");
 
@@ -61,6 +62,13 @@ export function PremiumImportancia({
   const activateOther = (item) => {
     if (disabled) return;
     onChange?.(activateClassificationScaleOther(field, answers, item.id));
+  };
+
+  const addDynamicOther = (item) => {
+    if (disabled) return;
+    // Solo permitir agregar en opciones "Otros" originales (no dinámicas)
+    if (item.isDynamicOther) return;
+    onChange?.(addClassificationScaleDynamicOther(field, answers, item.id));
   };
 
   const removeOther = (item) => {
@@ -138,6 +146,7 @@ export function PremiumImportancia({
           const isStored = item.isOther
             ? isOtherSelected
             : stored !== undefined && stored !== null && stored !== "";
+          const isDynamicOther = item.isDynamicOther === true;
 
           return (
             <section
@@ -148,21 +157,26 @@ export function PremiumImportancia({
                 item.isConditional && "imp-conditional--row",
                 isStored && "imp-service-card--has-priority",
                 disabled && "imp-service-card--disabled",
+                isDynamicOther && "imp-service-card--dynamic-other",
               )}
               aria-labelledby={`q-${field.id}-${item.id}-label`}
             >
               <div className="imp-option-main">
                 <div className="imp-option-label-wrap">
-                  <span className="imp-service-index" aria-hidden="true">
-                    {index + 1}.
-                  </span>
-                  <span
-                    className="imp-option-label"
-                    id={`q-${field.id}-${item.id}-label`}
-                  >
-                    {itemLabel}
-                  </span>
-                  {item.isOther && (
+                  {!isDynamicOther && (
+                    <span className="imp-service-index" aria-hidden="true">
+                      {index + 1}.
+                    </span>
+                  )}
+                  {!isDynamicOther && (
+                    <span
+                      className="imp-option-label"
+                      id={`q-${field.id}-${item.id}-label`}
+                    >
+                      {itemLabel}
+                    </span>
+                  )}
+                  {item.isOther && !isDynamicOther && (
                     <span className="imp-other-badge">
                       {t ? t("otherOptionLabel") : "Otros"}
                     </span>
@@ -170,16 +184,28 @@ export function PremiumImportancia({
                 </div>
 
                 {item.isOther && !isOtherSelected ? (
-                  <button
-                    type="button"
-                    className="imp-other-toggle imp-score-add-other"
-                    aria-label={`${t ? t("addOther") : "Agregar Otros"}: ${itemLabel}`}
-                    aria-expanded={false}
-                    disabled={disabled}
-                    onClick={() => activateOther(item)}
-                  >
-                    {t ? t("addOther") : "Agregar Otros"}
-                  </button>
+                  <div className="imp-score-select-controls" role="group" aria-label={itemLabel}>
+                    <button
+                      type="button"
+                      className="imp-other-toggle imp-score-add-other"
+                      aria-label={`${t ? t("addOther") : "Agregar Otros"}: ${itemLabel}`}
+                      aria-expanded={false}
+                      disabled={disabled}
+                      onClick={() => activateOther(item)}
+                    >
+                      {t ? t("addOther") : "Agregar Otros"}
+                    </button>
+                    {!item.isDynamicOther && !disabled && (
+                      <button
+                        type="button"
+                        className="imp-add-dynamic-other"
+                        aria-label={`${t ? t("classificationScaleAddOtherOption") : "Agregar otra opción 'Otros'"}: ${itemLabel}`}
+                        onClick={() => addDynamicOther(item)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <div
                     className="imp-score-select-controls"
@@ -213,6 +239,16 @@ export function PremiumImportancia({
                         <X className="h-4 w-2" aria-hidden="true" />
                       </button>
                     )}
+                    {!item.isDynamicOther && !disabled && item.isOther && isOtherSelected && (
+                      <button
+                        type="button"
+                        className="imp-add-dynamic-other"
+                        aria-label={`${t ? t("classificationScaleAddOtherOption") : "Agregar otra opción 'Otros'"}: ${itemLabel}`}
+                        onClick={() => addDynamicOther(item)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -237,11 +273,11 @@ export function PremiumImportancia({
                   <button
                     type="button"
                     className="imp-other-toggle imp-other-toggle--active"
-                    aria-label={`${t ? t("removeOther") : "Quitar Otros"}: ${itemLabel}`}
+                    aria-label={`${isDynamicOther ? (t ? t("removeDynamicOther") : "Quitar") : (t ? t("removeOther") : "Quitar Otros")}: ${itemLabel}`}
                     disabled={disabled}
                     onClick={() => removeOther(item)}
                   >
-                    {t ? t("removeOther") : "Quitar Otros"}
+                    {isDynamicOther ? (t ? t("removeDynamicOther") : "Quitar") : (t ? t("removeOther") : "Quitar Otros")}
                   </button>
                 </div>
               )}

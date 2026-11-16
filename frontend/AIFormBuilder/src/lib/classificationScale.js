@@ -24,22 +24,50 @@ function clampScore(value, scale) {
   return Math.min(scale.max, Math.max(scale.min, Math.round(score)));
 }
 
+// Detecta claves de "Otros" dinámicos agregados por el respondente (patrón: originalId_other_N)
+function isDynamicOtherKey(key, originalOtherIds) {
+  return originalOtherIds.some((id) => key.startsWith(`${id}_other_`));
+}
+
 export function getClassificationScaleItems(field, answer = {}, config = {}) {
   const scale = scaleOf(field);
   const values = isAnswerObject(answer) ? answer : {};
   const includeConditional = config?.includeConditional !== false;
   const options = Array.isArray(field?.options) ? field.options : [];
+  const originalOtherIds = options.filter((o) => o.isOther === true).map((o) => o.id);
+
+  // Items base desde field.options
   const items = options.map((option) => {
     const stored = values[option.id];
     return {
       id: option.id,
       label: option.label ?? "",
       isOther: option.isOther === true,
+      isDynamicOther: false,
       value: scoreOf(stored),
       ...(option.isOther === true && isAnswerObject(stored) && typeof stored.otherText === "string"
         ? { otherText: stored.otherText }
         : {}),
     };
+  });
+
+  // Agregar "Otros" dinámicos creados por el respondente (claves: originalId_other_N)
+  const dynamicOtherKeys = Object.keys(values).filter((key) =>
+    isDynamicOtherKey(key, originalOtherIds)
+  );
+  dynamicOtherKeys.forEach((key) => {
+    const stored = values[key];
+    if (!isAnswerObject(stored)) return;
+    // Extraer el ID original para saber a qué "Otros" base pertenece (validación)
+    originalOtherIds.find((id) => key.startsWith(`${id}_other_`));
+    items.push({
+      id: key,
+      label: "", // Sin label para "Otros" dinámicos - solo campo de texto + select
+      isOther: true,
+      isDynamicOther: true,
+      value: scoreOf(stored),
+      ...(typeof stored.otherText === "string" ? { otherText: stored.otherText } : {}),
+    });
   });
 
   const otherOption = options.find((option) => option.isOther === true);
@@ -62,6 +90,24 @@ export function getClassificationScaleItems(field, answer = {}, config = {}) {
     value: storedScore ?? clampScore(conditional.defaultValue, scale),
   });
   return items;
+}
+
+export function addClassificationScaleDynamicOther(field, answer, baseOtherId) {
+  const values = isAnswerObject(answer) ? { ...answer } : {};
+  const options = Array.isArray(field?.options) ? field.options : [];
+  const baseOption = options.find((o) => o.id === baseOtherId && o.isOther === true);
+  if (!baseOption) throw new RangeError("Base Other option not found.");
+
+  // Contar cuántos "Otros" dinámicos ya existen para este baseId
+  const existingCount = Object.keys(values).filter((key) =>
+    key.startsWith(`${baseOtherId}_other_`)
+  ).length;
+
+  const newId = `${baseOtherId}_other_${existingCount + 1}`;
+
+  values[newId] = { value: null, otherText: "", _dynamicOther: true, _baseId: baseOtherId };
+
+  return values;
 }
 
 export function updateClassificationScaleAnswer(field, answer, itemId, score) {
