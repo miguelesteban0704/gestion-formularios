@@ -1,0 +1,255 @@
+export const commonFormDictionary = {
+  // Field labels
+  "Nombre": { es: "Nombre", en: "Name" },
+  "Nombre completo": { es: "Nombre completo", en: "Full name" },
+  "Apellidos": { es: "Apellidos", en: "Last name" },
+  "Correo electrónico": { es: "Correo electrónico", en: "Email" },
+  "Email": { es: "Correo electrónico", en: "Email" },
+  "Teléfono": { es: "Teléfono", en: "Phone" },
+  "Teléfono móvil": { es: "Teléfono móvil", en: "Mobile phone" },
+  "Dirección": { es: "Dirección", en: "Address" },
+  "Dirección completa": { es: "Dirección completa", en: "Full address" },
+  "Ciudad": { es: "Ciudad", en: "City" },
+  "Provincia": { es: "Provincia", en: "Province" },
+  "Municipio": { es: "Municipio", en: "Municipality" },
+  "Código postal": { es: "Código postal", en: "Postal code" },
+  "País": { es: "País", en: "Country" },
+  "Fecha de nacimiento": { es: "Fecha de nacimiento", en: "Date of birth" },
+  "Edad": { es: "Edad", en: "Age" },
+  "Género": { es: "Género", en: "Gender" },
+  "Sexo": { es: "Sexo", en: "Sex" },
+  "Nivel de escolaridad": { es: "Nivel de escolaridad", en: "Education level" },
+  "Escolaridad": { es: "Escolaridad", en: "Education" },
+  "Ocupación": { es: "Ocupación", en: "Occupation" },
+  "Empresa": { es: "Empresa", en: "Company" },
+  "Cargo": { es: "Cargo", en: "Position" },
+  "Comentarios": { es: "Comentarios", en: "Comments" },
+  "Observaciones": { es: "Observaciones", en: "Observations" },
+  "Mensaje": { es: "Mensaje", en: "Message" },
+  "Asunto": { es: "Asunto", en: "Subject" },
+  "Descripción": { es: "Descripción", en: "Description" },
+  "Título": { es: "Título", en: "Title" },
+  "Nombre de la encuesta": { es: "Nombre de la encuesta", en: "Survey name" },
+  "Pregunta": { es: "Pregunta", en: "Question" },
+  "Respuesta": { es: "Respuesta", en: "Answer" },
+  "Opción": { es: "Opción", en: "Option" },
+  "Opciones": { es: "Opciones", en: "Options" },
+  "Seleccione": { es: "Seleccione", en: "Select" },
+  "Seleccione una opción": { es: "Seleccione una opción", en: "Select an option" },
+  "Escriba su respuesta": { es: "Escriba su respuesta", en: "Write your answer" },
+  "Escriba aquí": { es: "Escriba aquí", en: "Write here" },
+  "Requerido": { es: "Requerido", en: "Required" },
+  "Obligatorio": { es: "Obligatorio", en: "Required" },
+  "Opcional": { es: "Opcional", en: "Optional" },
+  "Enviar": { es: "Enviar", en: "Submit" },
+  "Enviar respuesta": { es: "Enviar respuesta", en: "Submit response" },
+  "Guardar": { es: "Guardar", en: "Save" },
+  "Cancelar": { es: "Cancelar", en: "Cancel" },
+  "Aceptar": { es: "Aceptar", en: "Accept" },
+  "Sí": { es: "Sí", en: "Yes" },
+  "No": { es: "No", en: "No" },
+  "Atrás": { es: "Atrás", en: "Back" },
+  "Siguiente": { es: "Siguiente", en: "Next" },
+  "Anterior": { es: "Anterior", en: "Previous" },
+  "Finalizar": { es: "Finalizar", en: "Finish" },
+  "Completar": { es: "Completar", en: "Complete" },
+  "Otro": { es: "Otro", en: "Other" },
+  "Otros": { es: "Otros", en: "Others" },
+  "Especifique": { es: "Especifique", en: "Specify" },
+  "Por favor especifique": { es: "Por favor especifique", en: "Please specify" },
+  "Fecha": { es: "Fecha", en: "Date" },
+  "Hora": { es: "Hora", en: "Time" },
+  "Calificación": { es: "Calificación", en: "Rating" },
+  "Puntuación": { es: "Puntuación", en: "Score" },
+  "Clasificación": { es: "Clasificación", en: "Ranking" },
+  "Orden": { es: "Orden", en: "Order" },
+  "Prioridad": { es: "Prioridad", en: "Priority" },
+  "Archivo": { es: "Archivo", en: "File" },
+  "Subir archivo": { es: "Subir archivo", en: "Upload file" },
+  "Seleccionar archivo": { es: "Seleccionar archivo", en: "Select file" },
+  "Eliminar": { es: "Eliminar", en: "Delete" },
+  "Editar": { es: "Editar", en: "Edit" },
+  "Ver": { es: "Ver", en: "View" },
+  "Buscar": { es: "Buscar", en: "Search" },
+  "Filtrar": { es: "Filtrar", en: "Filter" },
+  "Limpiar": { es: "Limpiar", en: "Clear" },
+  "Exportar": { es: "Exportar", en: "Export" },
+  "Importar": { es: "Importar", en: "Import" },
+  "Copiar": { es: "Copiar", en: "Copy" },
+  "Copiado": { es: "Copiado", en: "Copied" },
+  "Cargando": { es: "Cargando", en: "Loading" },
+  "Error": { es: "Error", en: "Error" },
+  "Éxito": { es: "Éxito", en: "Success" },
+  "Advertencia": { es: "Advertencia", en: "Warning" },
+  "Información": { es: "Información", en: "Information" },
+  "Confirmar": { es: "Confirmar", en: "Confirm" },
+  "¿Está seguro?": { es: "¿Está seguro?", en: "Are you sure?" },
+  "Esta acción no se puede deshacer": { es: "Esta acción no se puede deshacer", en: "This action cannot be undone" },
+  "Sin resultados": { es: "Sin resultados", en: "No results" },
+  "No hay datos": { es: "No hay datos", en: "No data" },
+  "Ninguno": { es: "Ninguno", en: "None" },
+  "Todos": { es: "Todos", en: "All" },
+  "Ninguna": { es: "Ninguna", en: "None" },
+  "Cualquiera": { es: "Cualquiera", en: "Any" },
+  "Mínimo": { es: "Mínimo", en: "Minimum" },
+  "Máximo": { es: "Máximo", en: "Maximum" },
+  "Rango": { es: "Rango", en: "Range" },
+  "Valor": { es: "Valor", en: "Value" },
+  "Total": { es: "Total", en: "Total" },
+  "Promedio": { es: "Promedio", en: "Average" },
+  "Cantidad": { es: "Cantidad", en: "Quantity" },
+  "Número": { es: "Número", en: "Number" },
+  "Porcentaje": { es: "Porcentaje", en: "Percentage" },
+  "Estadísticas": { es: "Estadísticas", en: "Statistics" },
+  "Resultados": { es: "Resultados", en: "Results" },
+  "Respuestas": { es: "Respuestas", en: "Responses" },
+  "Encuestados": { es: "Encuestados", en: "Respondents" },
+  "Preguntas": { es: "Preguntas", en: "Questions" },
+  "Formularios": { es: "Formularios", en: "Forms" },
+  "Encuestas": { es: "Encuestas", en: "Surveys" },
+  "Panel": { es: "Panel", en: "Dashboard" },
+  "Configuración": { es: "Configuración", en: "Settings" },
+  "Perfil": { es: "Perfil", en: "Profile" },
+  "Cuenta": { es: "Cuenta", en: "Account" },
+  "Sesión": { es: "Sesión", en: "Session" },
+  "Iniciar sesión": { es: "Iniciar sesión", en: "Sign in" },
+  "Cerrar sesión": { es: "Cerrar sesión", en: "Sign out" },
+  "Registrarse": { es: "Registrarse", en: "Sign up" },
+  "Contraseña": { es: "Contraseña", en: "Password" },
+  "Confirmar contraseña": { es: "Confirmar contraseña", en: "Confirm password" },
+  "Olvidé mi contraseña": { es: "Olvidé mi contraseña", en: "Forgot my password" },
+  "Restablecer contraseña": { es: "Restablecer contraseña", en: "Reset password" },
+  "Código de verificación": { es: "Código de verificación", en: "Verification code" },
+  "Enviar código": { es: "Enviar código", en: "Send code" },
+  "Verificar": { es: "Verificar", en: "Verify" },
+  "Código inválido": { es: "Código inválido", en: "Invalid code" },
+  "Código expirado": { es: "Código expirado", en: "Code expired" },
+  "Nuevo código": { es: "Nuevo código", en: "New code" },
+  "Reenviar": { es: "Reenviar", en: "Resend" },
+  "Idioma": { es: "Idioma", en: "Language" },
+  "Español": { es: "Español", en: "Spanish" },
+  "Inglés": { es: "Inglés", en: "English" },
+  "Tema": { es: "Tema", en: "Theme" },
+  "Claro": { es: "Claro", en: "Light" },
+  "Oscuro": { es: "Oscuro", en: "Dark" },
+  "Sistema": { es: "Sistema", en: "System" },
+  "Notificaciones": { es: "Notificaciones", en: "Notifications" },
+  "Ayuda": { es: "Ayuda", en: "Help" },
+  "Soporte": { es: "Soporte", en: "Support" },
+  "Contacto": { es: "Contacto", en: "Contact" },
+  "Acerca de": { es: "Acerca de", en: "About" },
+  "Versión": { es: "Versión", en: "Version" },
+  "Licencia": { es: "Licencia", en: "License" },
+  "Términos": { es: "Términos", en: "Terms" },
+  "Privacidad": { es: "Privacidad", en: "Privacy" },
+  "Cookies": { es: "Cookies", en: "Cookies" },
+  "Acepto": { es: "Acepto", en: "I accept" },
+  "No acepto": { es: "No acepto", en: "I do not accept" },
+  // Placeholders
+  "Ej. Juan Pérez": { es: "Ej. Juan Pérez", en: "E.g. John Doe" },
+  "ejemplo@correo.com": { es: "ejemplo@correo.com", en: "example@email.com" },
+  "https://ejemplo.com": { es: "https://ejemplo.com", en: "https://example.com" },
+  "Escriba su respuesta": { es: "Escriba su respuesta", en: "Write your answer" },
+  "Escriba aquí": { es: "Escriba aquí", en: "Write here" },
+  "Seleccione...": { es: "Seleccione...", en: "Select..." },
+  "Seleccionar...": { es: "Seleccionar...", en: "Select..." },
+  "Buscar...": { es: "Buscar...", en: "Search..." },
+  "Filtrar...": { es: "Filtrar...", en: "Filter..." },
+  // Scale labels
+  "Muy en desacuerdo": { es: "Muy en desacuerdo", en: "Strongly disagree" },
+  "En desacuerdo": { es: "En desacuerdo", en: "Disagree" },
+  "Neutral": { es: "Neutral", en: "Neutral" },
+  "De acuerdo": { es: "De acuerdo", en: "Agree" },
+  "Muy de acuerdo": { es: "Muy de acuerdo", en: "Strongly agree" },
+  "Muy malo": { es: "Muy malo", en: "Very poor" },
+  "Malo": { es: "Malo", en: "Poor" },
+  "Regular": { es: "Regular", en: "Fair" },
+  "Bueno": { es: "Bueno", en: "Good" },
+  "Excelente": { es: "Excelente", en: "Excellent" },
+  "Nunca": { es: "Nunca", en: "Never" },
+  "Rara vez": { es: "Rara vez", en: "Rarely" },
+  "A veces": { es: "A veces", en: "Sometimes" },
+  "Frecuentemente": { es: "Frecuentemente", en: "Often" },
+  "Siempre": { es: "Siempre", en: "Always" },
+  "Nada importante": { es: "Nada importante", en: "Not important at all" },
+  "Poco importante": { es: "Poco importante", en: "Slightly important" },
+  "Medianamente importante": { es: "Medianamente importante", en: "Moderately important" },
+  "Muy importante": { es: "Muy importante", en: "Very important" },
+  "Extremadamente importante": { es: "Extremadamente importante", en: "Extremely important" },
+  // Validation messages
+  "Este campo es obligatorio": { es: "Este campo es obligatorio", en: "This field is required" },
+  "Formato de correo inválido": { es: "Formato de correo inválido", en: "Invalid email format" },
+  "Formato de URL inválido": { es: "Formato de URL inválido", en: "Invalid URL format" },
+  "Número de teléfono inválido": { es: "Número de teléfono inválido", en: "Invalid phone number" },
+  "La contraseña es muy corta": { es: "La contraseña es muy corta", en: "Password is too short" },
+  "Las contraseñas no coinciden": { es: "Las contraseñas no coinciden", en: "Passwords do not match" },
+  "Valor fuera de rango": { es: "Valor fuera de rango", en: "Value out of range" },
+  "Debe ser un número": { es: "Debe ser un número", en: "Must be a number" },
+  "Debe ser un correo válido": { es: "Debe ser un correo válido", en: "Must be a valid email" },
+  "Debe ser una URL válida": { es: "Debe ser una URL válida", en: "Must be a valid URL" },
+  "Longitud mínima no alcanzada": { es: "Longitud mínima no alcanzada", en: "Minimum length not reached" },
+  "Longitud máxima excedida": { es: "Longitud máxima excedida", en: "Maximum length exceeded" },
+  // Common form words
+  "Enviar formulario": { es: "Enviar formulario", en: "Submit form" },
+  "Formulario enviado": { es: "Formulario enviado", en: "Form submitted" },
+  "Gracias por su respuesta": { es: "Gracias por su respuesta", en: "Thank you for your response" },
+  "Su respuesta ha sido registrada": { es: "Su respuesta ha sido registrada", en: "Your response has been recorded" },
+  "Volver al inicio": { es: "Volver al inicio", en: "Back to home" },
+  "Ir al panel": { es: "Ir al panel", en: "Go to dashboard" },
+  "Crear nuevo": { es: "Crear nuevo", en: "Create new" },
+  "Nuevo formulario": { es: "Nuevo formulario", en: "New form" },
+  "Editar formulario": { es: "Editar formulario", en: "Edit form" },
+  "Duplicar formulario": { es: "Duplicar formulario", en: "Duplicate form" },
+  "Eliminar formulario": { es: "Eliminar formulario", en: "Delete form" },
+  "Publicar formulario": { es: "Publicar formulario", en: "Publish form" },
+  "Despublicar formulario": { es: "Despublicar formulario", en: "Unpublish form" },
+  "Compartir formulario": { es: "Compartir formulario", en: "Share form" },
+  "Copiar enlace": { es: "Copiar enlace", en: "Copy link" },
+  "Enlace copiado": { es: "Enlace copiado", en: "Link copied" },
+  "Vista previa": { es: "Vista previa", en: "Preview" },
+  "Modo vista previa": { es: "Modo vista previa", en: "Preview mode" },
+  "Los envíos están deshabilitados en vista previa": { es: "Los envíos están deshabilitados en vista previa", en: "Submissions are disabled in preview" },
+};
+
+export function resolveLocalizedText(value, lang, originalText = "") {
+  if (value == null) return originalText || "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    if (value[lang]) return value[lang];
+    return originalText || "";
+  }
+  return originalText || "";
+}
+
+export function getFormI18nValue(value, lang, baseText = "") {
+  if (value == null) return baseText;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return value[lang] ?? baseText;
+  return baseText;
+}
+
+export function setFormI18nValue(value, lang, text) {
+  const translations = value && typeof value === "object" ? value : {};
+  return { ...translations, [lang]: text };
+}
+
+export function setQuestionI18nValue(questionI18n, path, lang, text) {
+  if (!Array.isArray(path) || path.length === 0) {
+    throw new TypeError("A non-empty question translation path is required");
+  }
+
+  const updateAtPath = (current, index) => {
+    const record = current && typeof current === "object" && !Array.isArray(current)
+      ? current
+      : {};
+    const key = path[index];
+
+    if (index === path.length - 1) {
+      return { ...record, [key]: setFormI18nValue(record[key], lang, text) };
+    }
+
+    return { ...record, [key]: updateAtPath(record[key], index + 1) };
+  };
+
+  return updateAtPath(questionI18n, 0);
+}
