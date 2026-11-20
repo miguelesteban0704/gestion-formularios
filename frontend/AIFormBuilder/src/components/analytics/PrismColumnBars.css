@@ -169,7 +169,7 @@
   container-type: inline-size;
   isolation: isolate;
 }
-.pcb-col[data-active="true"] { z-index: 5; }
+.pcb-col.pcb-col--active { z-index: 5; }
 
 @supports not (width: 1cqw) {
   .pcb-col { --pcb-w: 40px; --pcb-u: 40px; }

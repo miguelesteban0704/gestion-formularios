@@ -1,5 +1,5 @@
-import { useEffect, useId, useRef, useState } from "react";
-import { useReducedMotion, useSpring } from "framer-motion";
+import { useEffect, useId, useRef } from "react";
+import { animate, useMotionValue, useReducedMotion } from "framer-motion";
 import { cn } from "../../lib/utils.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { useTheme } from "../../hooks/useTheme.js";
@@ -54,46 +54,50 @@ function buildAxis(maxVal) {
 }
 
 /* ── Una columna: canal rectangular con fluido ──────────────────────── */
-function Column({ target, label, value, align, active, reduce, filterId, caption, onEnter, onLeave }) {
+function Column({ target, label, value, align, caption, reduce, filterId }) {
   const colRef = useRef(null);
   const introRef = useRef(true);
-  const spring = useSpring(0, SPRING);
+  const fill = useMotionValue(0);
+  const [active, setActive] = useState(false);
 
-  // Nivel con resorte (idéntico a PrismBar, sobre `--pcb-fill`).
+  // Nivel con resorte (framer-motion nativo, sin @react-spring/web).
   useEffect(() => {
     const col = colRef.current;
     if (!col) return undefined;
 
     const paint = (v) => col.style.setProperty("--pcb-fill", clamp(v, 0, 1).toFixed(4));
 
+    // Sin movimiento: el nivel salta directo al valor final.
     if (reduce) {
       paint(target);
-      spring.jump?.(target);
       return undefined;
     }
 
-    const stop = spring.on("change", paint);
-    const timer = window.setTimeout(
-      () => {
-        introRef.current = false;
-        spring.set(target);
-      },
-      introRef.current ? INTRO_DELAY_MS : 0,
-    );
+    // Cancela cualquier animación previa del fill antes de lanzar la nueva.
+    fill.on("change", paint);
+
+    const animation = animate(fill, target, {
+      type: "spring",
+      stiffness: SPRING.stiffness,
+      damping: SPRING.damping,
+      mass: SPRING.mass,
+      delay: introRef.current ? INTRO_DELAY_MS / 1000 : 0,
+    });
+
+    introRef.current = false;
 
     return () => {
-      window.clearTimeout(timer);
-      stop();
+      animation.stop();
+      fill.off("change", paint);
     };
-  }, [reduce, spring, target]);
+  }, [reduce, target]);
 
   return (
     <div
       ref={colRef}
-      className="pcb-col"
-      data-active={active ? "true" : undefined}
-      onPointerEnter={onEnter}
-      onPointerLeave={onLeave}
+      className={cn("pcb-col", active ? "pcb-col--active" : undefined)}
+      onPointerEnter={() => setActive(true)}
+      onPointerLeave={() => setActive(false)}
     >
       {/* Cáusticas proyectadas: base (sigue al nivel) y reactiva (sigue al cursor). */}
       <span className="pcb-caustic pcb-caustic--base" aria-hidden="true" />
@@ -133,7 +137,7 @@ function Column({ target, label, value, align, active, reduce, filterId, caption
         </div>
       </div>
 
-      {/* Tooltip anclado a su columna (por eso la columna activa sube de z-index). */}
+      {/* Tooltip anclado a su columna (solo visible cuando está activa). */}
       {active && (
         <div className="pcb-tip" role="status" data-align={align} style={{ top: `max(${(1 - target) * 100}%, 70px)` }}>
           <div className="pcb-tip-tag"><i />{label}</div>
@@ -151,7 +155,6 @@ export default function PrismColumnBars({ data = [], dataKey = "count", xKey = "
   const reduce = useReducedMotion();
   const rootRef = useRef(null);
   const plotRef = useRef(null);
-  const [active, setActive] = useState(null);
 
   // useId devuelve `:r1:` / `«r1»` según la versión de React; esos caracteres
   // no son seguros dentro de `url(#…)`.
@@ -166,41 +169,46 @@ export default function PrismColumnBars({ data = [], dataKey = "count", xKey = "
   const h = Number.isFinite(height) ? Math.max(120, height) : DEFAULT_HEIGHT;
 
   // ── Reactividad al puntero (micro-elevación + brillo + cáustica) ─────
+  // Usa refs en lugar de estado para evitar re-renders de todas las columnas
+  // al pasar el mouse sobre una sola.
+  const lastRef = useRef(null);
+  const frameRef = useRef(0);
+
+  const flush = useCallback(() => {
+    frameRef.current = 0;
+    const root = rootRef.current;
+    const plot = plotRef.current;
+    const last = lastRef.current;
+    if (!last || !root || !plot) return;
+    const box = root.getBoundingClientRect();
+    const area = plot.getBoundingClientRect();
+    const card = root.closest("[data-pg-host], [data-pb-host], [data-pcb-host], .group") || root.parentElement;
+    if (!card) return;
+    const cbox = card.getBoundingClientRect();
+    // Posición a lo largo del tubo (0 = base, 1 = punta) para el destello;
+    // −1‒1 en cada eje para la inclinación (X sobre el gráfico, Y sobre la tarjeta).
+    const along = area.height ? (area.bottom - last.y) / area.height : 0.5;
+    const across = box.width ? ((last.x - box.left) / box.width) * 2 - 1 : 0;
+    const down = cbox.height ? ((last.y - cbox.top) / cbox.height) * 2 - 1 : 0;
+    root.style.setProperty("--pcb-ma", clamp(along, 0, 1).toFixed(3));
+    root.style.setProperty("--pcb-tx", clamp(across, -1, 1).toFixed(3));
+    root.style.setProperty("--pcb-ty", clamp(down, -1, 1).toFixed(3));
+  }, []);
+
   useEffect(() => {
     const root = rootRef.current;
     if (!root || reduce) return undefined;
 
-    // El anfitrión es la tarjeta del gráfico: `[data-pg-host]` (convención de
-    // PrismGauge), `[data-pb-host]`, `[data-pcb-host]` o, por defecto, el
-    // `.group` más cercano / el padre.
     const host =
       root.closest("[data-pg-host], [data-pb-host], [data-pcb-host]") || root.closest(".group") || root.parentElement;
     if (!host) return undefined;
 
-    let frame = 0;
-    let last = null;
-
-    const flush = () => {
-      frame = 0;
-      const plot = plotRef.current;
-      if (!last || !plot) return;
-      const box = root.getBoundingClientRect();
-      const area = plot.getBoundingClientRect();
-      const card = host.getBoundingClientRect();
-      // Posición a lo largo del tubo (0 = base, 1 = punta) para el destello;
-      // −1‒1 en cada eje para la inclinación (X sobre el gráfico, Y sobre la tarjeta).
-      const along = area.height ? (area.bottom - last.y) / area.height : 0.5;
-      const across = box.width ? ((last.x - box.left) / box.width) * 2 - 1 : 0;
-      const down = card.height ? ((last.y - card.top) / card.height) * 2 - 1 : 0;
-      root.style.setProperty("--pcb-ma", clamp(along, 0, 1).toFixed(3));
-      root.style.setProperty("--pcb-tx", clamp(across, -1, 1).toFixed(3));
-      root.style.setProperty("--pcb-ty", clamp(down, -1, 1).toFixed(3));
-    };
-
     const onMove = (e) => {
       if (e.pointerType === "touch") return;
-      last = { x: e.clientX, y: e.clientY };
-      if (!frame) frame = window.requestAnimationFrame(flush);
+      lastRef.current = { x: e.clientX, y: e.clientY };
+      if (!frameRef.current) {
+        frameRef.current = window.requestAnimationFrame(flush);
+      }
     };
     const onEnter = (e) => {
       if (e.pointerType === "touch") return;
@@ -208,9 +216,11 @@ export default function PrismColumnBars({ data = [], dataKey = "count", xKey = "
       onMove(e);
     };
     const onLeave = () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      frame = 0;
-      last = null;
+      if (frameRef.current) {
+        window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = 0;
+      }
+      lastRef.current = null;
       delete root.dataset.hover;
       // Vuelve al reposo: el CSS interpola gracias a @property.
       root.style.removeProperty("--pcb-ma");
@@ -222,13 +232,16 @@ export default function PrismColumnBars({ data = [], dataKey = "count", xKey = "
     host.addEventListener("pointermove", onMove);
     host.addEventListener("pointerleave", onLeave);
     return () => {
-      if (frame) window.cancelAnimationFrame(frame);
+      if (frameRef.current) {
+        window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = 0;
+      }
       host.removeEventListener("pointerenter", onEnter);
       host.removeEventListener("pointermove", onMove);
       host.removeEventListener("pointerleave", onLeave);
       delete root.dataset.hover;
     };
-  }, [reduce]);
+  }, [reduce, flush]);
 
   const last = rows.length - 1;
 
@@ -258,11 +271,8 @@ export default function PrismColumnBars({ data = [], dataKey = "count", xKey = "
             value={r.value}
             caption={t("responses")}
             align={i === 0 && last > 0 ? "start" : i === last && last > 0 ? "end" : "center"}
-            active={active === i}
             reduce={reduce}
             filterId={filterId}
-            onEnter={() => setActive(i)}
-            onLeave={() => setActive((cur) => (cur === i ? null : cur))}
           />
         ))}
       </div>
