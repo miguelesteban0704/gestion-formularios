@@ -1,39 +1,466 @@
-/* ═══════════════════════════════════════════════════════════════════════
-   PrismColumnBars — barras verticales premium "días concurridos".
-   Mismo lenguaje que PrismAreaChart: degradado cian→teal con pico dorado,
-   ejes Space Grotesk retroiluminados y tooltip de vidrio.
-   Clases `.pcb-`. Sin mix-blend-mode ni backdrop-filter anidados.
-   ═══════════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════════════
+   PrismColumnBars — «Días con más actividad». Columnas verticales 4D: cada
+   una es un canal RECTANGULAR de cristal de doble pared con fluido luminoso
+   (diseño de PrismBar girado 90°: origen abajo, punta arriba, luz a la
+   izquierda). Prefijo `.pcb-`. Claro/oscuro por `.pcb-light` / `.pcb-dark`.
+
+   Reglas de este archivo:
+   · Fluido al ancho de la tarjeta: `.pcb-plot` es un flex y cada `.pcb-col`
+     lleva `flex: 1 1 0`, así que el reparto es el mismo con 3 que con 7 días.
+   · Cada columna es su propio contenedor (`container-type: inline-size`): su
+     ancho real es `100cqw`. Pared, radio de esquina y halos se derivan de
+     `--pcb-u` = ancho de columna con tope de 44 px, para que una columna muy
+     ancha no engorde las paredes ni los destellos.
+   · Colores = los del componente anterior, solo como tokens `--pcb-*` en
+     `.pcb-root` (cian #22d3ee → verde agua #14d8c4 → #38e8d4 → ámbar #ffb84d;
+     track claro/oscuro). El JSX no escribe ningún color.
+   ══════════════════════════════════════════════════════════════════════ */
+
+@property --pcb-ma { syntax: "<number>"; inherits: true; initial-value: 0.7; }
+@property --pcb-tx { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --pcb-ty { syntax: "<number>"; inherits: true; initial-value: 0; }
+
+/* ── Raíz y tokens ─────────────────────────────────────────────────── */
 .pcb-root {
+  /* Paleta original del fluido. */
+  --pcb-cyan: #22d3ee;
+  --pcb-cyan-light: #67e8f9;
+  --pcb-teal: #14d8c4;
+  --pcb-teal-light: #38e8d4;
+  --pcb-gold: #ffb84d;
+  --pcb-gold-light: #ffd06b;
+
+  /* Derivados. `hot` ilumina el cuerpo; `tip-*` la punta (ámbar). */
+  --pcb-hot: color-mix(in srgb, var(--pcb-cyan-light) 45%, white);
+  --pcb-deep: color-mix(in srgb, var(--pcb-teal) 58%, black);
+  --pcb-tip-hot: color-mix(in srgb, var(--pcb-gold-light) 40%, white);
+  --pcb-tip-hi: color-mix(in srgb, var(--pcb-gold-light) 60%, white);
+
+  /* Medidas del layout. */
+  --pcb-gutter: 32px;                              /* eje Y */
+  --pcb-pad-top: 10px;
+  --pcb-label-h: 26px;                             /* fila de días */
+  --pcb-gap: clamp(6px, 3.5cqw, 16px);             /* separación entre columnas */
+  --pcb-tile: 96px;                                /* paso del patrón de ondas */
+
   position: relative;
+  display: block;
+  width: 100%;
+  height: var(--pcb-h, 230px);
+  container-type: inline-size;
+  isolation: isolate;
+  transition: --pcb-ma 0.22s ease-out, --pcb-tx 0.3s ease-out, --pcb-ty 0.3s ease-out;
+}
+
+/* Cristal — claro. */
+.pcb-light {
+  --pcb-track-a: rgba(14, 60, 90, 0.2);
+  --pcb-track-b: rgba(255, 255, 255, 0.55);
+  --pcb-edge: rgba(15, 23, 42, 0.14);
+  --pcb-inner-shadow: rgba(15, 23, 42, 0.34);
+  --pcb-drop: rgba(15, 23, 42, 0.26);
+  --pcb-rim: rgba(255, 255, 255, 0.95);
+  --pcb-rim-soft: rgba(255, 255, 255, 0.7);
+  --pcb-wall-line: rgba(15, 23, 42, 0.1);
+  --pcb-reflect: rgba(255, 255, 255, 0.8);
+  --pcb-wave-a: rgba(255, 255, 255, 0.34);
+  --pcb-wave-b: rgba(255, 255, 255, 0.24);
+  --pcb-wave-c: rgba(255, 255, 255, 0.14);
+  --pcb-caustic: 30%;
+  --pcb-glow: 34%;
+}
+
+/* Cristal — oscuro. */
+.pcb-dark {
+  --pcb-track-a: rgba(6, 22, 36, 0.78);
+  --pcb-track-b: rgba(255, 255, 255, 0.07);
+  --pcb-edge: rgba(255, 255, 255, 0.13);
+  --pcb-inner-shadow: rgba(0, 0, 0, 0.7);
+  --pcb-drop: rgba(0, 0, 0, 0.6);
+  --pcb-rim: rgba(255, 255, 255, 0.18);
+  --pcb-rim-soft: rgba(255, 255, 255, 0.2);
+  --pcb-wall-line: rgba(255, 255, 255, 0.1);
+  --pcb-reflect: rgba(255, 255, 255, 0.5);
+  --pcb-wave-a: rgba(255, 255, 255, 0.3);
+  --pcb-wave-b: rgba(255, 255, 255, 0.2);
+  --pcb-wave-c: rgba(255, 255, 255, 0.12);
+  --pcb-caustic: 42%;
+  --pcb-glow: 52%;
+}
+
+/* Contenedor del <filter>: debe existir en el DOM, pero no ocupa lugar. */
+.pcb-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ── Ejes, cuadrícula y etiquetas (mismos colores que antes) ───────── */
+.pcb-grid,
+.pcb-plot {
+  position: absolute;
+  left: var(--pcb-gutter);
+  right: 2px;
+  top: var(--pcb-pad-top);
+  bottom: var(--pcb-label-h);
+}
+.pcb-grid {
+  pointer-events: none;
+  border-left: 1px dashed rgba(148, 179, 214, 0.35);
+  border-bottom: 1px dashed rgba(148, 179, 214, 0.35);
+}
+.pcb-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed rgba(148, 179, 214, 0.1);
+}
+.pcb-ytick {
+  position: absolute;
+  right: calc(100% + 0px);
+  transform: translate(-6px, -50%);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  color: rgba(148, 179, 214, 0.35);
+  white-space: nowrap;
+}
+
+.pcb-labels {
+  position: absolute;
+  left: var(--pcb-gutter);
+  right: 2px;
+  bottom: 0;
+  height: calc(var(--pcb-label-h) - 4px);
+  display: flex;
+  gap: var(--pcb-gap);
+  padding-inline: var(--pcb-gap);
+  pointer-events: none;
+}
+.pcb-label {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: rgba(148, 179, 214, 0.35);
+}
+
+/* ── Columnas: se reparten el ancho de la tarjeta ──────────────────── */
+.pcb-plot {
+  display: flex;
+  align-items: stretch;
+  gap: var(--pcb-gap);
+  padding-inline: var(--pcb-gap);          /* aire entre el eje y la 1ª columna */
+}
+
+/* `--pcb-fill` (0‒1) lo escribe el resorte desde JS. Sin valor = vacío. */
+.pcb-col {
+  --pcb-w: 100cqw;                                               /* ancho real de la columna */
+  --pcb-u: min(100cqw, 44px);                                    /* unidad con tope */
+  --pcb-wall: clamp(2px, calc(var(--pcb-u) * 0.09), 4px);        /* pared de cristal */
+  --pcb-r: clamp(3px, calc(var(--pcb-u) * 0.1), 5px);            /* esquina del rectángulo */
+  --pcb-ri: max(1px, calc(var(--pcb-r) - var(--pcb-wall)));      /* esquina interior */
+
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  container-type: inline-size;
   isolation: isolate;
 }
-.pcb-glow {
-  position: absolute;
-  inset: 6px 2px 0;
-  z-index: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    70% 52% at 50% 0%,
-    rgba(34, 211, 238, 0.07),
-    transparent 66%
-  );
+.pcb-col[data-active="true"] { z-index: 5; }
+
+@supports not (width: 1cqw) {
+  .pcb-col { --pcb-w: 40px; --pcb-u: 40px; }
+  .pcb-root { --pcb-gap: 10px; }
 }
-.pcb-root .recharts-wrapper {
+
+/* ── Escenario 3D: micro-elevación al pasar el cursor por la tarjeta ── */
+.pcb-stage {
   position: relative;
-  z-index: 1;
+  height: 100%;
+  transform: perspective(560px) translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg);
+  transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.pcb-root[data-hover="true"] .pcb-stage {
+  transform: perspective(560px) translate3d(0, -1px, 5px)
+    rotateX(calc(var(--pcb-ty) * -5deg)) rotateY(calc(var(--pcb-tx) * 4deg));
 }
 
-.pcb-root .recharts-cartesian-axis-tick text {
-  font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  text-shadow: 0 0 8px rgba(120, 200, 255, 0.22);
+/* ── Tubo: pared exterior de cristal (rectángulo) ──────────────────── */
+.pcb-tube {
+  position: relative;
+  height: 100%;
+  border-radius: var(--pcb-r);
+  background: linear-gradient(90deg, var(--pcb-track-a), var(--pcb-track-b));
+  box-shadow:
+    inset 2px 0 3px -0.5px var(--pcb-inner-shadow),       /* sombra interior profunda */
+    inset -1px 0 1px var(--pcb-rim-soft),                  /* luz rebotada en el lado opuesto */
+    0 0 0 1px var(--pcb-edge),                             /* borde biselado */
+    1px 0 0 1px var(--pcb-rim),                            /* filo de luz junto al tubo */
+    5px 0 9px -5px var(--pcb-drop);                        /* elevación sobre la tarjeta */
+  transition: box-shadow 0.34s ease;
 }
-.pcb-light .recharts-cartesian-axis-tick text {
-  text-shadow: 0 0 6px rgba(8, 47, 73, 0.12);
+.pcb-root[data-hover="true"] .pcb-tube {
+  box-shadow:
+    inset 2px 0 3px -0.5px var(--pcb-inner-shadow),
+    inset -1px 0 1px var(--pcb-rim-soft),
+    0 0 0 1px var(--pcb-edge),
+    1px 0 0 1px var(--pcb-rim),
+    9px 0 14px -6px var(--pcb-drop);
 }
 
-/* ── Tooltip de vidrio ── */
+/* Canal: segunda pared (la interior), más oscura en el lado de la luz. */
+.pcb-well {
+  position: absolute;
+  inset: var(--pcb-wall);
+  border-radius: var(--pcb-ri);
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.1), transparent 55%);
+  box-shadow: inset 0 0 0 1px var(--pcb-wall-line);
+  pointer-events: none;
+}
+
+/* ── Fluido ────────────────────────────────────────────────────────── */
+.pcb-water {
+  position: absolute;
+  left: var(--pcb-wall);
+  right: var(--pcb-wall);
+  bottom: var(--pcb-wall);
+  height: calc((100% - 2 * var(--pcb-wall)) * var(--pcb-fill, 0));
+  border-radius: var(--pcb-ri);
+  overflow: hidden;
+  box-shadow: 0 0 calc(var(--pcb-u) * 0.9) -2px color-mix(in srgb, var(--pcb-teal) var(--pcb-glow), transparent);
+}
+.pcb-water > span { position: absolute; pointer-events: none; }
+
+/* Color: el degradado original (base → punta) más un modelado transversal. */
+.pcb-liquid {
+  inset: 0;
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, white 30%, transparent) 0%,
+      transparent 40%,
+      transparent 58%,
+      color-mix(in srgb, black 15%, transparent) 100%),
+    linear-gradient(0deg,
+      color-mix(in srgb, var(--pcb-cyan) 98%, transparent) 0%,
+      color-mix(in srgb, var(--pcb-teal) 95%, transparent) 35%,
+      color-mix(in srgb, var(--pcb-teal-light) 97%, transparent) 65%,
+      var(--pcb-gold) 100%);
+}
+
+/* Ondas internas: patrón que sube por el tubo + turbulencia SVG (filtro en JSX). */
+.pcb-flow-wrap { inset: 0; overflow: hidden; }
+.pcb-flow {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(100% + var(--pcb-tile));
+  background-image:
+    radial-gradient(ellipse 2.6px 22px at 30% 28px, var(--pcb-wave-a), transparent 100%),
+    radial-gradient(ellipse 2.2px 20px at 64% 70px, var(--pcb-wave-b), transparent 100%),
+    linear-gradient(10deg, transparent 0, transparent 34%, var(--pcb-wave-c) 50%, transparent 66%, transparent 100%);
+  background-size: 100% var(--pcb-tile);
+  background-repeat: repeat-y;
+  animation: pcb-flow 7s linear infinite;
+  will-change: transform;
+}
+
+/* Subsurface scattering: luz que atraviesa el fluido por el eje central. */
+.pcb-core {
+  inset: 0;
+  background: radial-gradient(78% 120% at 50% 50%, color-mix(in srgb, var(--pcb-hot) 70%, transparent), transparent 72%);
+  opacity: 0.55;
+}
+
+/* Sombra de profundidad en el lado opuesto a la luz. */
+.pcb-depth {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 42%;
+  background: linear-gradient(270deg, color-mix(in srgb, var(--pcb-deep) 34%, transparent), transparent);
+}
+
+/* Reflejo especular longitudinal en el borde del lado de la luz. */
+.pcb-spec {
+  left: 7%;
+  top: 5%;
+  bottom: 5%;
+  width: 24%;
+  border-radius: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.08));
+  -webkit-mask-image: linear-gradient(0deg, transparent, black 12%, black 86%, transparent);
+  mask-image: linear-gradient(0deg, transparent, black 12%, black 86%, transparent);
+  opacity: 0.85;
+}
+
+/* ── Menisco luminoso en la punta del valor ────────────────────────── */
+/* Mismo cálculo que `.pcb-water`: la punta es exactamente valor / maxAxis. */
+.pcb-meniscus {
+  position: absolute;
+  left: var(--pcb-wall);
+  right: var(--pcb-wall);
+  bottom: calc(var(--pcb-wall) + (100% - 2 * var(--pcb-wall)) * var(--pcb-fill, 0));
+  height: 0;
+  pointer-events: none;
+  opacity: calc(var(--pcb-fill, 0) * 24);   /* se apaga con el 0 */
+  z-index: 2;
+}
+.pcb-meniscus > span { position: absolute; }
+
+.pcb-meniscus-glow {
+  left: 50%;
+  top: 0;
+  width: calc(var(--pcb-u) * 1.6);
+  height: calc(var(--pcb-u) * 2.2);
+  border-radius: 50%;
+  transform: translate(-50%, -36%);
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--pcb-tip-hot) 85%, transparent) 0%,
+    color-mix(in srgb, var(--pcb-gold) var(--pcb-glow), transparent) 44%,
+    transparent 100%);
+  animation: pcb-glow 2.8s ease-in-out infinite;
+}
+
+/* Superficie del fluido: banda de luz plana en la punta (el rectángulo no
+   lleva domo), con un leve oleaje. */
+.pcb-meniscus-bead {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(var(--pcb-u) * 0.3);
+  transform: translateY(-10%);
+  border-radius: 2px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    color-mix(in srgb, var(--pcb-tip-hot) 78%, transparent) 38%,
+    transparent 100%);
+  animation: pcb-bead 3.2s ease-in-out infinite;
+}
+
+/* Destello en cruz que parpadea en la punta. */
+.pcb-flare {
+  left: 50%;
+  top: 2px;
+  width: calc(var(--pcb-u) * 1.5);
+  height: 1px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent, white, transparent);
+  opacity: 0;
+  animation: pcb-twinkle 3.6s ease-in-out infinite;
+}
+.pcb-flare::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  transform: rotate(90deg);
+}
+
+/* Micro-partículas: burbujas diminutas que suben hacia la punta. */
+.pcb-spark {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 3px 0.5px var(--pcb-tip-hi);
+  opacity: 0;
+  animation: pcb-spark 4.2s ease-in infinite;
+}
+.pcb-spark--1 { right: 18%; top: 4px;  animation-delay: 0s; }
+.pcb-spark--2 { right: 30%; top: 9px;  animation-delay: 0.9s; width: 1.5px; height: 1.5px; }
+.pcb-spark--3 { right: 12%; top: 14px; animation-delay: 1.7s; width: 2.5px; height: 2.5px; }
+.pcb-spark--4 { right: 40%; top: 6px;  animation-delay: 2.6s; width: 1.5px; height: 1.5px; }
+.pcb-spark--5 { right: 26%; top: 18px; animation-delay: 3.3s; }
+
+/* ── Pared frontal de cristal (sobre el fluido) ────────────────────── */
+.pcb-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--pcb-r);
+  pointer-events: none;
+  z-index: 3;
+  box-shadow: inset 0 0 0 1px var(--pcb-rim-soft);          /* bisel exterior */
+}
+.pcb-glass::before {                                          /* doble pared */
+  content: "";
+  position: absolute;
+  inset: calc(var(--pcb-wall) * 0.55);
+  border-radius: var(--pcb-ri);
+  box-shadow: inset 0 0 0 1px var(--pcb-wall-line);
+}
+.pcb-glass::after {                                           /* reflejo del cristal */
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 4%;
+  bottom: 4%;
+  width: 20%;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--pcb-reflect), transparent);
+  -webkit-mask-image: linear-gradient(0deg, transparent, black 10%, black 78%, transparent);
+  mask-image: linear-gradient(0deg, transparent, black 10%, black 78%, transparent);
+  opacity: 0.55;
+}
+
+/* Brillo especular que sigue al puntero a lo largo del tubo. */
+.pcb-glint {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--pcb-r);
+  pointer-events: none;
+  z-index: 4;
+  background: radial-gradient(ellipse 46% calc(var(--pcb-u) * 0.9) at 24% calc((1 - var(--pcb-ma)) * 100%),
+    rgba(255, 255, 255, 0.95), transparent 72%);
+  opacity: 0.28;
+  transition: opacity 0.3s ease;
+}
+.pcb-root[data-hover="true"] .pcb-glint { opacity: 0.9; }
+
+/* ── Cáusticas proyectadas sobre la tarjeta ────────────────────────── */
+.pcb-caustic {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(9px);
+}
+/* Base: charco de luz junto al tramo lleno; respira despacio. Cian + ámbar. */
+.pcb-caustic--base {
+  left: 50%;
+  bottom: var(--pcb-wall);
+  width: 120%;
+  height: calc((100% - 2 * var(--pcb-wall)) * var(--pcb-fill, 0));
+  background:
+    radial-gradient(ellipse 100% 60% at 0% 50%, color-mix(in srgb, var(--pcb-cyan) var(--pcb-caustic), transparent), transparent 74%),
+    radial-gradient(ellipse 80% 26% at 8% 22%, color-mix(in srgb, var(--pcb-tip-hot) 50%, transparent), transparent 72%);
+  animation: pcb-caustic 7s ease-in-out infinite;
+}
+/* Reactiva: mancha cálida que se desliza bajo el cursor, limitada al fluido. */
+.pcb-caustic--reactive {
+  left: calc(var(--pcb-w) * 0.6 + var(--pcb-tx) * var(--pcb-u) * 0.22);
+  bottom: calc(var(--pcb-wall) + (100% - 2 * var(--pcb-wall)) * min(var(--pcb-ma), var(--pcb-fill, 0)));
+  width: calc(var(--pcb-u) * 1.3);
+  height: calc(var(--pcb-u) * 4.5);
+  transform: translateY(50%);
+  background: radial-gradient(ellipse 100% 50% at 0% 50%, color-mix(in srgb, var(--pcb-tip-hot) 70%, transparent), color-mix(in srgb, var(--pcb-cyan) var(--pcb-caustic), transparent) 45%, transparent 74%);
+  filter: blur(11px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+/* Con valor 0 no hay fluido que ilumine: la mancha no aparece. */
+.pcb-root[data-hover="true"] .pcb-caustic--reactive { opacity: min(0.85, calc(var(--pcb-fill, 0) * 24)); }
+
+/* ── Tooltip de vidrio (anclado a su columna) ──────────────────────── */
 .pcb-tip {
+  position: absolute;
+  left: 50%;
+  z-index: 6;
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 10px));
   min-width: 122px;
   padding: 11px 14px 10px;
   border-radius: 14px;
@@ -47,6 +474,9 @@
     0 0 34px -8px rgba(34, 211, 238, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
+/* Primera / última columna: el tooltip crece hacia dentro del gráfico. */
+.pcb-tip[data-align="start"] { left: 0; transform: translate(0, calc(-100% - 10px)); }
+.pcb-tip[data-align="end"] { left: auto; right: 0; transform: translate(0, calc(-100% - 10px)); }
 .pcb-tip::before {
   content: "";
   position: absolute;
@@ -92,11 +522,75 @@
   color: #8fa3bd;
 }
 
+/* ── Animaciones ───────────────────────────────────────────────────── */
+@keyframes pcb-flow {
+  to { transform: translate3d(0, calc(var(--pcb-tile) * -1), 0); }
+}
+@keyframes pcb-glow {
+  0%, 100% { opacity: 0.65; transform: translate(-50%, -36%) scale(1); }
+  50%      { opacity: 1;    transform: translate(-50%, -36%) scale(1.1); }
+}
+@keyframes pcb-bead {
+  0%, 100% { border-radius: 2px; transform: translateY(-10%) scaleY(1); opacity: 1; }
+  50%      { border-radius: 3px 2px 3px 2px; transform: translateY(-16%) scaleY(0.9); opacity: 0.85; }
+}
+@keyframes pcb-twinkle {
+  0%, 62%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  74%           { opacity: 0.95; transform: translate(-50%, -50%) scale(1); }
+  88%           { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+}
+@keyframes pcb-spark {
+  0%   { opacity: 0;    transform: translate(0, 3px) scale(0.6); }
+  18%  { opacity: 0.9; }
+  60%  { opacity: 0.55; transform: translate(1.5px, -5px) scale(1); }
+  100% { opacity: 0;    transform: translate(-1px, -11px) scale(0.4); }
+}
+@keyframes pcb-caustic {
+  0%, 100% { transform: scale(1, 1); opacity: 0.9; }
+  50%      { transform: scale(0.92, 1.05); opacity: 1; }
+}
+
+/* ── Accesibilidad ─────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .pcb-root *,
-  .pcb-root *::before,
-  .pcb-root *::after {
-    animation: none !important;
-    transition: none !important;
-  }
+  .pcb-root,
+  .pcb-stage,
+  .pcb-tube,
+  .pcb-glint,
+  .pcb-caustic--reactive { transition: none !important; }
+
+  .pcb-flow,
+  .pcb-meniscus-glow,
+  .pcb-meniscus-bead,
+  .pcb-flare,
+  .pcb-spark,
+  .pcb-caustic--base { animation: none !important; }
+
+  .pcb-root[data-hover="true"] .pcb-stage { transform: none; }
+  .pcb-flare,
+  .pcb-spark { display: none; }
+}
+
+@media (prefers-contrast: more) {
+  .pcb-caustic,
+  .pcb-flare,
+  .pcb-spark { display: none; }
+  .pcb-tube { box-shadow: 0 0 0 1px currentColor; }
+  .pcb-flow-wrap { opacity: 0.5; }
+}
+
+/* Modo de colores forzados (Windows Alto Contraste): solo contorno + relleno. */
+@media (forced-colors: active) {
+  .pcb-tube { border: 1px solid CanvasText; box-shadow: none; background: Canvas; }
+  .pcb-water { forced-color-adjust: none; background: Highlight; box-shadow: none; }
+  .pcb-liquid, .pcb-flow-wrap, .pcb-core, .pcb-depth, .pcb-spec,
+  .pcb-glass, .pcb-glint, .pcb-well, .pcb-meniscus, .pcb-caustic { display: none; }
+}
+
+@media print {
+  .pcb-caustic,
+  .pcb-flare,
+  .pcb-spark,
+  .pcb-glint { display: none; }
+  .pcb-flow, .pcb-meniscus-glow, .pcb-meniscus-bead { animation: none; }
+  .pcb-stage { transform: none !important; }
 }

@@ -1,30 +1,36 @@
-import { useMemo } from "react";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
+import { useEffect, useId, useRef, useState } from "react";
+import { useReducedMotion, useSpring } from "framer-motion";
 import { cn } from "../../lib/utils.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { useTheme } from "../../hooks/useTheme.js";
 import "./PrismColumnBars.css";
 
 /* ────────────────────────────────────────────────────────────────────────
-   PrismColumnBars — "Días concurridos" premium.
-   Barras verticales de vidrio degradadas cian→teal; el pico máximo brilla
-   en ámbar dorado con glow (misma regla que PrismAreaChart). Ejes Space
-   Grotesk retroiluminados y tooltip de vidrio compacto.
-   Datos: [{ day, count }].
+   PrismColumnBars — «Días con más actividad». Cada columna es un canal
+   RECTANGULAR de cristal de doble pared con fluido luminoso (diseño 4D de
+   PrismBar, en vertical).
+
+   Layout fluido (v3):
+   · El gráfico ocupa el 100 % del ancho de la tarjeta. Las columnas se reparten
+     ese ancho con flexbox (`flex: 1 1 0`) para cualquier número de días; ya no
+     hay un viewBox fijo ni un ancho de tubo fijo.
+   · Alto = prop `height` (230 por defecto). Ejes, cuadrícula y etiquetas son
+     HTML (no SVG escalado), así que el texto no se deforma al cambiar el ancho.
+   · Los efectos (pared de cristal, halo, radio de esquina) se miden con
+     unidades de contenedor de CADA columna (`cqw`, con tope), de modo que se
+     ven igual de bien con 3 columnas anchas que con 7 estrechas.
+
+   Qué se conserva: colores (tokens `--pcb-*` en el CSS), resorte, menisco,
+   cáusticas, reactividad al puntero, tooltip y accesibilidad.
    ──────────────────────────────────────────────────────────────────────── */
-const CYAN = "#22d3ee";
-const CYAN_LIGHT = "#67e8f9";
-const GOLD = "#ffb84d";
-const GOLD_LIGHT = "#ffe29a";
+
+const DEFAULT_HEIGHT = 230;
+
+// Mismo resorte que PrismBar (ζ ≈ 0.79) y mismo retardo de entrada.
+const SPRING = { stiffness: 90, damping: 15, mass: 1 };
+const INTRO_DELAY_MS = 220;
+
+const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 
 function niceCeil(v) {
   if (!v || v <= 0) return 10;
@@ -33,6 +39,7 @@ function niceCeil(v) {
   const m = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : n <= 7.5 ? 7.5 : 10;
   return m * pow;
 }
+
 function buildAxis(maxVal) {
   const maxAxis = niceCeil(maxVal);
   const step =
@@ -46,98 +53,246 @@ function buildAxis(maxVal) {
   return { maxAxis, ticks };
 }
 
-export default function PrismColumnBars({ data = [], dataKey = "count", xKey = "day", height = 210, className }) {
-  const { t } = useLanguage();
-  const { isDark } = useTheme();
+/* ── Una columna: canal rectangular con fluido ──────────────────────── */
+function Column({ target, label, value, align, active, reduce, filterId, caption, onEnter, onLeave }) {
+  const colRef = useRef(null);
+  const introRef = useRef(true);
+  const spring = useSpring(0, SPRING);
 
-  const max = useMemo(() => Math.max(0, ...(data || []).map((d) => Number(d[dataKey]) || 0)), [data, dataKey]);
-  const { maxAxis, ticks } = useMemo(() => buildAxis(Math.max(4, max)), [max]);
+  // Nivel con resorte (idéntico a PrismBar, sobre `--pcb-fill`).
+  useEffect(() => {
+    const col = colRef.current;
+    if (!col) return undefined;
 
-  const renderTip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-    const value = Number(payload[0].value) || 0;
-    return (
-      <div className="pcb-tip" role="status">
-        <div className="pcb-tip-tag">
-          <i />
-          {label}
-        </div>
-        <div className="pcb-tip-val">{value.toLocaleString()}</div>
-        <div className="pcb-tip-lab">{t("responses")}</div>
-      </div>
+    const paint = (v) => col.style.setProperty("--pcb-fill", clamp(v, 0, 1).toFixed(4));
+
+    if (reduce) {
+      paint(target);
+      spring.jump?.(target);
+      return undefined;
+    }
+
+    const stop = spring.on("change", paint);
+    const timer = window.setTimeout(
+      () => {
+        introRef.current = false;
+        spring.set(target);
+      },
+      introRef.current ? INTRO_DELAY_MS : 0,
     );
-  };
+
+    return () => {
+      window.clearTimeout(timer);
+      stop();
+    };
+  }, [reduce, spring, target]);
 
   return (
-    <div className={cn("pcb-root", isDark ? "pcb-dark" : "pcb-light", className)}>
-      <div className="pcb-glow" aria-hidden="true" />
-      <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data} margin={{ left: -14, right: 4, top: 10, bottom: 0 }}>
-          <defs>
-            <linearGradient id="pcbFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={CYAN_LIGHT} stopOpacity={0.98} />
-              <stop offset="100%" stopColor={CYAN} stopOpacity={0.88} />
-            </linearGradient>
-            <linearGradient id="pcbGold" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={GOLD_LIGHT} stopOpacity={1} />
-              <stop offset="100%" stopColor={GOLD} stopOpacity={0.92} />
-            </linearGradient>
-            <filter id="pcbGlow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="5" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-          </defs>
+    <div
+      ref={colRef}
+      className="pcb-col"
+      data-active={active ? "true" : undefined}
+      onPointerEnter={onEnter}
+      onPointerLeave={onLeave}
+    >
+      {/* Cáusticas proyectadas: base (sigue al nivel) y reactiva (sigue al cursor). */}
+      <span className="pcb-caustic pcb-caustic--base" aria-hidden="true" />
+      <span className="pcb-caustic pcb-caustic--reactive" aria-hidden="true" />
 
-          <CartesianGrid
-            stroke={isDark ? "rgba(148,179,214,0.1)" : "rgba(100,116,139,0.16)"}
-            strokeDasharray="3 6"
-            vertical={false}
-          />
+      <div className="pcb-stage" aria-hidden="true">
+        <div className="pcb-tube">
+          {/* Canal: pared interior con sombra profunda (inset). */}
+          <span className="pcb-well" />
 
-          <XAxis
-            dataKey={xKey}
-            stroke={isDark ? "rgba(148,179,214,0.35)" : "rgba(100,116,139,0.45)"}
-            fontSize={11}
-            fontWeight={600}
-            tickLine={false}
-            axisLine={false}
-            dy={8}
-            tickMargin={4}
-          />
-          <YAxis
-            domain={[0, maxAxis]}
-            ticks={ticks}
-            allowDecimals={false}
-            stroke={isDark ? "rgba(148,179,214,0.35)" : "rgba(100,116,139,0.45)"}
-            fontSize={11}
-            fontWeight={600}
-            width={34}
-            tickLine={false}
-            axisLine={false}
-          />
-          <Tooltip
-            content={renderTip}
-            cursor={{ fill: "rgba(34,211,238,0.06)", radius: 10 }}
-          />
+          {/* Fluido: capas de profundidad, de abajo hacia arriba. */}
+          <div className="pcb-water">
+            <span className="pcb-liquid" />
+            <span className="pcb-flow-wrap" style={{ filter: `url(#${filterId})` }}>
+              <span className="pcb-flow" />
+            </span>
+            <span className="pcb-core" />
+            <span className="pcb-depth" />
+            <span className="pcb-spec" />
+          </div>
 
-          <Bar dataKey={dataKey} radius={[8, 8, 3, 3]} barSize={28} isAnimationActive animationDuration={1100} animationEasing="ease-out">
-            {data.map((d, i) => {
-              const isPeak = max > 0 && (Number(d[dataKey]) || 0) === max;
-              return (
-                <Cell
-                  key={i}
-                  fill={isPeak ? "url(#pcbGold)" : "url(#pcbFill)"}
-                  style={{
-                    filter: isPeak
-                      ? "drop-shadow(0 6px 14px rgba(255,184,77,0.35)) url(#pcbGlow)"
-                      : "drop-shadow(0 4px 10px rgba(6,182,212,0.25))",
-                  }}
+          {/* Menisco luminoso en la punta exacta del valor. */}
+          <span className="pcb-meniscus">
+            <span className="pcb-meniscus-glow" />
+            <span className="pcb-meniscus-bead" />
+            <span className="pcb-flare" />
+            <span className="pcb-spark pcb-spark--1" />
+            <span className="pcb-spark pcb-spark--2" />
+            <span className="pcb-spark pcb-spark--3" />
+            <span className="pcb-spark pcb-spark--4" />
+            <span className="pcb-spark pcb-spark--5" />
+          </span>
+
+          {/* Pared frontal de cristal: bisel doble y reflejos por encima del fluido. */}
+          <span className="pcb-glass" />
+          <span className="pcb-glint" />
+        </div>
+      </div>
+
+      {/* Tooltip anclado a su columna (por eso la columna activa sube de z-index). */}
+      {active && (
+        <div className="pcb-tip" role="status" data-align={align} style={{ top: `max(${(1 - target) * 100}%, 70px)` }}>
+          <div className="pcb-tip-tag"><i />{label}</div>
+          <div className="pcb-tip-val">{value.toLocaleString()}</div>
+          <div className="pcb-tip-lab">{caption}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function PrismColumnBars({ data = [], dataKey = "count", xKey = "day", height = DEFAULT_HEIGHT, className }) {
+  const { t } = useLanguage();
+  const { isDark } = useTheme();
+  const reduce = useReducedMotion();
+  const rootRef = useRef(null);
+  const plotRef = useRef(null);
+  const [active, setActive] = useState(null);
+
+  // useId devuelve `:r1:` / `«r1»` según la versión de React; esos caracteres
+  // no son seguros dentro de `url(#…)`.
+  const filterId = `pcb-flow-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+
+  const rows = (data || []).map((d) => ({
+    label: d?.[xKey],
+    value: Number(d?.[dataKey]) || 0,
+  }));
+  const max = Math.max(0, ...rows.map((r) => r.value));
+  const { maxAxis, ticks } = buildAxis(Math.max(4, max));
+  const h = Number.isFinite(height) ? Math.max(120, height) : DEFAULT_HEIGHT;
+
+  // ── Reactividad al puntero (micro-elevación + brillo + cáustica) ─────
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || reduce) return undefined;
+
+    // El anfitrión es la tarjeta del gráfico: `[data-pg-host]` (convención de
+    // PrismGauge), `[data-pb-host]`, `[data-pcb-host]` o, por defecto, el
+    // `.group` más cercano / el padre.
+    const host =
+      root.closest("[data-pg-host], [data-pb-host], [data-pcb-host]") || root.closest(".group") || root.parentElement;
+    if (!host) return undefined;
+
+    let frame = 0;
+    let last = null;
+
+    const flush = () => {
+      frame = 0;
+      const plot = plotRef.current;
+      if (!last || !plot) return;
+      const box = root.getBoundingClientRect();
+      const area = plot.getBoundingClientRect();
+      const card = host.getBoundingClientRect();
+      // Posición a lo largo del tubo (0 = base, 1 = punta) para el destello;
+      // −1‒1 en cada eje para la inclinación (X sobre el gráfico, Y sobre la tarjeta).
+      const along = area.height ? (area.bottom - last.y) / area.height : 0.5;
+      const across = box.width ? ((last.x - box.left) / box.width) * 2 - 1 : 0;
+      const down = card.height ? ((last.y - card.top) / card.height) * 2 - 1 : 0;
+      root.style.setProperty("--pcb-ma", clamp(along, 0, 1).toFixed(3));
+      root.style.setProperty("--pcb-tx", clamp(across, -1, 1).toFixed(3));
+      root.style.setProperty("--pcb-ty", clamp(down, -1, 1).toFixed(3));
+    };
+
+    const onMove = (e) => {
+      if (e.pointerType === "touch") return;
+      last = { x: e.clientX, y: e.clientY };
+      if (!frame) frame = window.requestAnimationFrame(flush);
+    };
+    const onEnter = (e) => {
+      if (e.pointerType === "touch") return;
+      root.dataset.hover = "true";
+      onMove(e);
+    };
+    const onLeave = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = 0;
+      last = null;
+      delete root.dataset.hover;
+      // Vuelve al reposo: el CSS interpola gracias a @property.
+      root.style.removeProperty("--pcb-ma");
+      root.style.removeProperty("--pcb-tx");
+      root.style.removeProperty("--pcb-ty");
+    };
+
+    host.addEventListener("pointerenter", onEnter);
+    host.addEventListener("pointermove", onMove);
+    host.addEventListener("pointerleave", onLeave);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      host.removeEventListener("pointerenter", onEnter);
+      host.removeEventListener("pointermove", onMove);
+      host.removeEventListener("pointerleave", onLeave);
+      delete root.dataset.hover;
+    };
+  }, [reduce]);
+
+  const last = rows.length - 1;
+
+  return (
+    <div
+      ref={rootRef}
+      className={cn("pcb-root", isDark ? "pcb-dark" : "pcb-light", className)}
+      style={{ "--pcb-h": `${h}px` }}
+      role="img"
+      aria-label={t("busiestDays") || "busiestDays"}
+    >
+      {/* Ejes y cuadrícula (HTML: el texto no se deforma con el ancho). */}
+      <div className="pcb-grid" aria-hidden="true">
+        {ticks.map((tick) => (
+          <span key={tick} className="pcb-gridline" style={{ bottom: `${(clamp(tick / maxAxis, 0, 1)) * 100}%` }}>
+            <span className="pcb-ytick">{tick}</span>
+          </span>
+        ))}
+      </div>
+
+      <div ref={plotRef} className="pcb-plot">
+        {rows.map((r, i) => (
+          <Column
+            key={i}
+            target={clamp(r.value / maxAxis, 0, 1)}
+            label={r.label}
+            value={r.value}
+            caption={t("responses")}
+            align={i === 0 && last > 0 ? "start" : i === last && last > 0 ? "end" : "center"}
+            active={active === i}
+            reduce={reduce}
+            filterId={filterId}
+            onEnter={() => setActive(i)}
+            onLeave={() => setActive((cur) => (cur === i ? null : cur))}
+          />
+        ))}
+      </div>
+
+      <div className="pcb-labels" aria-hidden="true">
+        {rows.map((r, i) => (
+          <span key={i} className="pcb-label">{r.label}</span>
+        ))}
+      </div>
+
+      {/* Turbulencia para las ondas internas. Con reduced-motion queda estática.
+          Frecuencias de PrismBar giradas 90°: lento a lo largo del tubo (y),
+          fino a lo ancho (x). */}
+      <svg className="pcb-defs" width="0" height="0" aria-hidden="true" focusable="false">
+        <defs>
+          <filter id={filterId} x="-40%" y="-5%" width="180%" height="110%" colorInterpolationFilters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.045 0.012" numOctaves="2" seed="7" result="noise">
+              {!reduce && (
+                <animate
+                  attributeName="baseFrequency"
+                  dur="16s"
+                  repeatCount="indefinite"
+                  values="0.045 0.012;0.055 0.02;0.043 0.014;0.045 0.012"
                 />
-              );
-            })}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+              )}
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+      </svg>
     </div>
   );
 }

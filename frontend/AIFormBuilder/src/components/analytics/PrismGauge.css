@@ -1,10 +1,25 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   PrismGauge — "Tasa de finalización" premium.
-   Aro de vidrio degradado cian→dorado con halo, cap dot luminoso y centro
-   retroiluminado (mismo lenguaje que PrismDonut). Clases `.pg-`.
-   Única animación continua: el respiro suave del valor (1 elemento).
+   PrismGauge — "Tasa de finalización" 4D.
+   Agua coloreada en tubo de cristal semicircular de doble pared.
+   Prefijo `.pg-`. Todos los colores son tokens (los hex solo viven aquí).
+   Variables dinámicas: --pg-pct (0–1), --pg-mx / --pg-my (cursor, −1…1).
    ═══════════════════════════════════════════════════════════════════════ */
+
 .pg-root {
+  /* paleta de datos (cian → verde agua → ámbar) */
+  --pg-cyan: #22d3ee;
+  --pg-cyan-light: #67e8f9;
+  --pg-teal: #2ec4b6;
+  --pg-teal-deep: #0891b2;
+  --pg-gold: #ffb84d;
+  --pg-gold-deep: #d97706;
+  --pg-white: #ffffff;
+  --pg-black: #000000;
+
+  --pg-mx: 0;
+  --pg-my: 0;
+  --pg-pct: 0;
+
   position: relative;
   width: 100%;
   max-width: 230px;
@@ -14,40 +29,165 @@
   align-items: center;
 }
 
-/* Halo ambiente tras el arco */
-.pg-halo {
+/* ── Tokens por tema ── */
+.pg-dark {
+  --pg-track-a: rgba(6, 22, 36, 0.78);
+  --pg-track-b: rgba(255, 255, 255, 0.07);
+  --pg-glass-hi: rgba(255, 255, 255, 0.2);
+  --pg-glass-lo: rgba(160, 215, 240, 0.07);
+  --pg-drop: rgba(0, 0, 0, 0.55);
+  --pg-inset: rgba(0, 0, 0, 0.7);
+  --pg-rim: rgba(255, 255, 255, 0.5);
+  --pg-rim-soft: rgba(255, 255, 255, 0.18);
+  --pg-caustic-a: color-mix(in srgb, var(--pg-cyan) 30%, transparent);
+  --pg-caustic-b: color-mix(in srgb, var(--pg-gold) 24%, transparent);
+  --pg-caustic-c: color-mix(in srgb, var(--pg-teal) 20%, transparent);
+  --pg-val-color: #ffffff;
+  --pg-val-shadow: 0 0 20px rgba(103, 232, 249, 0.6), 0 0 50px rgba(34, 211, 238, 0.35);
+  --pg-suffix-color: #ffd687;
+  --pg-suffix-shadow: 0 0 14px rgba(255, 184, 77, 0.6);
+  --pg-lab-color: #94b3c8;
+  --pg-lab-shadow: 0 0 12px rgba(120, 200, 255, 0.4);
+}
+
+.pg-light {
+  --pg-track-a: rgba(14, 60, 90, 0.2);
+  --pg-track-b: rgba(255, 255, 255, 0.55);
+  --pg-glass-hi: rgba(255, 255, 255, 0.85);
+  --pg-glass-lo: rgba(120, 190, 220, 0.2);
+  --pg-drop: rgba(8, 60, 90, 0.32);
+  --pg-inset: rgba(8, 50, 80, 0.5);
+  --pg-rim: rgba(255, 255, 255, 0.95);
+  --pg-rim-soft: rgba(8, 90, 130, 0.22);
+  --pg-caustic-a: color-mix(in srgb, var(--pg-teal-deep) 26%, transparent);
+  --pg-caustic-b: color-mix(in srgb, var(--pg-gold-deep) 20%, transparent);
+  --pg-caustic-c: color-mix(in srgb, var(--pg-teal-deep) 14%, transparent);
+  --pg-val-color: #0b1626;
+  --pg-val-shadow: 0 0 16px rgba(8, 145, 178, 0.55), 0 0 40px rgba(34, 211, 238, 0.3);
+  --pg-suffix-color: #b45309;
+  --pg-suffix-shadow: 0 0 12px rgba(217, 119, 6, 0.4);
+  --pg-lab-color: #475569;
+  --pg-lab-shadow: 0 0 10px rgba(8, 145, 178, 0.25);
+}
+
+/* ── Cáusticas proyectadas sobre el fondo de la tarjeta ── */
+.pg-caustic {
   position: absolute;
   left: 50%;
-  top: 58px;
-  transform: translate(-50%, -50%);
-  width: 168px;
-  height: 112px;
+  bottom: -14px;
+  width: 210px;
+  height: 54px;
   border-radius: 50%;
-  z-index: 0;
   pointer-events: none;
+  z-index: 0;
+  opacity: calc(var(--pg-pct) * 0.9);
   background:
-    radial-gradient(62% 62% at 38% 42%, rgba(34, 211, 238, 0.14), transparent 70%),
-    radial-gradient(58% 58% at 68% 56%, rgba(255, 184, 77, 0.1), transparent 70%);
+    radial-gradient(48% 52% at 30% 40%, var(--pg-caustic-a), transparent 68%),
+    radial-gradient(44% 48% at 68% 55%, var(--pg-caustic-b), transparent 68%),
+    radial-gradient(38% 40% at 50% 50%, var(--pg-caustic-c), transparent 72%);
+  filter: blur(16px);
+  transform: translateX(-50%) translate(calc(var(--pg-mx) * -10px), calc(var(--pg-my) * -5px));
+  transition: transform 0.25s ease-out, opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: pg-caustic-shimmer 7s ease-in-out infinite;
+}
+
+.pg-caustic--reactive {
+  z-index: 1;
+  width: 150px;
+  height: 40px;
+  bottom: -6px;
+  opacity: 0;
+  background:
+    radial-gradient(50% 50% at 40% 40%, var(--pg-caustic-a), transparent 62%),
+    radial-gradient(45% 45% at 62% 52%, var(--pg-caustic-b), transparent 62%);
+  filter: blur(20px);
+  transform: translateX(-50%) translate(calc(var(--pg-mx) * 22px), calc(var(--pg-my) * 9px));
+  animation: none;
+}
+
+.pg-root[data-hover="true"] .pg-caustic--reactive {
+  opacity: calc(var(--pg-pct) * 0.85);
+}
+
+@keyframes pg-caustic-shimmer {
+  0%, 100% { scale: 1 1; }
+  50% { scale: 1.08 0.92; }
+}
+
+/* ── Escena 3D: inclinación según el cursor ── */
+.pg-stage {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  transform: perspective(800px) rotateX(calc(var(--pg-my) * -7deg)) rotateY(calc(var(--pg-mx) * 8deg));
+  transition: transform 0.2s ease-out;
+  will-change: transform;
 }
 
 .pg-svg {
-  position: relative;
-  z-index: 1;
+  display: block;
   width: 100%;
   overflow: visible;
 }
 
-/* Track de vidrio */
-.pg-track {
-  stroke: rgba(148, 179, 214, 0.14);
-  transition: stroke 0.3s ease;
+/* ── Tubo de cristal ── */
+.pg-bevel { stroke-linecap: round; }
+.pg-bevel--out { stroke: var(--pg-rim); opacity: 0.55; }
+.pg-bevel--in { stroke: var(--pg-rim-soft); }
+
+/* ── Agua ── */
+.pg-core { opacity: 0.7; }
+.pg-depth { stroke: var(--pg-black); opacity: 0.28; }
+.pg-spec { stroke: var(--pg-white); opacity: 0.6; }
+.pg-underglow { opacity: 0.22; }
+.pg-front { pointer-events: none; }
+
+/* ── Menisco y burbujas ── */
+.pg-tip-tint {
+  stroke: var(--pg-gold);
+  opacity: 0.38;
+}
+.pg-light .pg-tip-tint { stroke: var(--pg-gold-deep); opacity: 0.3; }
+
+/* el menisco toma el color del agua en la punta (cian → verde agua → ámbar) */
+.pg-meniscus {
+  fill: color-mix(in srgb, var(--pg-gold) calc(var(--pg-tip, 0) * 1%), var(--pg-teal));
+  fill-opacity: 0.85;
+  stroke: color-mix(in srgb, var(--pg-gold) calc(var(--pg-tip, 0) * 1%), var(--pg-cyan-light));
+  stroke-width: 0.6;
+}
+.pg-meniscus-sheen { pointer-events: none; }
+.pg-meniscus-spec { fill: var(--pg-white); opacity: 0.55; }
+
+.pg-bubble {
+  fill: var(--pg-white);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pg-bubble-rise 4s ease-in infinite;
 }
 
-/* Centro retroiluminado */
+@keyframes pg-bubble-rise {
+  0%   { transform: translate(0, 4px) scale(0.6); opacity: 0; }
+  20%  { opacity: 0.75; }
+  60%  { transform: translate(1.2px, -4px) scale(1); opacity: 0.5; }
+  100% { transform: translate(-0.8px, -10px) scale(0.4); opacity: 0; }
+}
+
+/* ── Brillo especular del vidrio: sigue al cursor ── */
+.pg-glint {
+  stroke: var(--pg-white);
+  opacity: 0.8;
+  stroke-dashoffset: calc(-0.42 + var(--pg-mx) * -0.34);
+  transition: stroke-dashoffset 0.25s ease-out;
+}
+.pg-glint--wide { opacity: 0.28; }
+
+/* ── Centro: valor + etiqueta ── */
 .pg-center {
   position: relative;
-  z-index: 2;
-  margin-top: -34px;
+  z-index: 10;
+  margin-top: -38px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -55,58 +195,71 @@
   pointer-events: none;
   animation: pg-breathe 3.6s ease-in-out infinite;
 }
+
 @keyframes pg-breathe {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+  50% { opacity: 0.82; }
 }
+
 .pg-val {
   font-family: "Space Grotesk", ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 32px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.03em;
-  color: #ffffff;
-  text-shadow:
-    0 0 18px rgba(103, 232, 249, 0.55),
-    0 0 42px rgba(34, 211, 238, 0.3);
+  color: var(--pg-val-color);
+  text-shadow: var(--pg-val-shadow);
 }
+
 .pg-suffix {
   font-size: 17px;
   font-weight: 700;
   margin-left: 2px;
-  color: #ffd687;
-  text-shadow: 0 0 12px rgba(255, 184, 77, 0.55);
+  color: var(--pg-suffix-color);
+  text-shadow: var(--pg-suffix-shadow);
 }
+
 .pg-lab {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: #8fa3bd;
-  text-shadow: 0 0 10px rgba(120, 200, 255, 0.35);
+  color: var(--pg-lab-color);
+  text-shadow: var(--pg-lab-shadow);
 }
 
-/* Variante clara */
-.pg-light .pg-track {
-  stroke: rgba(100, 116, 139, 0.18);
-}
-.pg-light .pg-val {
-  color: #0b1626;
-  text-shadow:
-    0 0 14px rgba(8, 145, 178, 0.5),
-    0 0 34px rgba(34, 211, 238, 0.28);
-}
-.pg-light .pg-suffix {
-  color: #b45309;
-  text-shadow: 0 0 10px rgba(217, 119, 6, 0.35);
-}
-.pg-light .pg-lab {
-  color: #475569;
-  text-shadow: 0 0 8px rgba(8, 145, 178, 0.2);
-}
-
+/* ── Accesibilidad ── */
 @media (prefers-reduced-motion: reduce) {
-  .pg-center {
+  .pg-center,
+  .pg-caustic,
+  .pg-bubble {
     animation: none !important;
   }
+  .pg-bubble { opacity: 0.4; }
+  .pg-stage,
+  .pg-caustic,
+  .pg-glint {
+    transform: none;
+    transition: none !important;
+  }
+  .pg-caustic { transform: translateX(-50%); }
+  .pg-caustic--reactive { display: none; }
+}
+
+@media (prefers-contrast: high) {
+  .pg-caustic { display: none; }
+  .pg-val, .pg-suffix, .pg-lab { text-shadow: none; }
+  .pg-bevel--out { opacity: 1; }
+}
+
+@media (max-width: 360px) {
+  .pg-root { max-width: 200px; }
+  .pg-val { font-size: 28px; }
+  .pg-suffix { font-size: 15px; }
+  .pg-caustic { width: 170px; height: 44px; }
+}
+
+@media print {
+  .pg-caustic { display: none; }
+  .pg-stage { transform: none; }
 }

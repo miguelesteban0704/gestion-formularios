@@ -2,6 +2,7 @@ import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { cn } from "../../lib/utils.js";
 import { StatTooltip } from "../ui/Card.jsx";
 import { motion } from "framer-motion";
+import PrismBar from "./PrismBar.jsx";
 
 // `brand` es la única entrada que sigue a la marca; el resto son acentos
 // fijos para distinguir series de datos y no deben cambiar con el tema.
@@ -69,13 +70,8 @@ export function KpiCard({ icon: Icon, label, value, sub, accent = "brand", spark
       </div>
 
       {progress != null && (
-        <div className="relative z-10 mt-5 h-2 w-full overflow-hidden rounded-full bg-slate-100 p-0.5 shadow-inner dark:bg-slate-800 dark:shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-            className={cn("h-full rounded-full bg-gradient-to-r shadow-sm dark:shadow-[0_0_12px_rgba(255,255,255,0.08)]", a.bar, a.barGlow)}
-          />
+        <div className="relative z-10 mt-5">
+          <PrismBar value={progress} accent={accent} height={14} label={label} />
         </div>
       )}
 

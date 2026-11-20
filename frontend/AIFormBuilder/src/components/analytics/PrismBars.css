@@ -157,3 +157,379 @@
     transition: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Funnel 4D — cápsulas de cristal con fluido luminoso. Prefijo `.fn-`.
+   Solo lo usa Funnel.jsx; las reglas `.pb-*` de arriba (PrismBars) NO cambian.
+   Funnel reutiliza `.pb-row/.pb-name/.pb-count/.pb-pill` y las sobrescribe
+   aquí con `.fn-list .fn-row` (mayor especificidad). Variables dinámicas por
+   fila: --fn-mx/--fn-my (−1…1) y --fn-px/--fn-py (%), escritas por JS sin
+   estado React. Los hex viven solo en estos tokens (qa:brand).
+   ═══════════════════════════════════════════════════════════════════════ */
+.fn-list {
+  --fn-white: #ffffff;
+  --fn-black: #000000;
+  /* paleta por etapa (idéntica a la original) */
+  --fn-views-light: #94a3b8;
+  --fn-views-base: #64748b;
+  --fn-views-deep: #334155;
+  --fn-responses-light: #ffd687;
+  --fn-responses-base: #ffb84d;
+  --fn-responses-deep: #d97706;
+  --fn-completed-light: #67e8f9;
+  --fn-completed-base: #06b6d4;
+  --fn-completed-deep: #0e7490;
+}
+
+.fn-s-views { --fl: var(--fn-views-light); --fb: var(--fn-views-base); --fd: var(--fn-views-deep); }
+.fn-s-responses { --fl: var(--fn-responses-light); --fb: var(--fn-responses-base); --fd: var(--fn-responses-deep); }
+.fn-s-completed { --fl: var(--fn-completed-light); --fb: var(--fn-completed-base); --fd: var(--fn-completed-deep); }
+
+/* ── Tokens por tema ── */
+.fn-dark {
+  --fn-row-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 42%), rgba(15, 23, 42, 0.5);
+  --fn-row-border: rgba(148, 179, 214, 0.18);
+  --fn-row-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.35), 0 10px 22px -16px rgba(0, 0, 0, 0.8);
+  --fn-wall-b: rgba(148, 179, 214, 0.28);
+  --fn-wall-bg: rgba(15, 23, 42, 0.72);
+  --fn-chan-bg: rgba(5, 10, 20, 0.78);
+  --fn-inset: rgba(0, 0, 0, 0.85);
+  --fn-rim: rgba(255, 255, 255, 0.2);
+  --fn-rim-soft: rgba(255, 255, 255, 0.1);
+  --fn-drop: rgba(0, 0, 0, 0.7);
+  --fn-spec: rgba(255, 255, 255, 0.1);
+  --fn-link-op: 0.7;
+}
+.fn-light {
+  --fn-row-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.55) 60%), rgba(248, 250, 252, 0.9);
+  --fn-row-border: rgba(100, 116, 139, 0.2);
+  --fn-row-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(100, 116, 139, 0.12), 0 10px 22px -16px rgba(15, 23, 42, 0.3);
+  --fn-wall-b: rgba(100, 116, 139, 0.4);
+  --fn-wall-bg: rgba(241, 245, 249, 0.88);
+  --fn-chan-bg: rgba(203, 213, 225, 0.72);
+  --fn-inset: rgba(15, 23, 42, 0.38);
+  --fn-rim: rgba(255, 255, 255, 0.95);
+  --fn-rim-soft: rgba(255, 255, 255, 0.65);
+  --fn-drop: rgba(15, 23, 42, 0.35);
+  --fn-spec: rgba(255, 255, 255, 0.7);
+  --fn-link-op: 0.85;
+}
+
+/* ── Cápsula de etapa (glassmorphism multicapa + profundidad Z) ── */
+.fn-list .fn-row {
+  position: relative;
+  background: var(--fn-row-bg);
+  border-color: var(--fn-row-border);
+  box-shadow: var(--fn-row-shadow);
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.2s ease-out;
+}
+.fn-list .fn-row:hover {
+  transform: perspective(720px) translateZ(0) rotateX(calc(var(--fn-my, 0) * -3deg)) rotateY(calc(var(--fn-mx, 0) * 4deg)) translateY(-1px);
+  border-color: color-mix(in srgb, var(--fb) 42%, transparent);
+  box-shadow:
+    var(--fn-row-shadow),
+    0 0 0 1px color-mix(in srgb, var(--fb) 25%, transparent),
+    0 0 28px -8px color-mix(in srgb, var(--fb) 60%, transparent);
+}
+/* borde especular + brillo que sigue al cursor */
+.fn-list .fn-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(170px 80px at var(--fn-px, 50%) var(--fn-py, 0%), var(--fn-spec), transparent 72%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.fn-list .fn-row:hover::before { opacity: 1; }
+.fn-list .fn-row::after {
+  content: "";
+  position: absolute;
+  inset: 0 12px auto 12px;
+  height: 1px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--fn-rim), transparent);
+}
+.fn-list .fn-row > * { position: relative; z-index: 1; }
+
+/* ── Icono con halo reactivo ── */
+.fn-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  color: var(--fl);
+  border: 1px solid color-mix(in srgb, var(--fb) 33%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--fb) 18%, transparent), color-mix(in srgb, var(--fb) 8%, transparent));
+  box-shadow: inset 0 1px 0 var(--fn-rim-soft), 0 0 14px color-mix(in srgb, var(--fb) 20%, transparent);
+}
+.fn-icon::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--fb) 55%, transparent), transparent 68%);
+  opacity: 0.28;
+  transform: translate(calc(var(--fn-mx, 0) * 3px), calc(var(--fn-my, 0) * 2px));
+  transition: opacity 0.25s ease, transform 0.2s ease-out;
+}
+.fn-row:hover .fn-icon::before { opacity: 0.85; }
+.fn-icon > svg { position: relative; }
+
+/* ── Pastilla de % (color por etapa) ── */
+.fn-list .fn-pill {
+  color: var(--fl);
+  border-color: color-mix(in srgb, var(--fb) 33%, transparent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--fb) 53%, transparent);
+}
+
+/* ── Tubo de cristal de doble pared ── */
+.fn-tube {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid var(--fn-wall-b);
+  background: var(--fn-wall-bg);
+  box-shadow: 0 6px 12px -6px var(--fn-drop), inset 0 1px 1px var(--fn-rim);
+}
+.fn-chan {
+  position: absolute;
+  inset: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--fn-chan-bg);
+  box-shadow: inset 0 2px 3px var(--fn-inset), inset 0 -1px 1px var(--fn-rim-soft);
+}
+/* cáustica proyectada sobre la fila (mismo ancho que el fluido) */
+.fn-caustic {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  height: 10px;
+  margin-top: 3px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--fd), var(--fb), var(--fl));
+  opacity: 0.32;
+  filter: blur(8px);
+  transform: translateX(calc(var(--fn-mx, 0) * -8px));
+  transition: transform 0.25s ease-out, opacity 0.25s ease;
+}
+.fn-row:hover .fn-caustic { opacity: 0.55; }
+
+/* ── Fluido vivo ── */
+.fn-fluid {
+  position: relative;
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--fd), var(--fb) 55%, var(--fl));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--fb) 40%, transparent);
+}
+.fn-flow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  color: var(--fn-white);
+  opacity: 0.55;
+}
+.fn-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -35%;
+  width: 33%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.32), transparent);
+  animation: fn-sweep 3.8s ease-in-out 1.2s infinite;
+}
+.fn-core {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 30%;
+  height: 40%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  filter: blur(2px);
+}
+.fn-spec {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 1px;
+  height: 34%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), transparent);
+}
+.fn-depth {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 38%;
+  border-radius: 0 0 999px 999px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.26), transparent);
+}
+.fn-bubble {
+  position: absolute;
+  bottom: 2px;
+  right: var(--r);
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  opacity: 0;
+  animation: fn-rise var(--d) ease-out var(--t) infinite;
+}
+
+/* menisco energizado con micro-destello en la punta del nivel */
+.fn-meniscus {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  right: -4px;
+  width: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.55));
+  animation: fn-wave 2.8s ease-in-out infinite;
+}
+.fn-meniscus::after {
+  content: "";
+  position: absolute;
+  right: 1px;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: var(--fn-white);
+  box-shadow: 0 0 6px 2px var(--fl);
+  animation: fn-spark 2.4s ease-in-out infinite;
+}
+
+/* ── Vidrio frontal: bisel, brillo y reflejo que sigue al cursor ── */
+.fn-front {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.fn-front::before {
+  content: "";
+  position: absolute;
+  inset: 1px 8px auto 8px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+}
+.fn-front::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent 55%);
+}
+.fn-glint {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc((0.5 + var(--fn-mx, 0) * 0.38) * 100%);
+  width: 32px;
+  transform: translateX(-50%) skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  filter: blur(1px);
+  opacity: 0.4;
+  transition: left 0.25s ease-out, opacity 0.3s ease;
+}
+.fn-row:hover .fn-glint { opacity: 1; }
+
+/* ── Conector 4D: pulso de energía descendente entre etapas ── */
+.fn-from-views { --lf: var(--fn-views-base); }
+.fn-from-responses { --lf: var(--fn-responses-base); }
+.fn-from-completed { --lf: var(--fn-completed-base); }
+.fn-to-views { --lt: var(--fn-views-light); }
+.fn-to-responses { --lt: var(--fn-responses-light); }
+.fn-to-completed { --lt: var(--fn-completed-light); }
+
+.fn-link {
+  position: relative;
+  width: 2px;
+  height: 20px;
+  flex-shrink: 0;
+  overflow: visible;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--lf), var(--lt));
+  opacity: var(--fn-link-op, 0.7);
+}
+.fn-link::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  width: 4px;
+  height: 8px;
+  margin-left: -2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, transparent, var(--fn-white));
+  box-shadow: 0 0 8px 1px var(--lt);
+  animation: fn-flow 1.9s linear infinite;
+}
+
+/* ── Keyframes ── */
+@keyframes fn-sweep {
+  0% { left: -35%; }
+  60%, 100% { left: 110%; }
+}
+@keyframes fn-rise {
+  0% { transform: translateY(2px) scale(0.6); opacity: 0; }
+  35% { opacity: 0.85; }
+  100% { transform: translateY(-9px) scale(0.5); opacity: 0; }
+}
+@keyframes fn-wave {
+  0%, 100% { transform: scale(1, 1); }
+  30% { transform: scale(0.85, 1.14); }
+  65% { transform: scale(1.12, 0.93); }
+}
+@keyframes fn-spark {
+  0%, 70%, 100% { opacity: 0.25; transform: scale(0.7); }
+  82% { opacity: 1; transform: scale(1.5); }
+}
+@keyframes fn-flow {
+  0% { top: -8px; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* ── Responsive / accesibilidad ── */
+@media (max-width: 479px) {
+  .fn-tube { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fn-list .fn-row:hover { transform: none; }
+  .fn-list *,
+  .fn-list *::before,
+  .fn-list *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .fn-bubble, .fn-sweep { display: none; }
+  .fn-link::after { display: none; }
+}
+
+@media (prefers-contrast: high) {
+  .fn-caustic, .fn-glint { display: none; }
+}

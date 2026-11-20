@@ -1,0 +1,437 @@
+/* ══════════════════════════════════════════════════════════════════════
+   PrismBar — cápsula horizontal 4D (fluido luminoso en canal de cristal).
+   Prefijo `.pb-`. Claro/oscuro por `.pb-light` / `.pb-dark` (useTheme).
+
+   Reglas de este archivo:
+   · Los colores del fluido NO se escriben aquí: salen de los mismos tokens
+     Tailwind que usa `ACCENTS[*].bar` en KpiCard (`--color-amber-400/600`,
+     `--color-emerald-400`, `--color-teal-600`, `--color-brand-400/600`…).
+     Ahí no hay hex; el resto de tonos (luz, sombra, núcleo) se derivan con
+     color-mix(), así que cambiar el acento de marca cambia la barra.
+   · Todos los tokens `--pb-*` están definidos en `.pb-root`. Antes se
+     heredaban de `.pg-root`, que no envuelve a las tarjetas KPI, y quedaban
+     indefinidos (tubo y agua transparentes).
+   · El ancho es siempre el de la tarjeta (100 %). El grosor es `--pb-h`,
+     que PrismBar.jsx fija desde la prop `height`.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Variables que se transicionan (el puntero las escribe por JS). Registradas
+   para que el navegador pueda interpolarlas: es lo que da la inercia al
+   brillo y a la inclinación sin una línea de JS de suavizado. */
+@property --pb-mx { syntax: "<number>"; inherits: true; initial-value: 0.3; }
+@property --pb-tx { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --pb-ty { syntax: "<number>"; inherits: true; initial-value: 0; }
+
+/* ── Raíz y tokens ─────────────────────────────────────────────────── */
+.pb-root {
+  --pb-h: 14px;
+  --pb-wall: calc(var(--pb-h) * 0.15);   /* grosor de la pared de cristal */
+  --pb-tile: 96px;                         /* paso del patrón de ondas */
+
+  /* Derivados del acento (fixed por .pb-accent-*). */
+  --pb-hi: color-mix(in srgb, var(--pb-from) 42%, white);
+  --pb-hot: color-mix(in srgb, var(--pb-from) 22%, white);
+  --pb-deep: color-mix(in srgb, var(--pb-to) 58%, black);
+
+  position: relative;
+  display: block;
+  width: 100%;
+  height: var(--pb-h);
+  isolation: isolate;
+  transition: --pb-mx 0.22s ease-out, --pb-tx 0.3s ease-out, --pb-ty 0.3s ease-out;
+}
+
+/* Acentos: mismos pares que `bar: "from-X to-Y"` de KpiCard. */
+.pb-accent-brand  { --pb-from: var(--color-brand-400);   --pb-to: var(--color-brand-600); }
+.pb-accent-gold,
+.pb-accent-amber  { --pb-from: var(--color-amber-400);   --pb-to: var(--color-amber-600); }
+.pb-accent-green  { --pb-from: var(--color-emerald-400); --pb-to: var(--color-teal-600); }
+.pb-accent-slate  { --pb-from: var(--color-slate-400);   --pb-to: var(--color-slate-600); }
+.pb-accent-pink   { --pb-from: var(--color-pink-400);    --pb-to: var(--color-pink-600); }
+.pb-accent-violet { --pb-from: var(--color-violet-400);  --pb-to: var(--color-violet-600); }
+
+/* Cristal — claro. El track conserva el tono del original (slate-100). */
+.pb-light {
+  --pb-track-a: color-mix(in srgb, var(--color-slate-100) 90%, black);
+  --pb-track-b: color-mix(in srgb, var(--color-slate-100) 60%, white);
+  --pb-edge: rgba(15, 23, 42, 0.14);
+  --pb-inner-shadow: rgba(15, 23, 42, 0.34);
+  --pb-drop: rgba(15, 23, 42, 0.26);
+  --pb-rim: rgba(255, 255, 255, 0.95);
+  --pb-rim-soft: rgba(255, 255, 255, 0.7);
+  --pb-wall-line: rgba(15, 23, 42, 0.1);
+  --pb-reflect: rgba(255, 255, 255, 0.8);
+  --pb-wave-a: rgba(255, 255, 255, 0.34);
+  --pb-wave-b: rgba(255, 255, 255, 0.24);
+  --pb-wave-c: rgba(255, 255, 255, 0.14);
+  --pb-caustic: 30%;
+  --pb-glow: 34%;
+}
+
+/* Cristal — oscuro. El track conserva el tono del original (slate-800). */
+.pb-dark {
+  --pb-track-a: color-mix(in srgb, var(--color-slate-800) 62%, black);
+  --pb-track-b: var(--color-slate-800);
+  --pb-edge: rgba(255, 255, 255, 0.13);
+  --pb-inner-shadow: rgba(0, 0, 0, 0.7);
+  --pb-drop: rgba(0, 0, 0, 0.6);
+  --pb-rim: rgba(255, 255, 255, 0.18);
+  --pb-rim-soft: rgba(255, 255, 255, 0.2);
+  --pb-wall-line: rgba(255, 255, 255, 0.1);
+  --pb-reflect: rgba(255, 255, 255, 0.5);
+  --pb-wave-a: rgba(255, 255, 255, 0.3);
+  --pb-wave-b: rgba(255, 255, 255, 0.2);
+  --pb-wave-c: rgba(255, 255, 255, 0.12);
+  --pb-caustic: 42%;
+  --pb-glow: 52%;
+}
+
+/* ── Escenario 3D: micro-elevación al pasar el cursor por la tarjeta ── */
+.pb-stage {
+  position: relative;
+  height: 100%;
+  transform: perspective(560px) translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg);
+  transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.pb-root[data-hover="true"] .pb-stage {
+  transform: perspective(560px) translate3d(0, -1px, 5px)
+    rotateX(calc(var(--pb-ty) * -5deg)) rotateY(calc(var(--pb-tx) * 4deg));
+}
+
+/* ── Tubo: pared exterior de cristal ───────────────────────────────── */
+.pb-tube {
+  position: relative;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--pb-track-a), var(--pb-track-b));
+  box-shadow:
+    inset 0 2px 3px -0.5px var(--pb-inner-shadow),        /* sombra interior profunda */
+    inset 0 -1px 1px var(--pb-rim-soft),                   /* luz rebotada en el fondo */
+    0 0 0 1px var(--pb-edge),                              /* borde biselado */
+    0 1px 0 1px var(--pb-rim),                             /* filo de luz bajo el tubo */
+    0 5px 9px -5px var(--pb-drop);                         /* elevación sobre la tarjeta */
+  transition: box-shadow 0.34s ease;
+}
+.pb-root[data-hover="true"] .pb-tube {
+  box-shadow:
+    inset 0 2px 3px -0.5px var(--pb-inner-shadow),
+    inset 0 -1px 1px var(--pb-rim-soft),
+    0 0 0 1px var(--pb-edge),
+    0 1px 0 1px var(--pb-rim),
+    0 9px 14px -6px var(--pb-drop);
+}
+
+/* Canal: segunda pared (la interior), más oscura arriba para dar volumen. */
+.pb-well {
+  position: absolute;
+  inset: var(--pb-wall);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1), transparent 55%);
+  box-shadow: inset 0 0 0 1px var(--pb-wall-line);
+  pointer-events: none;
+}
+
+/* ── Fluido ────────────────────────────────────────────────────────── */
+/* `--pb-fill` (0‒1) lo escribe el resorte desde JS. Sin valor = vacío. */
+.pb-water {
+  position: absolute;
+  top: var(--pb-wall);
+  bottom: var(--pb-wall);
+  left: var(--pb-wall);
+  width: calc((100% - 2 * var(--pb-wall)) * var(--pb-fill, 0));
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: 0 0 calc(var(--pb-h) * 0.9) -2px color-mix(in srgb, var(--pb-from) var(--pb-glow), transparent);
+}
+.pb-water > span { position: absolute; pointer-events: none; }
+
+/* Color: el mismo degradado from→to del KpiCard original, más un modelado
+   vertical que lo convierte en cilindro. */
+.pb-liquid {
+  inset: 0;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, white 30%, transparent) 0%,
+      transparent 40%,
+      transparent 58%,
+      color-mix(in srgb, black 15%, transparent) 100%),
+    linear-gradient(90deg, var(--pb-from), var(--pb-to));
+}
+
+/* Ondas internas: patrón que se desliza + turbulencia SVG (filtro en JSX). */
+.pb-flow-wrap { inset: 0; overflow: hidden; }
+.pb-flow {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% + var(--pb-tile));
+  background-image:
+    radial-gradient(ellipse 22px 2.6px at 28px 30%, var(--pb-wave-a), transparent 100%),
+    radial-gradient(ellipse 20px 2.2px at 70px 64%, var(--pb-wave-b), transparent 100%),
+    linear-gradient(100deg, transparent 0, transparent 34%, var(--pb-wave-c) 50%, transparent 66%, transparent 100%);
+  background-size: var(--pb-tile) 100%;
+  background-repeat: repeat-x;
+  animation: pb-flow 7s linear infinite;
+  will-change: transform;
+}
+
+/* Subsurface scattering: luz que atraviesa el fluido por el eje central. */
+.pb-core {
+  inset: 0;
+  background: radial-gradient(120% 78% at 50% 50%, color-mix(in srgb, var(--pb-hot) 70%, transparent), transparent 72%);
+  opacity: 0.55;
+}
+
+/* Sombra de profundidad en la base del cilindro. */
+.pb-depth {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42%;
+  background: linear-gradient(0deg, color-mix(in srgb, var(--pb-deep) 34%, transparent), transparent);
+}
+
+/* Reflejo especular longitudinal en el borde superior del cilindro. */
+.pb-spec {
+  top: 7%;
+  left: 5%;
+  right: 5%;
+  height: 30%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.08));
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 12%, black 86%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 12%, black 86%, transparent);
+  opacity: 0.85;
+}
+
+/* ── Menisco luminoso en la punta del porcentaje ───────────────────── */
+/* Mismo cálculo que `.pb-water`: la punta es exactamente el % del valor. */
+.pb-meniscus {
+  position: absolute;
+  top: var(--pb-wall);
+  bottom: var(--pb-wall);
+  left: calc(var(--pb-wall) + (100% - 2 * var(--pb-wall)) * var(--pb-fill, 0));
+  width: 0;
+  pointer-events: none;
+  opacity: calc(var(--pb-fill, 0) * 24);   /* se apaga con el 0 % */
+  z-index: 2;
+}
+.pb-meniscus > span { position: absolute; }
+
+.pb-meniscus-glow {
+  left: 0;
+  top: 50%;
+  width: calc(var(--pb-h) * 3.4);
+  height: calc(var(--pb-h) * 2.3);
+  border-radius: 50%;
+  transform: translate(-64%, -50%);
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--pb-hot) 85%, transparent) 0%,
+    color-mix(in srgb, var(--pb-from) var(--pb-glow), transparent) 44%,
+    transparent 100%);
+  animation: pb-glow 2.8s ease-in-out infinite;
+}
+
+/* Cuenta de luz: el domo convexo del menisco, con oleaje en el borde. */
+.pb-meniscus-bead {
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: calc(var(--pb-h) * 0.58);
+  transform: translateX(-90%);
+  border-radius: 55% 45% 50% 50% / 50% 50% 50% 50%;
+  background: radial-gradient(ellipse 85% 62% at 42% 28%,
+    rgba(255, 255, 255, 0.95) 0%,
+    color-mix(in srgb, var(--pb-hot) 78%, transparent) 36%,
+    transparent 80%);
+  animation: pb-bead 3.2s ease-in-out infinite;
+}
+
+/* Destello en cruz que parpadea en la punta. */
+.pb-flare {
+  left: -2px;
+  top: 50%;
+  width: calc(var(--pb-h) * 1.7);
+  height: 1px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent, white, transparent);
+  opacity: 0;
+  animation: pb-twinkle 3.6s ease-in-out infinite;
+}
+.pb-flare::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  transform: rotate(90deg);
+}
+
+/* Micro-partículas: burbujas diminutas que suben desde la punta. */
+.pb-spark {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 3px 0.5px var(--pb-hi);
+  opacity: 0;
+  animation: pb-spark 4.2s ease-in infinite;
+}
+.pb-spark--1 { left: -4px;  bottom: 18%; animation-delay: 0s; }
+.pb-spark--2 { left: -9px;  bottom: 30%; animation-delay: 0.9s;  width: 1.5px; height: 1.5px; }
+.pb-spark--3 { left: -14px; bottom: 12%; animation-delay: 1.7s;  width: 2.5px; height: 2.5px; }
+.pb-spark--4 { left: -6px;  bottom: 40%; animation-delay: 2.6s;  width: 1.5px; height: 1.5px; }
+.pb-spark--5 { left: -18px; bottom: 26%; animation-delay: 3.3s; }
+
+/* ── Pared frontal de cristal (sobre el fluido) ───────────────────── */
+.pb-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 3;
+  box-shadow: inset 0 0 0 1px var(--pb-rim-soft);          /* bisel exterior */
+}
+.pb-glass::before {                                          /* doble pared */
+  content: "";
+  position: absolute;
+  inset: calc(var(--pb-wall) * 0.55);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--pb-wall-line);
+}
+.pb-glass::after {                                           /* reflejo del cristal */
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 7%;
+  right: 7%;
+  height: 26%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--pb-reflect), transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 78%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 10%, black 78%, transparent);
+  opacity: 0.55;
+}
+
+/* Brillo especular que sigue al puntero a lo largo del tubo. En reposo queda
+   un destello tenue a ~30 %. */
+.pb-glint {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 4;
+  background: radial-gradient(ellipse 18% 46% at calc(var(--pb-mx) * 100%) 24%,
+    rgba(255, 255, 255, 0.95), transparent 72%);
+  opacity: 0.28;
+  transition: opacity 0.3s ease;
+}
+.pb-root[data-hover="true"] .pb-glint { opacity: 0.9; }
+
+/* ── Cáusticas proyectadas sobre la tarjeta ───────────────────────── */
+.pb-caustic {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(9px);
+}
+/* Base: charco de luz bajo el tramo lleno; respira despacio. */
+.pb-caustic--base {
+  left: var(--pb-wall);
+  top: calc(var(--pb-h) * 0.5);
+  width: calc((100% - 2 * var(--pb-wall)) * var(--pb-fill, 0));
+  height: calc(var(--pb-h) * 1.2);
+  background:
+    radial-gradient(ellipse 60% 100% at 50% 0%, color-mix(in srgb, var(--pb-from) var(--pb-caustic), transparent), transparent 74%),
+    radial-gradient(ellipse 26% 80% at 78% 8%, color-mix(in srgb, var(--pb-hot) 50%, transparent), transparent 72%);
+  animation: pb-caustic 7s ease-in-out infinite;
+}
+/* Reactiva: mancha cálida que se desliza bajo el cursor, limitada al fluido. */
+.pb-caustic--reactive {
+  left: calc(var(--pb-wall) + (100% - 2 * var(--pb-wall)) * min(var(--pb-mx), var(--pb-fill, 0)));
+  top: calc(var(--pb-h) * 0.6 + var(--pb-ty) * var(--pb-h) * 0.22);
+  width: calc(var(--pb-h) * 5);
+  height: calc(var(--pb-h) * 1.3);
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 50% 100% at 50% 0%, color-mix(in srgb, var(--pb-hot) 70%, transparent), color-mix(in srgb, var(--pb-from) var(--pb-caustic), transparent) 45%, transparent 74%);
+  filter: blur(11px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.pb-root[data-hover="true"] .pb-caustic--reactive { opacity: 0.85; }
+
+/* Contenedor del <filter>: debe existir en el DOM, pero no ocupa lugar. */
+.pb-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ── Animaciones ──────────────────────────────────────────────────── */
+@keyframes pb-flow {
+  to { transform: translate3d(calc(var(--pb-tile) * -1), 0, 0); }
+}
+@keyframes pb-glow {
+  0%, 100% { opacity: 0.65; transform: translate(-64%, -50%) scale(1); }
+  50%      { opacity: 1;    transform: translate(-64%, -50%) scale(1.1); }
+}
+@keyframes pb-bead {
+  0%, 100% { border-radius: 55% 45% 50% 50% / 50% 50% 50% 50%; transform: translateX(-90%) scaleY(1); }
+  50%      { border-radius: 48% 52% 46% 54% / 54% 46% 56% 44%; transform: translateX(-86%) scaleY(0.94); }
+}
+@keyframes pb-twinkle {
+  0%, 62%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  74%           { opacity: 0.95; transform: translate(-50%, -50%) scale(1); }
+  88%           { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+}
+@keyframes pb-spark {
+  0%   { opacity: 0;    transform: translate(0, 3px) scale(0.6); }
+  18%  { opacity: 0.9; }
+  60%  { opacity: 0.55; transform: translate(1.5px, -5px) scale(1); }
+  100% { opacity: 0;    transform: translate(-1px, -11px) scale(0.4); }
+}
+@keyframes pb-caustic {
+  0%, 100% { transform: scale(1, 1); opacity: 0.9; }
+  50%      { transform: scale(1.05, 0.92); opacity: 1; }
+}
+
+/* ── Accesibilidad ────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pb-root,
+  .pb-stage,
+  .pb-tube,
+  .pb-glint,
+  .pb-caustic--reactive { transition: none !important; }
+
+  .pb-flow,
+  .pb-meniscus-glow,
+  .pb-meniscus-bead,
+  .pb-flare,
+  .pb-spark,
+  .pb-caustic--base { animation: none !important; }
+
+  .pb-root[data-hover="true"] .pb-stage { transform: none; }
+  .pb-flare,
+  .pb-spark { display: none; }
+}
+
+@media (prefers-contrast: more) {
+  .pb-caustic,
+  .pb-flare,
+  .pb-spark { display: none; }
+  .pb-tube { box-shadow: 0 0 0 1px currentColor; }
+  .pb-flow-wrap { opacity: 0.5; }
+}
+
+/* Modo de colores forzados (Windows Alto Contraste): solo contorno + relleno. */
+@media (forced-colors: active) {
+  .pb-tube { border: 1px solid CanvasText; box-shadow: none; background: Canvas; }
+  .pb-water { forced-color-adjust: none; background: Highlight; box-shadow: none; }
+  .pb-liquid, .pb-flow-wrap, .pb-core, .pb-depth, .pb-spec,
+  .pb-glass, .pb-glint, .pb-well, .pb-meniscus, .pb-caustic { display: none; }
+}
+
+@media print {
+  .pb-caustic,
+  .pb-flare,
+  .pb-spark,
+  .pb-glint { display: none; }
+  .pb-flow, .pb-meniscus-glow, .pb-meniscus-bead { animation: none; }
+  .pb-stage { transform: none !important; }
+}
