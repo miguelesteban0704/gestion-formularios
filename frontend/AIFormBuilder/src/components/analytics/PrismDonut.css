@@ -33,7 +33,7 @@
   position: relative;
 }
 
-/* Centro retroiluminado */
+/* Centro retroiluminado — debajo del tooltip */
 .pd-center {
   position: absolute;
   inset: 0;
@@ -44,6 +44,7 @@
   gap: 2px;
   pointer-events: none;
   animation: pd-breathe 3.6s ease-in-out infinite;
+  z-index: 5;
 }
 @keyframes pd-breathe {
   0%, 100% { opacity: 1; }
@@ -70,8 +71,10 @@
   text-shadow: 0 0 10px rgba(120, 200, 255, 0.35);
 }
 
-/* Tooltip compacto — fondo SÓLIDO y opaco, sin transparencia ni vidrio */
+/* Tooltip compacto — fondo SÓLIDO y opaco, siempre por encima del chart */
 .pd-tip {
+  position: relative;
+  z-index: 50;
   min-width: 132px;
   padding: 10px 13px 9px;
   border-radius: 14px;
