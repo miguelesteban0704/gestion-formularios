@@ -44,7 +44,6 @@
   gap: 2px;
   pointer-events: none;
   animation: pd-breathe 3.6s ease-in-out infinite;
-  z-index: 5;
 }
 @keyframes pd-breathe {
   0%, 100% { opacity: 1; }
@@ -56,7 +55,6 @@
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.03em;
-  color: #ffffff;
   text-shadow:
     0 0 18px rgba(103, 232, 249, 0.55),
     0 0 42px rgba(34, 211, 238, 0.3);
@@ -71,10 +69,10 @@
   text-shadow: 0 0 10px rgba(120, 200, 255, 0.35);
 }
 
-/* Tooltip compacto — fondo SÓLIDO y opaco, siempre por encima del chart */
+/* Tooltip compacto — fondo SÓLIDO y opaco, siempre por encima del número del total */
 .pd-tip {
-  position: relative;
-  z-index: 50;
+  position: absolute;
+  z-index: 100;
   min-width: 132px;
   padding: 10px 13px 9px;
   border-radius: 14px;
