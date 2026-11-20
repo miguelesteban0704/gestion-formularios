@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
 import { animate, useMotionValue, useReducedMotion } from "framer-motion";
 import { cn } from "../../lib/utils.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
