@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { animate, useMotionValue, useReducedMotion } from "framer-motion";
 import { cn } from "../../lib/utils.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
@@ -73,8 +73,8 @@ function Column({ target, label, value, align, caption, reduce, filterId }) {
       return undefined;
     }
 
-    // Cancela cualquier animación previa del fill antes de lanzar la nueva.
-    fill.on("change", paint);
+    // fill.on devuelve una función de cancelación en framer-motion moderno.
+    const cancel = fill.on("change", paint);
 
     const animation = animate(fill, target, {
       type: "spring",
@@ -88,7 +88,7 @@ function Column({ target, label, value, align, caption, reduce, filterId }) {
 
     return () => {
       animation.stop();
-      fill.off("change", paint);
+      if (typeof cancel === "function") cancel();
     };
   }, [reduce, target]);
 
