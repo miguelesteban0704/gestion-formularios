@@ -130,11 +130,22 @@ export default function Analytics() {
   }, [analytics, t]);
 
   // Device breakdown from response user-agents.
+  // Clasifica por tipo de dispositivo (Desktop / Mobile / Tablet) usando el SO,
+  // no por navegador, para que el donut de dispositivos tenga categorías
+  // significativas y colores diferenciados.
+  const classifyDevice = (os) => {
+    if (/iPhone|iPad|iOS/.test(os)) return "Mobile";
+    if (/Android/.test(os)) return "Mobile";
+    if (/Windows|macOS|Linux/.test(os)) return "Desktop";
+    return "Tablet";
+  };
+
   const devices = useMemo(() => {
     const counts = {};
     responses.forEach((r) => {
-      const { browser } = deviceFromUA(r.meta?.userAgent || "");
-      counts[browser] = (counts[browser] || 0) + 1;
+      const { os } = deviceFromUA(r.meta?.userAgent || "");
+      const device = classifyDevice(os);
+      counts[device] = (counts[device] || 0) + 1;
     });
     return Object.entries(counts)
       .map(([label, value]) => ({ label, value }))

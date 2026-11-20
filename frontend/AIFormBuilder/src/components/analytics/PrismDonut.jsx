@@ -10,6 +10,7 @@ import {
 import { cn } from "../../lib/utils.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { useTheme } from "../../hooks/useTheme.js";
+import { CHART_PALETTE } from "../../lib/charts.js";
 import "./PrismDonut.css";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -26,7 +27,16 @@ const PALETTE = {
   Mobile: { light: "#ffd687", base: "#ffb84d", deep: "#d97706" },
   Tablet: { light: "#a5b4fc", base: "#7c6cc0", deep: "#5b4dab" },
 };
-const FALLBACK = { light: "#94a3b8", base: "#64748b", deep: "#475569" };
+// Colores vibrantes y diferenciados para cualquier categoría que no esté en
+// PALETTE. Se rotan para que cada segmento tenga su propio tono vivo.
+const VIBRANT_FALLBACKS = CHART_PALETTE.map((hex) => {
+  const rgb = hex.match(/\w\w/g).map((v) => parseInt(v, 16));
+  return {
+    light: `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.45)`,
+    base: hex,
+    deep: hex,
+  };
+});
 
 /**
  * gid único por label + base (idBase permite varios donuts en la misma
@@ -61,15 +71,17 @@ export default function PrismDonut({ data = [], className, palette, idBase = "pd
 
   const rows = useMemo(() => {
     const isArray = Array.isArray(palette);
+    let fallbackIdx = 0;
     return normalizedData.map((d, i) => {
       let pal;
       if (palette) {
         pal = isArray
-          ? palette[i % palette.length] || FALLBACK
-          : palette[d.label] || FALLBACK;
+          ? palette[i % palette.length] || VIBRANT_FALLBACKS[fallbackIdx % VIBRANT_FALLBACKS.length]
+          : palette[d.label] || VIBRANT_FALLBACKS[fallbackIdx % VIBRANT_FALLBACKS.length];
       } else {
-        pal = PALETTE[d.label] || FALLBACK;
+        pal = PALETTE[d.label] || VIBRANT_FALLBACKS[fallbackIdx % VIBRANT_FALLBACKS.length];
       }
+      if (!PALETTE[d.label] && !palette) fallbackIdx += 1;
       return { label: d.label, value: d.value, pal };
     }).filter((d) => d.value > 0);
   }, [normalizedData, palette]);
