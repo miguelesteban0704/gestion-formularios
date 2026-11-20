@@ -71,8 +71,8 @@
 
 /* Tooltip compacto — fondo SÓLIDO y opaco, siempre por encima del número del total */
 .pd-tip {
-  position: absolute;
-  z-index: 100;
+  position: relative;
+  z-index: 50;
   min-width: 132px;
   padding: 10px 13px 9px;
   border-radius: 14px;
