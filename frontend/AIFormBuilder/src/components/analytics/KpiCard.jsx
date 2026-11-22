@@ -60,7 +60,7 @@ export function KpiCard({ icon: Icon, label, value, sub, accent = "brand", spark
             {tooltip && (
               <Tooltip
                 side="top"
-                align="start"
+                align="center"
                 maxWidth={240}
                 className="shrink-0"
                 content={
