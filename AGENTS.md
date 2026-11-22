@@ -4,6 +4,35 @@ Ver `frontend/AIFormBuilder/AGENTS.md` para las reglas del proyecto frontend.
 
 ## Registro de cambios — 2026-11-22
 
+### Estadísticas: tooltip moderno que explica los números de «Clasificación por Escala»
+
+**Objetivo:** en «Desglose de preguntas», los números de la pregunta de
+**Clasificación por Escala** (`importancia`) —el promedio «2.8 / 8», el entero
+«5 / 8» y el conteo de personas— no eran intuitivos. Se añadió un **tooltip
+moderno** (el `Tooltip` de cristal del sistema) que, al pasar el ratón por encima,
+explica qué significa cada cifra.
+
+**Cambios (solo frontend, 2 archivos):**
+- `frontend/AIFormBuilder/src/components/analytics/QuestionChart.jsx` — el número
+  de la escala y la insignia de conteo se envuelven en `Tooltip`:
+  - «2.8 / 8»: título «Qué significa» + lista que rotula `2.8` (puntuación media),
+    `/ 8` (máximo de la escala) y `10` (personas que puntuaron), más el rango total
+    «1–8».
+  - Conteo: tooltip compacto «personas puntuaron esta opción».
+  - Disparadores con `cursor-help`; colores neutros, sin hex de marca; respeta
+    `prefers-reduced-motion`.
+- `frontend/AIFormBuilder/src/contexts/LanguageContext.jsx` — 5 claves nuevas
+  (`scaleInfoTitle/Avg/Max/Count/Range`) en es/en.
+
+**Contrato de datos intacto:** sin cambios de backend ni persistencia; solo
+presentación.
+
+**Verificación:** `tsc` 0 · `lint` 0 errores · `build` exit 0 · `qa:brand` 0
+conflictos (1 congelamiento preexistente en `PrismGauge.css`, ajeno) · `qa:routes`
+124/2 (baseline) · QA 25/25.
+
+## Registro de cambios — 2026-11-22
+
 Resumen de las modificaciones de producto realizadas hoy. El detalle operativo
 del frontend permanece en `frontend/AIFormBuilder/AGENTS.md` (§10).
 

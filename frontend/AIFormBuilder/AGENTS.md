@@ -2565,6 +2565,52 @@ const estilo = flex({ direction: "column", gap: 12 }); // objeto de estilo
 > Orden: **más reciente primero**. Cada entrada lleva fecha, archivos, qué cambió
 > y las puertas ejecutadas (ver §5).
 
+### 2026-11-22 — Estadísticas: tooltip moderno que explica los números de «Clasificación por Escala» (`importancia`)
+
+**Objetivo (petición del usuario):** en «Desglose de preguntas», los números de la
+pregunta de **Clasificación por Escala** (`importancia`) —el promedio «2.8 / 8»,
+el entero «5 / 8» y el conteo de personas— resultaban poco intuitivos. Se pidió un
+**tooltip moderno** que, al pasar el ratón por encima, explicara con palabras qué
+significa cada cifra (lo mismo que ya se había explicado en el chat).
+
+**Cambio (solo frontend, 2 archivos):**
+- `frontend/AIFormBuilder/src/components/analytics/QuestionChart.jsx` — en
+  `ImportanciaBreakdown`, el número de la escala y la insignia de conteo se envuelven
+  en el `Tooltip` del sistema (`components/ui/Tooltip.jsx`, variante de cristal que
+  sigue al acento vivo):
+  - **Número «2.8 / 8»**: tooltip con título «Qué significa» y una lista de
+    definición que rotula cada cifra — `2.8` = «puntuación media que dieron las
+    personas», `/ 8` = «máximo de la escala», `10` = «personas puntuaron esta
+    opción» — más un pie «Rango de la escala: 1–8».
+  - **Insignia de conteo**: tooltip compacto con el número y «personas puntuaron
+    esta opción».
+  - Ambos disparadores llevan `cursor-help` y `shrink-0` (para no deformar la fila
+    flex); respetan `prefers-reduced-motion` (framer-motion del Tooltip) y usan
+    colores neutros (`slate-*`, `var(--fg)` del cristal), sin hex de marca.
+- `frontend/AIFormBuilder/src/contexts/LanguageContext.jsx` — 5 claves nuevas en
+  `en`/`es`: `scaleInfoTitle`, `scaleInfoAvg`, `scaleInfoMax`, `scaleInfoCount`,
+  `scaleInfoRange`.
+
+**Contrato de datos intacto:** sin cambios de backend, endpoints, esquema ni
+persistencia; solo presentación. `t()` no interpola (se usan las claves literales).
+
+**Archivos modificados (2):**
+- `frontend/AIFormBuilder/src/components/analytics/QuestionChart.jsx`
+- `frontend/AIFormBuilder/src/contexts/LanguageContext.jsx`
+
+**Verificación (ejecutada):**
+- `npx tsc --noEmit` → 0 · `npm run lint` → exit 0 (0 errores; solo warnings
+  preexistentes, ninguno en los archivos tocados) · `npm run build` → exit 0
+  (`✓ built in 2.49s`; avisos `@utility`/chunks >500 kB preexistentes, ver §9) ·
+  `npm run qa:brand` → 1 congelamiento preexistente en `PrismGauge.css:12` (ajeno)
+  · 28 excepciones · 0 conflictos semánticos; `npm run qa:routes` → 124 · 2 fallos
+  preexistentes de la baseline (sin regresión).
+- `node --test qa/classification-scale.test.js qa/conditional-fields.test.js
+  qa/chrono-select-search.test.js` → 25/25.
+- Nota: backend y Vite estaban apagados al cerrar; la verificación es por puertas
+  automatizadas (el cambio es puramente presentacional y usa el `Tooltip` ya
+  establecido del sistema).
+
 ### 2026-11-22 — Estadísticas: «Desglose de preguntas» traduce Provincia/Municipio y muestra el número de la escala (`importancia`)
 
 **Objetivo (petición del usuario):** en «Desglose de preguntas» de las

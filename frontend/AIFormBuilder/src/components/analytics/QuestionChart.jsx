@@ -4,6 +4,7 @@ import { ChartCard } from "./ChartCard.jsx";
 import PrismDonut from "./PrismDonut.jsx";
 import { PrismBars } from "./PrismBars.jsx";
 import { PRISM_PALS } from "./PrismPalette.js";
+import { Tooltip } from "../ui/Tooltip.jsx";
 import { FIELD_DEFS, RATING_TYPES } from "../../lib/fieldTypes.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 
@@ -146,7 +147,10 @@ function QuestionBody({ question }) {
    Cada opción es una fila de vidrio con: el nombre de la opción, el número
    medio de la escala que le asignaron las personas (p. ej. «2.8 / 8») y
    cuántas la puntuaron. La barra crece con el promedio sobre el recorrido de
-   la escala (mín→máx), de modo que "más alto" = prioridad media mayor. */
+   la escala (mín→máx), de modo que "más alto" = prioridad media mayor.
+   El número y el conteo llevan un Tooltip moderno que explica qué significa
+   cada cifra (promedio, máximo de la escala, personas que puntuaron) y el
+   rango total de la escala. */
 function ImportanciaBreakdown({ question, skipped = 0 }) {
   const { t } = useLanguage();
   const rows = (question.breakdown || []).filter((d) => Number(d.count) > 0);
@@ -190,16 +194,53 @@ function ImportanciaBreakdown({ question, skipped = 0 }) {
                       {d.label}
                     </span>
                     {score != null && (
-                      <span
-                        className="shrink-0 text-sm font-bold tabular-nums"
-                        style={{ color: pal.base, textShadow: `0 0 8px ${pal.base}55` }}
+                      <Tooltip
+                        side="top"
+                        align="end"
+                        maxWidth={240}
+                        className="shrink-0"
+                        content={
+                          <div className="space-y-1.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider opacity-60">
+                              {t("scaleInfoTitle")}
+                            </p>
+                            <div className="space-y-1 text-xs leading-snug">
+                              <div className="flex gap-2">
+                                <span className="w-8 shrink-0 text-right font-bold tabular-nums">
+                                  {score}
+                                </span>
+                                <span className="opacity-90">{t("scaleInfoAvg")}</span>
+                              </div>
+                              <div className="flex gap-2">
+                                <span className="w-8 shrink-0 text-right font-bold tabular-nums">
+                                  / {max}
+                                </span>
+                                <span className="opacity-90">{t("scaleInfoMax")}</span>
+                              </div>
+                              <div className="flex gap-2">
+                                <span className="w-8 shrink-0 text-right font-bold tabular-nums">
+                                  {d.count}
+                                </span>
+                                <span className="opacity-90">{t("scaleInfoCount")}</span>
+                              </div>
+                            </div>
+                            <p className="border-t border-slate-200/70 pt-1 text-[10px] opacity-60 dark:border-slate-600/50">
+                              {t("scaleInfoRange")}: {min}–{max}
+                            </p>
+                          </div>
+                        }
                       >
-                        {score}
-                        <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
-                          {" "}
-                          / {max}
+                        <span
+                          className="cursor-help text-sm font-bold tabular-nums"
+                          style={{ color: pal.base, textShadow: `0 0 8px ${pal.base}55` }}
+                        >
+                          {score}
+                          <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                            {" "}
+                            / {max}
+                          </span>
                         </span>
-                      </span>
+                      </Tooltip>
                     )}
                   </div>
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-700/60">
@@ -218,12 +259,22 @@ function ImportanciaBreakdown({ question, skipped = 0 }) {
                     />
                   </div>
                 </div>
-                <span
-                  className="shrink-0 rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 dark:bg-slate-700/50 dark:text-slate-300"
-                  title={t("responses")}
+                <Tooltip
+                  side="top"
+                  align="end"
+                  maxWidth={200}
+                  className="shrink-0"
+                  content={
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-bold leading-none tabular-nums">{d.count}</p>
+                      <p className="text-xs leading-snug">{t("scaleInfoCount")}</p>
+                    </div>
+                  }
                 >
-                  {d.count}
-                </span>
+                  <span className="cursor-help rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 dark:bg-slate-700/50 dark:text-slate-300">
+                    {d.count}
+                  </span>
+                </Tooltip>
               </div>
             </motion.div>
           );
