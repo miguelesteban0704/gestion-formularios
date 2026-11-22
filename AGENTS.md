@@ -4,6 +4,38 @@ Ver `frontend/AIFormBuilder/AGENTS.md` para las reglas del proyecto frontend.
 
 ## Registro de cambios — 2026-11-22
 
+### Estadísticas: tooltip «holograma HUD», KPI cards más anchos y flecha que apunta al centro del icono
+
+**Objetivo (petición del usuario):** rediseñar el acabado del tooltip a un estilo
+«holograma HUD»; dar **más ancho** a la tarjeta del tooltip de los KPI de
+estadísticas (para que el texto no se vea apilado); y que la **punta de la flecha
+señale al centro del icono** disparador, no al centro del tooltip.
+
+**Cambios (solo frontend, 3 archivos):**
+- `frontend/AIFormBuilder/src/components/ui/crystal.css` — `.cr-tooltip` gana un
+  acabado «holograma HUD»: borde de luz con barrido al abrir, marcas de esquina
+  tipo visor, halo teñido con el acento y flecha con relleno `--tt-mid` y filete
+  solo en las aristas que asoman (`[data-side]`). Solo `color-mix`/`var()`, sin hex
+  de marca; respeta dark y `prefers-reduced-motion`.
+- `frontend/AIFormBuilder/src/components/ui/Tooltip.jsx` — entrada con
+  desenfoque que se aclara; flecha marcada con `data-side`; la **posición de la
+  flecha se calcula en el `useLayoutEffect`** y se guarda en estado (en vez de leer
+  los refs durante el render), apuntando al centro del ancla y limitada al borde
+  del tooltip (`[8, tip.width - 8]`). Se retiran `SIDE_OFFSET`/`actualAlign` sin
+  uso. El resto de consumidores del `Tooltip` heredan el rediseño sin tocar su
+  contrato.
+- `frontend/AIFormBuilder/src/components/analytics/KpiCard.jsx` — el `Tooltip`
+  del KPI pasa de `maxWidth={240}` a `maxWidth={300}` (más ancho); se mantiene
+  `side="top"`, `align="center"` (centrado sobre el icono ℹ) y `cursor-help`.
+
+**Contrato de datos intacto:** sin cambios de backend ni persistencia; solo
+presentación.
+
+**Verificación:** `tsc` 0 · `lint` exit 0 (el único aviso en `Tooltip.jsx` es el
+`only-export-components` preexistente; desaparecen los `react(refs)`) · `build`
+exit 0 · `qa:brand` 0 conflictos (1 congelamiento preexistente en
+`PrismGauge.css`, ajeno) · `qa:routes` 124/2 (baseline) · QA 25/25.
+
 ### Estadísticas: mismo tooltip moderno de «Clasificación por Escala» en los KPI cards (Respuestas, Vistas Totales, Tasa de conversión, Finalización, Tiempo)
 
 **Objetivo:** aplicar el mismo diseño de tooltip moderno (el `Tooltip` de cristal

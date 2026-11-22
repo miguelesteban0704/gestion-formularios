@@ -5,7 +5,6 @@ import { cn } from "../../lib/utils.js";
 import "./crystal.css";
 
 const GAP = 8;
-const SIDE_OFFSET = 6; // arrow offset
 
 function chooseSide(anchor, tooltipSize, preferred) {
   const vw = window.innerWidth;
@@ -43,6 +42,10 @@ function chooseSide(anchor, tooltipSize, preferred) {
  * componente — antes iba con `bg-[var(--fg)] text-[var(--surface)]`, un cuadro
  * invertido que además congelaba el acento justo en la pieza que más se lee.
  *
+ * Diseño «holograma HUD» (ver `.cr-tooltip` en crystal.css): borde de luz con
+ * barrido al abrir, marcas de esquina tipo visor y halo teñido con el acento.
+ * La entrada añade un desenfoque ligero que se aclara al aparecer.
+ *
  * `tint` permite apartarlo de la marca para un tooltip semántico (por ejemplo
  * un aviso de destructive). Sin él, hereda el acento vivo.
  */
@@ -64,7 +67,7 @@ export function Tooltip({
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const [actualSide, setActualSide] = useState(side);
-  const [actualAlign, setActualAlign] = useState(align);
+  const [arrowStyle, setArrowStyle] = useState({});
   const timer = useRef(null);
 
   const show = () => {
@@ -111,8 +114,23 @@ export function Tooltip({
     y = Math.max(8, Math.min(window.innerHeight - tip.height - 8, y));
     setCoords({ x, y });
 
-    // keep align in bounds — if clamped, we keep as chosen but visually centered
-    setActualAlign(align);
+    // La flecha apunta al CENTRO del ancla, no al centro del tooltip. Se calcula
+    // aquí (con las medidas ya tomadas y tras el clamp) y se guarda en estado,
+    // en vez de leer los refs durante el render. Se limita al borde del tooltip
+    // para que la punta no se salga cuando el ancla queda lejos por el clamp.
+    const anchorCenterX = anchor.left + anchor.width / 2;
+    const anchorCenterY = anchor.top + anchor.height / 2;
+    const nextArrow = {};
+    if (chosen === "top" || chosen === "bottom") {
+      const arrowX = Math.max(8, Math.min(tip.width - 8, anchorCenterX - x));
+      nextArrow.left = `${arrowX}px`;
+      nextArrow.top = chosen === "top" ? "100%" : "0";
+    } else {
+      const arrowY = Math.max(8, Math.min(tip.height - 8, anchorCenterY - y));
+      nextArrow.top = `${arrowY}px`;
+      nextArrow.left = chosen === "left" ? "100%" : "0";
+    }
+    setArrowStyle(nextArrow);
   }, [open, side, align, maxWidth, content]);
 
   useEffect(() => {
@@ -134,35 +152,6 @@ export function Tooltip({
 
   // micro offset per side for motion origin
   const offset = { top: { y: 4 }, bottom: { y: -4 }, left: { x: 4 }, right: { x: -4 } }[actualSide] || { y: 4 };
-
-  // La flecha se ancla al borde del lado en el que quedó la caja. El giro y el
-  // centrado los pone `cr-tooltip-arrow`; aquí solo va en qué borde y a qué
-  // distancia del centro, que es lo único que depende del lado.
-  //
-  // Para que la punta señale al centro del ancla (no al centro del tooltip),
-  // calculamos la posición de la flecha en píxeles relativos al tooltip:
-  //   - Si el tooltip se desplazó por el clamp del viewport, el centro del ancla
-  //     ya no coincide con el 50% del tooltip.
-  //   - La flecha debe apuntar a `anchorCenter - coords.x` (en el eje horizontal
-  //     para top/bottom, o `anchorCenter - coords.y` en el vertical para left/right).
-  const anchorCenterX = anchorRef.current
-    ? anchorRef.current.getBoundingClientRect().left + anchorRef.current.getBoundingClientRect().width / 2
-    : 0;
-  const anchorCenterY = anchorRef.current
-    ? anchorRef.current.getBoundingClientRect().top + anchorRef.current.getBoundingClientRect().height / 2
-    : 0;
-  const arrowStyle = {};
-  if (actualSide === "top" || actualSide === "bottom") {
-    // Flecha en el borde superior o inferior: apunta al centro horizontal del ancla.
-    const arrowX = Math.max(8, Math.min(coords.x + (tooltipRef.current?.getBoundingClientRect().width || 200) - 8, anchorCenterX - coords.x));
-    arrowStyle.left = `${arrowX}px`;
-    arrowStyle.top = actualSide === "top" ? "100%" : "0";
-  } else {
-    // Flecha en el borde izquierdo o derecho: apunta al centro vertical del ancla.
-    const arrowY = Math.max(8, Math.min(coords.y + (tooltipRef.current?.getBoundingClientRect().height || 36) - 8, anchorCenterY - coords.y));
-    arrowStyle.top = `${arrowY}px`;
-    arrowStyle.left = actualSide === "left" ? "100%" : "0";
-  }
 
   return (
     <>
@@ -187,10 +176,10 @@ export function Tooltip({
                 ref={tooltipRef}
                 id={id}
                 role="tooltip"
-                initial={{ opacity: 0, scale: 0.97, ...offset }}
-                animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
-                exit={{ opacity: 0, scale: 0.98, ...offset, transition: { duration: 0.12, ease: [0.4, 0, 1, 1] } }}
-                transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                initial={{ opacity: 0, scale: 0.94, filter: "blur(4px)", ...offset }}
+                animate={{ opacity: 1, scale: 1, filter: "blur(0px)", x: 0, y: 0 }}
+                exit={{ opacity: 0, scale: 0.97, filter: "blur(2px)", ...offset, transition: { duration: 0.12, ease: [0.4, 0, 1, 1] } }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                 style={{
                   position: "fixed",
                   left: coords.x,
@@ -200,7 +189,7 @@ export function Tooltip({
                   ...(tint ? { "--tooltip-tint": tint } : null),
                 }}
                 className={cn(
-                  "cr-tooltip pointer-events-none select-none px-3 py-2 text-xs font-medium leading-relaxed",
+                  "cr-tooltip pointer-events-none select-none px-3.5 py-2 text-xs font-medium leading-relaxed",
                   contentClassName
                 )}
               >
@@ -213,7 +202,7 @@ export function Tooltip({
                     legibilidad sin tener que invertir nada en dark. */}
                 <span className="block text-balance">{content}</span>
 
-                <span aria-hidden="true" className="cr-tooltip-arrow" style={arrowStyle} />
+                <span aria-hidden="true" className="cr-tooltip-arrow" data-side={actualSide} style={arrowStyle} />
               </motion.div>
             )}
           </AnimatePresence>,

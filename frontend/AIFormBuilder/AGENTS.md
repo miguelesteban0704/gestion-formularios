@@ -2565,6 +2565,60 @@ const estilo = flex({ direction: "column", gap: 12 }); // objeto de estilo
 > Orden: **más reciente primero**. Cada entrada lleva fecha, archivos, qué cambió
 > y las puertas ejecutadas (ver §5).
 
+### 2026-11-22 — Tooltip: rediseño «holograma HUD», KPI cards más anchos y flecha que apunta al centro del icono
+
+**Objetivo (petición del usuario):** (1) rediseñar el acabado del tooltip del
+sistema a un estilo «holograma HUD»; (2) dar **más ancho** a la tarjeta del
+tooltip de los KPI de estadísticas para que el texto no se vea tan apilado; y
+(3) que la **punta de la flecha señale al centro del icono** disparador (no al
+centro del tooltip), incluso cuando la caja se desplaza por el clamp del
+viewport.
+
+**Cambios (solo frontend, 3 archivos):**
+- `frontend/AIFormBuilder/src/components/ui/crystal.css` — `.cr-tooltip` pasa a
+  un acabado «holograma HUD»: borde de luz con **barrido** al abrir
+  (`.cr-tooltip::before`, con `mask-composite`), **marcas de esquina** tipo visor
+  (`.cr-tooltip::after`), halo teñido con el acento y flecha con relleno
+  `--tt-mid` (punto medio del degradado) y filete en solo las dos aristas que
+  asoman (`[data-side]`). Respeta `prefers-reduced-motion` y dark mode; solo
+  `color-mix`/`var(--tooltip-tint)`, sin hex de marca.
+- `frontend/AIFormBuilder/src/components/ui/Tooltip.jsx` —
+  - La entrada/salida añade un **desenfoque** (`blur(4px)` → `0`) y la flecha se
+    marca con `data-side={actualSide}` (CSS arriba).
+  - **La posición de la flecha se calcula dentro del `useLayoutEffect`** (con las
+    medidas ya tomadas y tras el clamp) y se guarda en estado `arrowStyle`, en vez
+    de leer `anchorRef.current`/`tooltipRef.current` **durante el render** (quitaba
+    ~20 avisos `react(refs)` de lint). La flecha apunta al centro del ancla
+    (`anchorCenter - coords`) y se limita al borde del tooltip
+    (`[8, tip.width - 8]` / `[8, tip.height - 8]`), corrigiendo el clamp anterior
+    que mezclaba coordenadas absolutas y relativas y podía dejar la punta fuera.
+  - Se retiran `SIDE_OFFSET` y el estado `actualAlign`, que quedaron sin uso.
+- `frontend/AIFormBuilder/src/components/analytics/KpiCard.jsx` — el `Tooltip`
+  del label del KPI pasa de `maxWidth={240}` a **`maxWidth={300}`** (más ancho,
+  el texto respira). Mismo `side="top"`, `align="center"` (centrado sobre el
+  icono ℹ) y `cursor-help` en el disparador.
+
+**Contrato de datos intacto:** sin cambios de backend, endpoints, esquema ni
+persistencia; solo presentación. El resto de consumidores del `Tooltip` (p. ej.
+el desglose de «Clasificación por Escala») heredan el rediseño sin tocar su
+contrato de props.
+
+**Archivos modificados (3):**
+- `frontend/AIFormBuilder/src/components/ui/crystal.css`
+- `frontend/AIFormBuilder/src/components/ui/Tooltip.jsx`
+- `frontend/AIFormBuilder/src/components/analytics/KpiCard.jsx`
+
+**Verificación (ejecutada):**
+- `npx tsc --noEmit` → 0 · `npm run lint` → exit 0 (0 errores; el único aviso
+  en `Tooltip.jsx` es el `only-export-components` preexistente; desaparecen los
+  `react(refs)` que introdujo el cálculo de la flecha) · `npm run build` → exit 0
+  (`✓ built in 2.83s`; avisos `@utility` de `admin.css` preexistentes, ver §9) ·
+  `npm run qa:brand` → 1 congelamiento preexistente en `PrismGauge.css:12` (ajeno)
+  · 28 excepciones · 0 conflictos semánticos; `npm run qa:routes` → 124 · 2 fallos
+  preexistentes de la baseline (sin regresión).
+- `node --test qa/classification-scale.test.js qa/conditional-fields.test.js
+  qa/chrono-select-search.test.js` → 25/25.
+
 ### 2026-11-22 — Estadísticas: mismo tooltip moderno de «Clasificación por Escala» en los KPI cards (Respuestas, Vistas Totales, Tasa de conversión, Finalización, Tiempo)
 
 **Objetivo (petición del usuario):** aplicar exactamente el mismo diseño de

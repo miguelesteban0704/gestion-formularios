@@ -157,59 +157,118 @@
     color-mix(in srgb, var(--toast-tint, var(--glass-chroma)) 22%, transparent));
 }
 
-/* ─── Tooltip: cristal flotante que sigue al acento ──────────────────────
-   El tooltip era la ÚNICA pieza flotante del sistema que no era de cristal:
-   iba con `bg-[var(--fg)] text-[var(--surface)]`, un cuadro negro o blanco
-   invertido que no se parecía a ninguna otra superficie y que además tapaba
-   el color que el usuario eligió en Apariencia — el acento se notaba en
-   botones, tarjetas, modales, toasts y drawers, y de pronto no en el tooltip.
+/* ─── Tooltip: holograma de cristal (HUD) que sigue al acento ────────────
+   Mismo contrato de siempre: el tinte sale de `--tooltip-tint` y cae en
+   `--glass-chroma` (la escala `--color-brand-*` que `lib/accent.js` reescribe),
+   así que el tooltip sigue al acento sin tocar este archivo. NO lleva
+   `position`: el consumidor la pone (el portal la fija, la tarjeta de métricas
+   la absoluta).
 
-   Aquí se le aplica la MISMA receta que a `.cr-toast` (croma real en la base,
-   contorno del acento, filo de luz de 2px y sombra teñida con el acento, no
-   gris neutro), en miniatura. El tinte sale de `--tooltip-tint` y cae en
-   `--glass-chroma`, que es `--color-brand-500` en claro y `--color-brand-400`
-   en oscuro: exactamente la escala que `lib/accent.js` reescribe en vivo. Por
-   eso el tooltip sigue al acento sin que nadie vuelva a tocar este archivo.
+   Lenguaje visual — una sola cosa memorable, el resto contenido:
+     1. BORDE DE LUZ: un contorno degradado (brillante en la esquina superior
+        izquierda, casi apagado en la opuesta) pintado en `::before` con
+        máscara, y un barrido de luz que lo recorre UNA vez al abrir.
+     2. MARCAS DE ESQUINA tipo visor (`::after`): dos ticks de 1px en la
+        esquina superior izquierda e inferior derecha.
+     3. Base de cristal profundo, sombra teñida y un halo exterior tenue.
+   El resto (filo de 1px `.cr-hairline`, flecha, separador) se conserva.
 
-   NO lleva `position`: el consumidor la pone (el portal la fija, la tarjeta de
-   métricas la absoluta). Declararla aquí pelearía con la utilidad de Tailwind
-   y, en un sistema donde el orden de las capas no está escrito en ninguna
-   parte, eso es una caja negra. Lo único que hace falta es que el elemento
-   esté posicionado, para que la flecha use a la caja como contenedor.
+   Los dos extremos del degradado de la base viven en variables (--tt-top,
+   --tt-bot) y su punto medio en --tt-mid: la flecha usa --tt-mid para que las
+   dos mitades (la que asoma y la tapada por la caja) sean indistinguibles.
 
-   `--cr-accent` se reinyecta aquí para que `.cr-hairline` tome el tinte del
-   tooltip sin que el consumidor tenga que acordarse de pasárselo. */
+   Los pseudo-elementos se limitan a `:not(.cr-tooltip--boxed)`: la variante
+   "boxed" tiene su propio `::after`.                                        */
 .cr-tooltip {
-  --cr-accent: var(--tooltip-tint, var(--glass-chroma));
+  --tt-tint: var(--tooltip-tint, var(--glass-chroma));
+  --cr-accent: var(--tt-tint);
+  --tt-top: color-mix(in srgb, var(--tt-tint) 12%, #ffffff);
+  --tt-bot: color-mix(in srgb, var(--tt-tint) 22%, #e8effa);
+  --tt-mid: color-mix(in srgb, var(--tt-tint) 17%, #f4f8fd);
+  --tt-ring: color-mix(in srgb, var(--tt-tint) 60%, rgba(203, 213, 225, 0.9));
 
   color: var(--fg);
   border-radius: var(--radius-tooltip);
-  border: 1px solid
-    color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 42%, rgba(203, 213, 225, 0.9));
+  border: 1px solid transparent;
   background:
-    radial-gradient(120% 110% at 0% -24%, color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 26%, transparent), transparent 62%),
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 15%, #ffffff),
-      color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 21%, #eef3fb));
+    radial-gradient(130% 120% at 0% -30%, color-mix(in srgb, var(--tt-tint) 30%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--tt-top), var(--tt-bot));
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 42%, #ffffff),
-    0 14px 34px -14px color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 48%, rgba(8, 14, 26, 0.5)),
-    0 4px 12px -8px rgba(8, 14, 26, 0.18);
-  backdrop-filter: blur(18px) saturate(1.5);
-  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    inset 0 1px 0 color-mix(in srgb, var(--tt-tint) 40%, #ffffff),
+    0 18px 40px -16px color-mix(in srgb, var(--tt-tint) 55%, rgba(8, 14, 26, 0.5)),
+    0 0 26px -10px color-mix(in srgb, var(--tt-tint) 45%, transparent),
+    0 4px 12px -8px rgba(8, 14, 26, 0.2);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  letter-spacing: 0.005em;
 }
 
 .dark .cr-tooltip {
-  border-color: color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 38%, transparent);
+  --tt-top: color-mix(in srgb, var(--tt-tint) 22%, #0f1828);
+  --tt-bot: color-mix(in srgb, var(--tt-tint) 8%, #080d17);
+  --tt-mid: color-mix(in srgb, var(--tt-tint) 15%, #0c1322);
+  --tt-ring: color-mix(in srgb, var(--tt-tint) 55%, transparent);
+
   background:
-    radial-gradient(120% 110% at 0% -24%, color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 28%, transparent), transparent 62%),
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 17%, #101927),
-      color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 12%, #0d1420));
+    radial-gradient(130% 120% at 0% -30%, color-mix(in srgb, var(--tt-tint) 34%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--tt-top), var(--tt-bot));
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 36%, transparent),
-    0 16px 38px -16px rgba(0, 0, 0, 0.72),
-    0 0 30px -14px color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 55%, transparent);
+    inset 0 1px 0 color-mix(in srgb, var(--tt-tint) 38%, transparent),
+    0 18px 42px -16px rgba(0, 0, 0, 0.78),
+    0 0 34px -10px color-mix(in srgb, var(--tt-tint) 60%, transparent);
+}
+
+/* Borde de luz con barrido. `z-index: -2` lo deja DEBAJO de la flecha (-1):
+   así el filete no cruza la base de la flecha y esta se funde con la caja. */
+.cr-tooltip:not(.cr-tooltip--boxed)::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -2;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background:
+    linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.95) 50%, transparent 62%) 130% 0 / 250% 100% no-repeat,
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--tt-tint) 85%, #ffffff) 0%,
+      color-mix(in srgb, var(--tt-tint) 38%, transparent) 38%,
+      color-mix(in srgb, var(--tt-tint) 14%, transparent) 68%,
+      color-mix(in srgb, var(--tt-tint) 50%, transparent) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: cr-tooltip-sweep 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.06s 1 both;
+}
+
+/* Marcas de esquina tipo visor: arriba-izquierda y abajo-derecha. */
+.cr-tooltip:not(.cr-tooltip--boxed)::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  pointer-events: none;
+  --tt-tick: color-mix(in srgb, var(--tt-tint) 80%, #ffffff);
+  background:
+    linear-gradient(var(--tt-tick), var(--tt-tick)) 0 0 / 7px 1px no-repeat,
+    linear-gradient(var(--tt-tick), var(--tt-tick)) 0 0 / 1px 7px no-repeat,
+    linear-gradient(var(--tt-tick), var(--tt-tick)) 100% 100% / 7px 1px no-repeat,
+    linear-gradient(var(--tt-tick), var(--tt-tick)) 100% 100% / 1px 7px no-repeat;
+  opacity: 0.55;
+}
+
+.dark .cr-tooltip:not(.cr-tooltip--boxed)::after {
+  --tt-tick: var(--tt-tint);
+  opacity: 0.7;
+}
+
+@keyframes cr-tooltip-sweep {
+  from { background-position: 130% 0, 0 0; }
+  to { background-position: -30% 0, 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cr-tooltip:not(.cr-tooltip--boxed)::before { animation: none; }
 }
 
 /* El filo de luz del tooltip es más corto que el de un modal y va a 1px: a
@@ -223,30 +282,29 @@
 /* La flecha. Va con `z-index: -1` a propósito: el tooltip tiene
    `backdrop-filter`, que crea contexto de apilamiento, así que la flecha se
    pinta encima del fondo de la caja pero debajo del texto. Con eso la mitad
-   interior de la flecha queda tapada por el propio tooltip y su filete de 1px
-   no cruza la caja por delante — que es lo que pasaba al pintarla encima.
-
-   El relleno es el punto MEDIO del degradado de la caja (18% de tinte, entre el
-   15% de arriba y el 21% de abajo) y no un color propio. Con un extremo del
-   degradado, la mitad de la flecha que asoma se ve de un color y la que queda
-   tapada de otro: una costura a lo largo de todo el borde. En el punto medio las
-   dos mitades son indistinguibles y la junta solo se ve en el filete. */
+   interior queda tapada por el propio tooltip y su filete de 1px no cruza la
+   caja. El relleno es `--tt-mid` (punto medio del degradado de la caja) y no un
+   color propio: así las dos mitades son indistinguibles y la junta solo se ve
+   en el filete. Lleva un halo tenue del tinte para parecer parte del haz. */
 .cr-tooltip-arrow {
   position: absolute;
   z-index: -1;
+  box-sizing: border-box;
   width: 10px;
   height: 10px;
   transform: translate(-50%, -50%) rotate(45deg);
-  background: color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 18%, #f9fbfe);
-  box-shadow: 0 0 0 1px
-    color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 42%, rgba(203, 213, 225, 0.9));
+  background: var(--tt-mid, color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 17%, #f4f8fd));
+  border: 1px solid var(--tt-ring, color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 55%, rgba(203, 213, 225, 0.9)));
 }
 
-.dark .cr-tooltip-arrow {
-  background: color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 14%, #0e1521);
-  box-shadow: 0 0 0 1px
-    color-mix(in srgb, var(--tooltip-tint, var(--glass-chroma)) 38%, transparent);
-}
+/* Solo se dibuja el filete de las dos aristas que asoman (las de la punta);
+   las otras dos quedan dentro de la caja y se funden con ella. `data-side` es
+   el lado en el que quedó el tooltip respecto al ancla; con el giro de 45° la
+   punta de cada lado corresponde a un par de aristas locales distinto. */
+.cr-tooltip-arrow[data-side="top"]    { border-top-color: transparent; border-left-color: transparent; }
+.cr-tooltip-arrow[data-side="bottom"] { border-right-color: transparent; border-bottom-color: transparent; }
+.cr-tooltip-arrow[data-side="left"]   { border-bottom-color: transparent; border-left-color: transparent; }
+.cr-tooltip-arrow[data-side="right"]  { border-top-color: transparent; border-right-color: transparent; }
 
 /* El separador interior de un tooltip con lista (tarjeta de métricas). Va con
    el mismo tinte que el resto, no con `--border`: un `--border` gris al lado de
