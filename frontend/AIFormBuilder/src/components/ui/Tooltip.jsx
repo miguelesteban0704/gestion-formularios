@@ -138,10 +138,31 @@ export function Tooltip({
   // La flecha se ancla al borde del lado en el que quedó la caja. El giro y el
   // centrado los pone `cr-tooltip-arrow`; aquí solo va en qué borde y a qué
   // distancia del centro, que es lo único que depende del lado.
-  const arrowStyle = {
-    left: actualSide === "left" ? "100%" : actualSide === "right" ? "0" : "50%",
-    top: actualSide === "top" ? "100%" : actualSide === "bottom" ? "0" : "50%",
-  };
+  //
+  // Para que la punta señale al centro del ancla (no al centro del tooltip),
+  // calculamos la posición de la flecha en píxeles relativos al tooltip:
+  //   - Si el tooltip se desplazó por el clamp del viewport, el centro del ancla
+  //     ya no coincide con el 50% del tooltip.
+  //   - La flecha debe apuntar a `anchorCenter - coords.x` (en el eje horizontal
+  //     para top/bottom, o `anchorCenter - coords.y` en el vertical para left/right).
+  const anchorCenterX = anchorRef.current
+    ? anchorRef.current.getBoundingClientRect().left + anchorRef.current.getBoundingClientRect().width / 2
+    : 0;
+  const anchorCenterY = anchorRef.current
+    ? anchorRef.current.getBoundingClientRect().top + anchorRef.current.getBoundingClientRect().height / 2
+    : 0;
+  const arrowStyle = {};
+  if (actualSide === "top" || actualSide === "bottom") {
+    // Flecha en el borde superior o inferior: apunta al centro horizontal del ancla.
+    const arrowX = Math.max(8, Math.min(coords.x + (tooltipRef.current?.getBoundingClientRect().width || 200) - 8, anchorCenterX - coords.x));
+    arrowStyle.left = `${arrowX}px`;
+    arrowStyle.top = actualSide === "top" ? "100%" : "0";
+  } else {
+    // Flecha en el borde izquierdo o derecho: apunta al centro vertical del ancla.
+    const arrowY = Math.max(8, Math.min(coords.y + (tooltipRef.current?.getBoundingClientRect().height || 36) - 8, anchorCenterY - coords.y));
+    arrowStyle.top = `${arrowY}px`;
+    arrowStyle.left = actualSide === "left" ? "100%" : "0";
+  }
 
   return (
     <>
