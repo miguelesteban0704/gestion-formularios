@@ -1,8 +1,9 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Search, FolderOpen } from "lucide-react";
 import { useForms } from "../../hooks/useForms.js";
 import { useDebounce } from "../../hooks/useDebounce.js";
+import { useRealtimeStats } from "../../hooks/useRealtimeStats.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { Button } from "../ui/Button.jsx";
 import { Input } from "../ui/Input.jsx";
@@ -57,9 +58,24 @@ export const FormsBrowser = forwardRef(function FormsBrowser(
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { forms, loading, remove, duplicate, patch } = useForms({ search, filter: safeFilter, publicOnly, guestMode });
+  const { forms, loading, remove, duplicate, patch, reload } = useForms({ search, filter: safeFilter, publicOnly, guestMode });
   // Portada pública: solo encuestas publicadas, sin pestañas de filtro.
   const visibleForms = publishedOnly ? forms.filter((f) => f.status === "published") : forms;
+
+  // SSE: refresca la lista (y sus conteos de respuestas/vistas) sin recargar,
+  // solo en la vista autenticada de gestión. En el escaparate público (guestMode)
+  // no hay token y ya sondea `useForms`; el hook no conecta sin token igualmente.
+  const lastStatsUpdate = useRef(0);
+  useRealtimeStats({
+    general: true,
+    onStatsUpdated: (eventData) => {
+      if (guestMode || eventData?._fallbackPoll) return;
+      const now = Date.now();
+      if (now - lastStatsUpdate.current < 900) return;
+      lastStatsUpdate.current = now;
+      reload();
+    },
+  });
 
   const handleDelete = async (id) => {
     await remove(id);

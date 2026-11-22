@@ -2565,6 +2565,102 @@ const estilo = flex({ direction: "column", gap: 12 }); // objeto de estilo
 > Orden: **más reciente primero**. Cada entrada lleva fecha, archivos, qué cambió
 > y las puertas ejecutadas (ver §5).
 
+### 2026-11-22 — Auto-refresco por SSE (sin recargar) de todas las páginas con estadísticas
+
+**Objetivo (petición del usuario):** que cualquier página que muestre datos
+estadísticos se actualice sola cuando entra o se borra una respuesta, **sin
+recargar** la página. Cubre: estadísticas generales (`Insights`), estadísticas
+por formulario en `super_admin`/`entity_admin` (y `form_creator`, que no tiene
+página de estadísticas por RBAC), estadísticas de entidad, y cualquier
+estadística mostrada en el inicio del sitio.
+
+**Causa raíz / contexto:** el refresco en vivo ya existía como SSE en memoria
+del proceso (no hay triggers de BD): `backend/services/realtimeStats.js`
+(`emitStatsUpdated` difunde `stats_updated` a `general`, `form:{id}` y
+`entity:{id}`) se dispara al crear (`response.service.js:143`) y borrar
+(`response.service.js:257`) una respuesta. El frontend ya lo consumía en
+`Insights.jsx`, `Analytics.jsx` y `entity-admin/EntityStats.jsx`, pero faltaban
+varios consumidores y la portada pública (que no tiene token y no puede usar SSE).
+
+**Cambios (solo frontend, 7 archivos):**
+- `src/pages/admin/PublicStats.jsx` — `useRealtimeStats({ general: true })`
+  (super_admin); `runSearch` pasa a `useCallback([entities])` y se re-ejecuta con
+  throttle de 900 ms al llegar `stats_updated` (se ignora `_fallbackPoll`).
+- `src/pages/entity-admin/EntityForms.jsx` — `useRealtimeStats({ entityId:
+  user?.entityId })` (canal de entidad, mismo UUID que usa `EntityStats`); la
+  carga de formularios se extrae a `loadForms` (`useCallback`) y se re-ejecuta con
+  throttle de 900 ms. Se corrige `user?.entity?._id` → `user?.entityId` para que
+  el filtro del hook coincida con el evento del backend.
+- `src/pages/Dashboard.jsx` — `useRealtimeStats({ general: true })` refresca
+  `loadAll` (formularios, publicados, respuestas, vistas) con throttle de 900 ms.
+- `src/components/forms/FormsBrowser.jsx` — `useRealtimeStats({ general: true })`
+  en la vista autenticada de gestión (MyForms y parrilla); usa `reload` de
+  `useForms`. En `guestMode` se omite (no hay token y ya sondea `useForms`).
+- `src/hooks/usePublicInsights.js` — la portada pública no tiene token, así que
+  no puede suscribirse al SSE (`/api/events/stats` exige auth). Sondeo en segundo
+  plano cada 30 s (`load(isPoll)` no toca `loading`; el backoff de reintentos solo
+  aplica a la carga inicial; se limpia el intervalo al desmontar).
+- `src/hooks/useForms.js` — `load({ silent })` permite sondeo silencioso del
+  escaparate público; nuevo `useEffect` que sondea cada 30 s en `guestMode`
+  (silent=true no toca `loading`, así no parpadea el skeleton).
+- `src/pages/Analytics.jsx`, `src/pages/Insights.jsx`,
+  `src/pages/entity-admin/EntityStats.jsx` — ya estaban suscritos (sin cambios).
+
+**`form_creator`:** no tiene página de estadísticas (lo deniega `canSeeStatsPage`
+en `src/lib/roles.js`), así que "cubrir el rol" es confirmar que no hay
+superficie que cablear, no añadir una.
+
+**Contrato de datos intacto:** sin cambios de backend, endpoints ni persistencia;
+solo suscripciones SSE y sondeos de solo lectura en el cliente.
+
+**Verificación (ejecutada):**
+- `npx tsc --noEmit` → exit 0.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno de los archivos
+  tocados añade errores).
+- `npm run build` → exit 0 (avisos preexistentes de `@utility` y tamaño de chunks).
+- `npm run qa:brand` → 0 conflictos semánticos (1 congelamiento preexistente en
+  `PrismGauge.css`, ajeno a este cambio).
+- `npm run qa:routes` → 124 comprobaciones / 2 fallos (baseline preexistente).
+
+### 2026-11-22 — Fix: 401 en el SSE de respuestas (`/api/forms/:id/responses/stream`) por orden de montaje de routers
+
+**Objetivo:** eliminar el `401 "Authentication required"` que aparecía en la
+consola del navegador al cargar las estadísticas de un formulario, sin tocar el
+diseño de la página de estadísticas.
+
+**Causa raíz:** `backend/app.js` montaba `formRoutes` en `/api/forms`
+**antes** que `responseRoutes` en `/api`. `form.routes.js` tiene un
+`router.use(protect)` global que se ejecuta para **cualquier** path bajo
+`/api/forms`, incluido `/api/forms/:id/responses/stream`. `protect` solo lee la
+cabecera `Authorization` (que `EventSource` no puede enviar), así que
+rechazaba la petición con 401 antes de que `streamResponses` pudiera leer el
+token de la query (`req.query.token`). El token por cabecera sí funcionaba;
+solo fallaba la ruta del query.
+
+**Cambio (solo backend, 1 archivo):**
+- `backend/app.js` — se monta `responseRoutes` (`app.use("/api", responseRoutes)`)
+  **antes** que `formRoutes` (`app.use("/api/forms", formRoutes)`), con un
+  comentario que explica el porqué. Así los endpoints SSE se resuelven antes del
+  `protect` global de `formRoutes`. Los demás endpoints de `responseRoutes` ya
+  llevan su propio `protect` por ruta, y `insightsRoutes` solo expone
+  `/insights` e `/inbox` (sin `/forms/...`), por lo que el reorden no afecta a
+  nada más.
+
+**Contrato de datos intacto:** sin cambios de endpoints, esquema ni persistencia;
+solo el orden de montaje de los routers.
+
+**Verificación (ejecutada):**
+- `node --check backend/app.js` → exit 0.
+- Reproducción con el backend en marcha:
+  - `GET /api/forms/:id/responses/stream?token=…` (solo query, sin cabecera) →
+    **200** `: connected` (antes 401).
+  - `GET /api/forms/:id` con `Authorization: Bearer …` (formRoutes) → 200.
+  - `GET /api/forms/:id/analytics` con `Authorization: Bearer …` (responseRoutes)
+    → 200.
+  - `GET /api/events/stats?token=…` (SSE, query token) → 200 `: connected`.
+  - `GET /api/forms/:id` sin cabecera → sigue 401 (el `protect` de formRoutes
+    intacto).
+
 ### 2026-11-22 — Tooltip: rediseño «holograma HUD», KPI cards más anchos y flecha que apunta al centro del icono
 
 **Objetivo (petición del usuario):** (1) rediseñar el acabado del tooltip del

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useDebounce } from "../../hooks/useDebounce.js";
+import { useRealtimeStats } from "../../hooks/useRealtimeStats.js";
 import {
   Activity,
   AlertCircle,
@@ -76,7 +77,7 @@ export default function PublicStats() {
   const [hasError, setHasError] = useState(false);
   const isFirstMount = useRef(true);
 
-  const runSearch = (ent, vis) => {
+  const runSearch = useCallback((ent, vis) => {
     if (!isFirstMount.current) setIsLoading(true);
     setHasError(false);
     const entName = ent ? entities.find((e) => e._id === ent)?.name || null : null;
@@ -96,7 +97,7 @@ export default function PublicStats() {
         setIsLoading(false);
         isFirstMount.current = false;
       });
-  };
+  }, [entities]);
 
   useEffect(() => {
     adminApi.entities({}).then((d) => setEntities(d.entities)).catch(() => {});
@@ -116,6 +117,19 @@ export default function PublicStats() {
 
   // ⌘K / Ctrl K abre (o cierra) el overlay: la lógica vive en ListChrome.
   useSpotlightHotkey(spotlightOpen, setSpotlightOpen);
+
+  // SSE: actualización en tiempo real de estadísticas (canal general, super_admin).
+  const lastStatsUpdate = useRef(0);
+  useRealtimeStats({
+    general: true,
+    onStatsUpdated: (eventData) => {
+      if (eventData._fallbackPoll) return;
+      const now = Date.now();
+      if (now - lastStatsUpdate.current < 900) return;
+      lastStatsUpdate.current = now;
+      runSearch(entityId, visibility);
+    },
+  });
 
   const onEntityChange = (entity) => {
     setEntityId(entity._id);

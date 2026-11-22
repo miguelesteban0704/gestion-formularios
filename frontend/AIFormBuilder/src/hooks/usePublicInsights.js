@@ -14,32 +14,40 @@ export function usePublicInsights() {
     let mounted = true;
     let retryCount = 0;
     const maxRetries = 2;
+    let pollId = null;
 
-    const load = async () => {
+    const load = async (isPoll = false) => {
       try {
-        setLoading(true);
+        if (!isPoll) setLoading(true);
         const result = await guestApi.insights();
         if (mounted) {
           setData(result);
           setError(null);
+          retryCount = 0;
         }
       } catch (err) {
-        if (mounted && retryCount < maxRetries) {
+        if (mounted && !isPoll && retryCount < maxRetries) {
           retryCount++;
-          // Reintento con backoff exponencial
-          setTimeout(load, 1000 * retryCount);
-        } else if (mounted) {
+          // Reintento con backoff exponencial (solo carga inicial)
+          setTimeout(() => load(false), 1000 * retryCount);
+        } else if (mounted && !isPoll) {
           setError(err.message);
         }
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted && !isPoll) setLoading(false);
       }
     };
 
     load();
 
+    // La portada pública no tiene token, así que no puede suscribirse al SSE de
+    // estadísticas (`/api/events/stats` exige autenticación). Sondeamos en
+    // segundo plano cada 30 s para que los KPIs evolucionen sin recargar.
+    pollId = setInterval(() => load(true), 30000);
+
     return () => {
       mounted = false;
+      if (pollId) clearInterval(pollId);
     };
   }, []);
 

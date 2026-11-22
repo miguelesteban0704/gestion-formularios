@@ -4,6 +4,71 @@ Ver `frontend/AIFormBuilder/AGENTS.md` para las reglas del proyecto frontend.
 
 ## Registro de cambios — 2026-11-22
 
+### Auto-refresco por SSE (sin recargar) de todas las páginas con estadísticas
+
+**Objetivo (petición del usuario):** que cualquier página que muestre datos
+estadísticos se actualice sola cuando entra o se borra una respuesta, **sin
+recargar** la página. Cubre estadísticas generales (`Insights`), por formulario en
+`super_admin`/`entity_admin` (`form_creator` no tiene página de estadísticas por
+RBAC), de entidad, y las del inicio del sitio.
+
+**Causa raíz / contexto:** el refresco en vivo es un SSE en memoria del proceso
+(no hay triggers de BD): `emitStatsUpdated` difunde `stats_updated` a `general`,
+`form:{id}` y `entity:{id}` al crear/borrar una respuesta. Ya lo consumían
+`Insights`, `Analytics` y `EntityStats`; faltaban varios consumidores y la portada
+pública (sin token, no puede usar SSE).
+
+**Cambios (solo frontend, 7 archivos):**
+- `src/pages/admin/PublicStats.jsx` — `useRealtimeStats({ general: true })`;
+  `runSearch` a `useCallback` re-ejecutado con throttle de 900 ms.
+- `src/pages/entity-admin/EntityForms.jsx` — `useRealtimeStats({ entityId:
+  user?.entityId })`; `loadForms` a `useCallback` re-ejecutado con throttle de
+  900 ms. Corrige `user?.entity?._id` → `user?.entityId` (mismo UUID que usa
+  `EntityStats`).
+- `src/pages/Dashboard.jsx` — `useRealtimeStats({ general: true })` refresca
+  `loadAll` con throttle de 900 ms.
+- `src/components/forms/FormsBrowser.jsx` — SSE en la vista autenticada
+  (MyForms/parrilla); se omite en `guestMode`.
+- `src/hooks/usePublicInsights.js` — sondeo cada 30 s en la portada pública (sin
+  token no hay SSE); no toca `loading` y limpia el intervalo al desmontar.
+- `src/hooks/useForms.js` — `load({ silent })` + sondeo cada 30 s en `guestMode`
+  (silent no toca `loading`, sin parpadeo del skeleton).
+
+**`form_creator`:** sin página de estadísticas (lo deniega `canSeeStatsPage`), así
+que no hay superficie que cablear.
+
+**Contrato de datos intacto:** sin cambios de backend ni persistencia; solo
+suscripciones SSE y sondeos de solo lectura en el cliente.
+
+**Verificación:** `tsc` 0 · `lint` 0 errores (solo warnings preexistentes) ·
+`build` 0 · `qa:brand` 0 conflictos (1 congelamiento preexistente en
+`PrismGauge.css`, ajeno) · `qa:routes` 124/2 (baseline).
+
+### Fix: 401 en el SSE de respuestas al cargar las estadísticas de un formulario
+
+**Objetivo:** quitar el `401 "Authentication required"` que salía en la consola
+del navegador al abrir las estadísticas de un formulario, sin cambiar el diseño
+de esa página.
+
+**Causa raíz:** el backend montaba `formRoutes` en `/api/forms` antes que
+`responseRoutes` en `/api`. El `router.use(protect)` global de `form.routes.js`
+se ejecutaba para cualquier path bajo `/api/forms` —incluido
+`/api/forms/:id/responses/stream`— y `protect` solo lee la cabecera
+`Authorization`, que `EventSource` no puede enviar. Rechazaba la petición con
+401 antes de que el controlador leyera el token de la query.
+
+**Cambio (solo backend, 1 archivo):**
+- `backend/app.js` — `responseRoutes` se monta **antes** que `formRoutes`, con
+  comentario explicativo. El resto de endpoints conservan su `protect` por ruta;
+  `insightsRoutes` no comparte prefijo `/forms`.
+
+**Contrato de datos intacto:** sin cambios de endpoints ni persistencia; solo el
+orden de montaje.
+
+**Verificación:** `node --check backend/app.js` 0 · SSE por query-token → 200
+`: connected` (antes 401) · `GET /api/forms/:id` con header → 200 · sin header →
+401 (protect intacto) · `/api/events/stats?token=…` → 200.
+
 ### Estadísticas: tooltip «holograma HUD», KPI cards más anchos y flecha que apunta al centro del icono
 
 **Objetivo (petición del usuario):** rediseñar el acabado del tooltip a un estilo

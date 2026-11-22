@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useRealtimeStats } from "../hooks/useRealtimeStats.js";
 import {
   Plus,
   LayoutTemplate,
@@ -51,6 +52,22 @@ export default function Dashboard() {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  // SSE: refresca los agregados del inicio (formularios, publicados, respuestas,
+  // vistas) sin recargar la página. El canal `general` cubre a todos los roles
+  // autenticados; el fallback de polling del hook mantiene la actualización si el
+  // EventSource se cae. `_fallbackPoll` se ignora para no duplicar el sondeo.
+  const lastStatsUpdate = useRef(0);
+  useRealtimeStats({
+    general: true,
+    onStatsUpdated: (eventData) => {
+      if (eventData?._fallbackPoll) return;
+      const now = Date.now();
+      if (now - lastStatsUpdate.current < 900) return;
+      lastStatsUpdate.current = now;
+      loadAll();
+    },
+  });
 
   const counts = useMemo(() => {
     const active = allForms.filter((f) => !f.isArchived);

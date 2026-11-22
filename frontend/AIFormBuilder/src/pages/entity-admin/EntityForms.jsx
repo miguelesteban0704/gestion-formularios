@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useRealtimeStats } from "../../hooks/useRealtimeStats.js";
 import {
   Activity,
   BarChart3,
@@ -82,14 +83,33 @@ export default function EntityForms() {
   const [query, setQuery] = useState("");
   const [spotlightOpen, setSpotlightOpen] = useState(false);
 
-  useEffect(() => {
+  const loadForms = useCallback(() => {
     entityAdminApi
       .forms({})
       .then((d) => setForms(d.forms))
       .catch((e) => notifyError(e));
   }, []);
 
+  useEffect(() => {
+    loadForms();
+  }, [loadForms]);
+
   useSpotlightHotkey(spotlightOpen, setSpotlightOpen);
+
+  // SSE: actualización en tiempo real de estadísticas (canal de entidad).
+  // `user.entityId` es el UUID que el backend usa en `entity:{entityId}` (igual
+  // que en EntityStats), así el filtro del hook coincide con el evento.
+  const lastStatsUpdate = useRef(0);
+  useRealtimeStats({
+    entityId: user?.entityId,
+    onStatsUpdated: (eventData) => {
+      if (eventData._fallbackPoll) return;
+      const now = Date.now();
+      if (now - lastStatsUpdate.current < 900) return;
+      lastStatsUpdate.current = now;
+      loadForms();
+    },
+  });
 
   const counts = useMemo(() => {
     let publics = 0;

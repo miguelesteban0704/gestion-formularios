@@ -189,8 +189,17 @@ app.get("/api/guest/forms/:slug/stats", guestFormStats);
 app.get("/api/guest/forms/:slug/export", guestFormExport);
 // Catálogo público de entidades activas (escaparate de invitados).
 app.get("/api/guest/entities", listEntitiesPublic);
-app.use("/api/forms", formRoutes);
+// `responseRoutes` va ANTES de `formRoutes` a propósito: contiene los endpoints
+// SSE (`/api/forms/:id/responses/stream` y `/api/events/stats`), que se
+// autentican con el token por query porque `EventSource` no puede enviar la
+// cabecera Authorization. `formRoutes` monta un `protect` global
+// (`router.use(protect)`) que se ejecuta para CUALQUIER petición bajo
+// `/api/forms`; si se montara primero, ese `protect` rechazaría el SSE con
+// 401 "Authentication required" antes de que `streamResponses` pudiera leer el
+// token de la query. Los demás endpoints de `responseRoutes` llevan su propio
+// `protect` por ruta y siguen comportándose igual.
 app.use("/api", responseRoutes);
+app.use("/api/forms", formRoutes);
 app.use("/api", insightsRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/notifications", notificationRoutes);

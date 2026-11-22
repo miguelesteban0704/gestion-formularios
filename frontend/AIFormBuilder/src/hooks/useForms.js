@@ -14,19 +14,19 @@ export function useForms({ search = "", filter = "all", publicOnly = false, gues
   const { t } = useLanguage();
   const { isAuthenticated, loading: authLoading } = useAuth();
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ silent = false } = {}) => {
     // Escaparate: publicados de todos sin necesidad de sesión. El filtrado
     // por pestaña y buscador lo hace FilteredFormsList en cliente.
     if (guestMode) {
-      setLoading(true);
+      if (!silent) setLoading(true);
       try {
         const data = await guestApi.listForms({});
         setForms(data.forms || data);
         setError(null);
       } catch (err) {
-        setError(err.message);
+        if (!silent) setError(err.message);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
       return;
     }
@@ -62,6 +62,16 @@ export function useForms({ search = "", filter = "all", publicOnly = false, gues
   useEffect(() => {
     load();
   }, [load]);
+
+  // La portada pública (guestMode) muestra el conteo de respuestas/vistas de cada
+  // formulario. Sin token no hay SSE, así que sondeamos en segundo plano (cada
+  // 30 s) para refrescar esos conteos sin recargar la página ni parpadear el
+  // skeleton (silent=true no toca `loading`).
+  useEffect(() => {
+    if (!guestMode) return;
+    const id = setInterval(() => load({ silent: true }), 30000);
+    return () => clearInterval(id);
+  }, [guestMode, load]);
 
   // Limpieza inmediata al cerrar sesión: evita mostrar datos residuales
   useEffect(() => {
