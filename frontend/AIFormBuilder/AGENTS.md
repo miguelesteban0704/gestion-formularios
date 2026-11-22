@@ -1,5 +1,99 @@
 # AGENTS.md — Gestor de Formularios
 
+### 2026-11-22 — Fix: el constructor ya no se queda en blanco al abrir la configuración de un campo con condición (`dep is not defined`)
+
+**Síntoma (petición del usuario):** al abrir la configuración del campo
+**Clasificación por escala** (`importancia`) en el constructor, la pantalla se
+quedaba **en blanco** y en la consola aparecía
+`Uncaught ReferenceError: dep is not defined at ConditionEditor (FieldSettings.jsx:713)`.
+
+**Causa raíz:** el commit de i18n `3136a00` reescribió `ConditionEditor`
+(`src/components/builder/FieldSettings.jsx`) y **perdió** la declaración
+`const dep = prev.find((q) => q.id === cond.questionId) || null;`, pero dejó
+más abajo `depOptions`/`yesNoOptions` usando `dep`
+(`Array.isArray(dep?.options) …` / `dep?.type === "yes_no"`). Al renderizar el
+editor de visibilidad de un campo con `visibleIf` (la Clasificación por escala
+tiene su propia lógica condicional), `dep` no existía → `ReferenceError` que,
+sin `ErrorBoundary`, desmontaba todo el árbol y dejaba la pantalla vacía.
+
+**Arreglo (mínimo, sin tocar el diseño del campo):**
+- `frontend/AIFormBuilder/src/components/builder/FieldSettings.jsx` — se restaura
+  en `ConditionEditor` la línea
+  `const dep = prev.find((q) => q.id === cond.questionId) || null;`
+  (idéntica a la que existía antes de `3136a00`, verificada con
+  `git log -S`). `dep` vuelve a ser la pregunta de la que depende la condición;
+  `depOptions`/`yesNoOptions` vuelven a resolver y el editor ya no lanza.
+  No se toca `PremiumImportancia.jsx/.css` ni ningún archivo del diseño
+  «Signal Rail».
+
+**Sobre los avisos `Received `true` for a non-boolean attribute `as`/`any``:**
+se auditó todo el camino de render del campo (FieldSettings → `ScaleEditor`,
+`SortableOption`, `ConditionEditor`; `ValidationSettings` → `LivePreview` →
+`PremiumSelect`; `PremiumImportancia` → `ChronoSelect`; `CountrySelect` →
+`CountryOption`). **Ninguno** reenvía `as`/`any` a un nodo DOM: el único `any`
+del repo es `any={opt.any}` sobre `CountryOption`, que lo **desestructura** (no
+lo pasa al DOM). El cambio aplicado es una sola declaración `const`, que no puede
+introducir esos avisos; por tanto son **preexistentes y ajenos** a este arreglo.
+
+**Contrato de datos intacto:** solo se recupera una variable local; sin cambios
+de props, handlers, estados, `visibleIf`, APIs ni persistencia.
+
+**Archivos modificados (1):**
+- `frontend/AIFormBuilder/src/components/builder/FieldSettings.jsx`
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en el
+  archivo tocado).
+- `npm run build` → exit 0 (`✓ built in 1.96s`; avisos `@utility` de `admin.css`
+  y chunks >500 kB preexistentes, ver §9).
+
+### 2026-11-22 — Fix: estadísticas fallaban con «LayoutTemplate is not defined»
+
+**Síntoma (petición del usuario):** al abrir la página de estadísticas para ver
+el resultado de una pregunta de Clasificación por escala, salía el error
+`LayoutTemplate is not defined` y la página no cargaba.
+
+**Causa raíz:** `src/pages/Insights.jsx` usaba `<ChartCard ... icon={LayoutTemplate}>`
+(la tarjeta «Distribución por navegador») pero **no importaba** `LayoutTemplate`
+de `lucide-react` — su bloque de imports (líneas 3–13) listaba
+`ClipboardCheck, Eye, TrendingUp, Clock, Activity, Trophy, Sparkles,
+CalendarClock, MonitorSmartphone`, sin `LayoutTemplate`. En el build eso es un
+`ReferenceError` en tiempo de ejecución que rompe el render de la página
+(errores que `tsc` no detecta porque `Insights.jsx` es `.jsx`, fuera del alcance
+de `tsconfig`). `Analytics.jsx` y `EntityStats.jsx` sí lo importaban, por eso
+solo fallaba la ruta de Insights.
+
+**Arreglo (mínimo, sin tocar el diseño del campo):**
+- `frontend/AIFormBuilder/src/pages/Insights.jsx` — se añade `LayoutTemplate` al
+  import de `lucide-react`. No se toca `PremiumImportancia.jsx/.css` ni ningún
+  archivo del nuevo diseño «Signal Rail» del campo de Clasificación por escala.
+
+**Contrato de datos intacto:** solo se añade un identificador faltante al import;
+sin cambios de lógica, props, handlers, estados, APIs ni persistencia.
+
+**Archivos modificados (1):**
+- `frontend/AIFormBuilder/src/pages/Insights.jsx`
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; los de `Insights.jsx`
+  en las líneas 12/56 son previos y ajenos a este cambio; `LayoutTemplate` no
+  genera aviso porque sí se usa).
+- `npm run build` → exit 0 (`✓ built in 30.64s`).
+
+### 2026-11-22 — Clasificación por escala (`importancia`): rediseño «Signal Rail»
+
+**Objetivo (petición del usuario):** llevar `PremiumImportancia` a un diseño más moderno, funcional, premium, futurista y creativo.
+
+**Cambio (solo frontend, 2 archivos):**
+- `frontend/AIFormBuilder/src/components/ui/PremiumImportancia.jsx` — la puntuación pasa de un desplegable por fila a un **riel de nodos** (`ScoreRail`): un toque puntúa, el haz de energía se enciende hasta el nodo elegido con el color de su prioridad. Accesible como `radiogroup` (`role="radio"`, `aria-checked`, tabindex itinerante, flechas/Inicio/Fin). Escalas de **más de 7 valores** conservan `ChronoSelect` (con `dropdownMinWidth={96}`). Nuevo **HUD** superior: espectro de la escala + medidor segmentado de progreso (`role="status"`, «n de m clasificadas»; las filas «Otros» sin activar no cuentan). Textos nuevos en un `COPY` local es/en (sin tocar `LanguageContext`). Correcciones menores: las filas «Otros» dinámicas usan `aria-label` (antes `aria-labelledby` apuntaba a un id inexistente) y el icono `X` de limpiar tenía `h-4 w-2` (ahora `h-3.5 w-3.5`).
+- `frontend/AIFormBuilder/src/components/ui/PremiumImportancia.css` — estilos nuevos (paneles de cristal, filete de luz por prioridad, onda de confirmación, HUD, pastillas «Otros») que van **después** del bloque heredado; las clases antiguas se conservan por si otros módulos las usan. Solo tokens (`--color-brand-*`, semánticos, `--surface*`, `--fg*`, `--border`); sin hex. Respeta dark mode y `prefers-reduced-motion`; responsive ≤ 520 px.
+
+**Contrato de datos intacto:** misma API de props y mismos helpers de `classificationScale.js`; la respuesta sigue siendo `{ [opciónId]: score | { value, otherText } }`. Sin cambios de backend ni persistencia.
+
+**Puertas:** no ejecutadas en esta sesión (sin acceso al repo). Pendientes desde `frontend/AIFormBuilder/`: `npx tsc --noEmit`, `npm run lint`, `npm run build`, `npm run qa:brand`, `node --test qa/classification-scale.test.js`. Solo se comprobó sintaxis del JSX y balance de llaves del CSS.
+
 ### 2026-11-22 — Icono de «Respuestas»: `Inbox` sustituido por `ClipboardCheck` en todo el sitio
 
 **Objetivo (petición del usuario):** unificar el icono de los cards/entradas de

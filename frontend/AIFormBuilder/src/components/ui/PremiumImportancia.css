@@ -1,5 +1,5 @@
 /*
- * PremiumImportancia.css — "Refined Minimal" design system
+ * PremiumImportancia.css — "Signal Rail" design system (rediseño futurista)
  *
  * Campo de clasificación por escala unificado con el sistema de campos de elección.
  * 
@@ -25,163 +25,7 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* ── Contenedor principal ── */
-.imp-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.imp-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--fg);
-  text-align: left;
-}
-
-.imp-required {
-  color: var(--color-danger);
-  font-size: 0.75rem;
-}
-
-/* ── Escala visual indicadora ── */
-.imp-scale-indicator {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--surface-2) 50%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
-}
-
-.imp-scale-track {
-  display: flex;
-  gap: 0.375rem;
-}
-
-.imp-scale-step {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 1.75rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  transition:
-    background-color 0.2s var(--ease-out),
-    border-color 0.2s var(--ease-out),
-    color 0.2s var(--ease-out);
-  border: 1px solid;
-}
-
-.imp-scale-step:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--color-brand-500) 30%, transparent);
-}
-
-.imp-scale-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  color: var(--fg-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* ── Lista de servicios ── */
-.imp-services-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-/* ── Tarjeta de servicio (refinada) ── */
-.imp-service-card {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.875rem 1rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  background: color-mix(in srgb, var(--surface-2) 40%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition:
-    border-color 0.15s var(--ease-out),
-    background-color 0.15s var(--ease-out),
-    box-shadow 0.15s var(--ease-out),
-    transform 0.12s var(--ease-out);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .imp-service-card:hover:not(.imp-service-card--disabled) {
-    border-color: color-mix(in srgb, var(--color-brand-400) 40%, var(--border));
-    background: color-mix(in srgb, var(--surface-2) 55%, transparent);
-    box-shadow: 0 4px 20px -4px color-mix(in srgb, var(--color-brand-500) 12%, transparent);
-    transform: translateY(-2px);
-  }
-
-  .imp-service-card:active:not(.imp-service-card--disabled) {
-    transform: scale(0.995);
-  }
-}
-
-.imp-service-card--has-priority {
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--border) 40%, transparent) inset,
-    0 6px 24px -6px color-mix(in srgb, var(--color-brand-500) 10%, transparent);
-}
-
-.imp-service-card--duplicate {
-  border-color: var(--color-danger) !important;
-  background: color-mix(in srgb, var(--color-danger-soft) 50%, transparent) !important;
-  animation: imp-shake 0.35s var(--ease-spring);
-}
-
-@keyframes imp-shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-3px); }
-  60% { transform: translateX(3px); }
-}
-
-.imp-service-card--other {
-  border-style: dashed;
-  border-color: color-mix(in srgb, var(--color-brand-400) 60%, var(--border));
-  background: color-mix(in srgb, var(--color-brand-50) 30%, transparent);
-}
-
-/* ── Fila de opción disparadora (trigger) de condición condicional ── */
-.imp-option-card--trigger {
-  cursor: pointer;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .imp-option-card--trigger:hover:not(.imp-service-card--disabled) {
-    border-color: color-mix(in srgb, var(--color-brand-400) 50%, var(--border));
-    background: color-mix(in srgb, var(--surface-2) 65%, transparent);
-    transform: translateY(-1px);
-  }
-
-  .imp-option-card--trigger:active:not(.imp-service-card--disabled) {
-    transform: scale(0.995);
-  }
-}
-
-.imp-option-card--trigger-active {
-  border-color: var(--color-brand-500) !important;
-  background: color-mix(in srgb, var(--color-brand-500) 12%, transparent) !important;
-  box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--color-brand-500) 35%, transparent),
-    0 6px 24px -6px color-mix(in srgb, var(--color-brand-500) 10%, transparent);
-}
+/* ═══ Legado conservado (clases que otros módulos aún pueden usar) ═══ */
 
 /* ── Badge de opción disparadora (sin select de escala) ── */
 .imp-option-trigger-badge {
@@ -328,338 +172,7 @@
   max-width: none !important;
 }
 
-/* Contenido del servicio/opción */
-.imp-service-content,
-.imp-option-label-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex: 1;
-  min-width: 0;
-}
 
-.imp-option-main {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  width: 100%;
-}
-
-.imp-service-index {
-  font-size: 0.75rem;
-  font-weight: 600;
-  flex-shrink: 0;
-  width: 1.5rem;
-  text-align: right;
-  color: var(--fg-muted);
-}
-
-.imp-option-label {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--fg);
-  line-height: 1.4;
-  word-break: break-word;
-}
-
-.imp-option-select {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 160px;
-}
-
-.imp-option-card {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.imp-score-row {
-  min-width: 0;
-  align-items: stretch;
-}
-
-.imp-score-row .imp-option-main {
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.imp-score-select-controls {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  min-width: 0;
-  gap: 0.375rem;
-}
-
-.imp-score-select-controls > .w-full {
-  flex: 0 0 4.5rem;
-  width: 4.5rem;
-  min-width: 4.5rem;
-}
-
-.imp-score-select-controls .chrono-select-trigger {
-  min-height: 2.5rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-}
-
-.imp-score-select-trigger > div > span,
-.imp-score-select-option > span {
-  color: var(--fg) !important;
-}
-
-.imp-score-select-controls .chrono-select-trigger:hover:not(:disabled) {
-  transform: none;
-}
-
-.imp-score-clear {
-  display: grid;
-  place-items: center;
-  min-width: 2.5rem;
-  min-height: 2.5rem;
-  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--surface-2) 65%, transparent);
-  color: var(--fg);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    border-color 0.15s var(--ease-out),
-    background-color 0.15s var(--ease-out),
-    color 0.15s var(--ease-out),
-    transform 0.15s var(--ease-out);
-}
-
-.imp-score-clear:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--color-brand-500) 55%, var(--border));
-  transform: translateY(-1px);
-}
-
-.imp-score-clear:focus-visible {
-  outline: 2px solid var(--color-brand-500);
-  outline-offset: 2px;
-}
-
-.imp-score-clear:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.imp-score-clear {
-  color: var(--fg-muted);
-}
-
-.imp-other-badge {
-  flex-shrink: 0;
-  width: auto;
-  height: auto;
-  display: inline-flex;
-  align-items: center;
-  padding: 0.2rem 0.45rem;
-  border: 1px solid color-mix(in srgb, var(--color-brand-500) 30%, var(--border));
-  border-radius: var(--radius-full, 999px);
-  color: var(--color-brand-700);
-  font-size: 0.65rem;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.imp-conditional--row {
-  border-style: dashed;
-}
-
-.imp-other-field {
-  min-width: 0;
-}
-
-.imp-other-field .imp-conditional-input {
-  width: 100%;
-  min-width: 0;
-}
-
-.imp-option-other-inline {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.imp-other-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  height: 2rem;
-  padding: 0 0.75rem;
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
-  color: var(--fg-muted);
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background-color 0.15s var(--ease-out),
-    border-color 0.15s var(--ease-out),
-    color 0.15s var(--ease-out);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .imp-other-toggle:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
-    border-color: color-mix(in srgb, var(--color-brand-500) 40%, var(--border));
-    color: var(--color-brand-700);
-  }
-}
-
-.imp-other-toggle--active {
-  background: color-mix(in srgb, var(--color-brand-500) 12%, transparent);
-  border-color: color-mix(in srgb, var(--color-brand-500) 45%, var(--border));
-  color: var(--color-brand-700);
-}
-
-.imp-other-toggle:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ── Botón agregar "Otros" dinámico (+) ── */
-.imp-add-dynamic-other {
-  display: grid;
-  place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--color-brand-500) 30%, var(--border));
-  background: color-mix(in srgb, var(--color-brand-500) 8%, transparent);
-  color: var(--color-brand-600);
-  cursor: pointer;
-  transition:
-    background-color 0.15s var(--ease-out),
-    border-color 0.15s var(--ease-out),
-    color 0.15s var(--ease-out),
-    transform 0.2s var(--ease-spring);
-  flex-shrink: 0;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .imp-add-dynamic-other:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
-    border-color: var(--color-brand-500);
-    color: var(--color-brand-700);
-    transform: scale(1.1);
-  }
-  .imp-add-dynamic-other:active:not(:disabled) {
-    transform: scale(0.95);
-  }
-}
-
-.imp-add-dynamic-other:focus-visible {
-  outline: 2px solid var(--color-brand-500);
-  outline-offset: 2px;
-}
-
-.imp-add-dynamic-other:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.imp-add-dynamic-other svg {
-  width: 1.125rem;
-  height: 1.125rem;
-}
-
-/* ── Tarjetas "Otros" dinámicas (sin label, solo input + select) ── */
-.imp-service-card--dynamic-other {
-  border-style: dashed;
-  border-color: color-mix(in srgb, var(--color-brand-400) 50%, var(--border));
-  background: color-mix(in srgb, var(--color-brand-500) 5%, transparent);
-}
-
-.imp-service-card--dynamic-other .imp-option-label-wrap {
-  justify-content: flex-start;
-  gap: 0.5rem;
-}
-
-.imp-service-card--dynamic-other .imp-other-badge {
-  flex-shrink: 0;
-}
-
-/* ── Prioridad Select (usa PremiumSelect compartido) ── */
-/* Estilos heredados de .refined-select-* en PremiumSelect.css */
-
-/* ── Campo "Otros" ── */
-.imp-other-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
-  animation: imp-slide-down 0.2s var(--ease-out) forwards;
-}
-
-@keyframes imp-slide-down {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.imp-other-field-inner {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.imp-other-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  flex-shrink: 0;
-  color: color-mix(in srgb, var(--color-brand-500) 70%, var(--fg-muted));
-}
-
-.imp-other-input {
-  flex: 1;
-  min-width: 0;
-  height: 2.125rem;
-  padding: 0 0.875rem;
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
-  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: var(--fg);
-  transition:
-    border-color 0.15s var(--ease-out),
-    background-color 0.15s var(--ease-out),
-    box-shadow 0.15s var(--ease-out);
-  outline: none;
-}
-
-.imp-other-input::placeholder {
-  color: color-mix(in srgb, var(--fg-muted) 60%, transparent);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .imp-other-input:hover:not(:disabled) {
-    border-color: color-mix(in srgb, var(--color-brand-400) 40%, var(--border));
-    background: color-mix(in srgb, var(--surface-2) 80%, transparent);
-  }
-}
-
-.imp-other-input:focus-visible {
-  border-color: color-mix(in srgb, var(--color-brand-500) 55%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 25%, transparent);
-}
-
-.imp-other-input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ── Botones de acción (compat, ya no se usan en la vista de respuesta) ── */
 .imp-actions {
   display: flex;
   flex-wrap: wrap;
@@ -713,99 +226,6 @@
 }
 
 /* ── Reduced motion ── */
-@media (prefers-reduced-motion: reduce) {
-  .imp-service-card,
-  .imp-score-clear,
-  .imp-score-select-controls .chrono-select-trigger,
-  .imp-service-label-input,
-  .imp-action-btn,
-  .imp-other-input,
-  .imp-action-btn--add,
-  .imp-other-field,
-  .imp-error,
-  .imp-warning,
-  .imp-success {
-    transition: none !important;
-    animation: none !important;
-  }
-  .imp-service-card--duplicate {
-    animation: none !important;
-  }
-  .imp-other-field {
-    animation: none !important;
-  }
-}
-
-/* ── Responsive ── */
-@media (max-width: 520px) {
-  .imp-service-card {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
-    padding: 0.875rem 0.875rem;
-  }
-
-  .imp-option-main {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.625rem;
-  }
-
-  .imp-score-select-controls {
-    width: auto;
-    flex-basis: auto;
-    align-self: flex-start;
-  }
-
-  .imp-option-label-wrap {
-    align-items: flex-start;
-  }
-
-  .imp-service-index {
-    width: 1.25rem;
-  }
-
-  .imp-option-select {
-    width: 100%;
-    min-width: 0;
-    justify-content: stretch;
-  }
-
-  .imp-option-select .refined-select-wrapper,
-  .imp-option-select > * {
-    width: 100%;
-    max-width: none !important;
-  }
-
-  .imp-option-other-inline,
-  .imp-other-toggle {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .imp-scale-track {
-    gap: 0.25rem;
-  }
-
-  .imp-scale-step {
-    min-height: 1.5rem;
-    font-size: 0.6875rem;
-  }
-}
-
-@media (max-width: 768px) and (min-width: 521px) {
-  .imp-option-main {
-    flex-wrap: wrap;
-  }
-
-  .imp-option-label-wrap {
-    flex: 1 1 220px;
-  }
-
-  .imp-option-select {
-    flex: 0 0 auto;
-  }
-}
 
 /* ── LivePreview ligero ── */
 .imp-live-preview {
@@ -839,4 +259,862 @@
   color: var(--fg-muted);
   font-style: italic;
   padding-top: 0.25rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * REDISEÑO "Signal Rail" — sobrescribe lo anterior (misma especificidad,
+ * va después). Solo tokens del sistema; cero hex de marca.
+ *
+ *  • HUD superior: espectro de la escala + medidor segmentado de progreso.
+ *  • Cada opción es un panel de cristal con un riel de nodos; al puntuar, un
+ *    haz de energía se enciende hasta el nodo elegido con el color de su
+ *    prioridad (--imp-accent / --imp-fill, fijados desde el JSX).
+ *  • Escalas largas (> 7 valores) conservan el desplegable ChronoSelect.
+ *  • Respeta dark mode (tokens) y prefers-reduced-motion.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Contenedor y etiqueta ── */
+.imp-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  min-width: 0;
+}
+
+.imp-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--fg);
+  text-align: left;
+}
+
+/* ── HUD: espectro + progreso ── */
+.imp-hud {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem 0.75rem;
+  border-radius: var(--radius-xl, 1rem);
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 22%, var(--border));
+  background:
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--fg-muted) 22%, transparent) 1px, transparent 1.5px) 0 0 / 14px 14px,
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--color-brand-500) 9%, var(--surface)) 0%,
+      color-mix(in srgb, var(--surface-2) 70%, var(--surface)) 100%);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Halo de esquina: el único destello decorativo del campo */
+.imp-hud::before {
+  content: "";
+  position: absolute;
+  inset: -40% 55% 40% -10%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--color-brand-500) 28%, transparent), transparent);
+  opacity: 0.55;
+  filter: blur(8px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Espectro de la escala */
+.imp-scale-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 0;
+}
+
+.imp-scale-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Hilo que une los orbes del espectro */
+.imp-scale-track::before {
+  content: "";
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    var(--color-danger),
+    var(--color-warning),
+    var(--color-info),
+    var(--color-success),
+    var(--fg-muted));
+  opacity: 0.45;
+}
+
+.imp-scale-step {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  height: 1.5rem;
+  max-width: 1.5rem;
+  margin-inline: auto;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1.5px solid;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 0 10px -2px color-mix(in srgb, var(--node-accent, var(--color-brand-500)) 55%, transparent);
+  transition: none;
+}
+
+.imp-scale-step:hover {
+  transform: none;
+  box-shadow: 0 0 10px -2px color-mix(in srgb, var(--node-accent, var(--color-brand-500)) 55%, transparent);
+}
+
+.imp-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--fg-muted);
+}
+
+.imp-scale-min,
+.imp-scale-max {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.imp-scale-max {
+  text-align: right;
+}
+
+/* Medidor de progreso */
+.imp-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.imp-progress-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+  transition: color 0.3s var(--ease-out);
+}
+
+.imp-progress--done .imp-progress-text {
+  color: var(--color-success-ink, var(--color-success));
+}
+
+.imp-progress-check {
+  width: 0.875rem;
+  height: 0.875rem;
+  padding: 1px;
+  border-radius: 50%;
+  color: var(--color-success-ink, var(--color-success));
+  background: var(--color-success-soft);
+  animation: imp-pop 0.4s var(--ease-spring);
+}
+
+.imp-progress-meter {
+  display: flex;
+  gap: 3px;
+  height: 5px;
+}
+
+.imp-progress-seg {
+  flex: 1;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg-muted) 18%, transparent);
+  transition:
+    background-color 0.35s var(--ease-out),
+    box-shadow 0.35s var(--ease-out);
+}
+
+.imp-progress-seg--on {
+  background: linear-gradient(90deg, var(--color-brand-400), var(--color-brand-600));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-brand-500) 60%, transparent);
+}
+
+.imp-progress--done .imp-progress-seg--on {
+  background: var(--color-success);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 55%, transparent);
+}
+
+/* Variante continua (muchas opciones) */
+.imp-progress-bar {
+  flex: 1;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, var(--color-brand-400), var(--color-brand-600)) 0 0 / calc(var(--imp-progress) * 100%) 100% no-repeat,
+    color-mix(in srgb, var(--fg-muted) 18%, transparent);
+  transition: background-size 0.4s var(--ease-out);
+}
+
+/* ── Lista y paneles ── */
+.imp-services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.imp-service-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--radius-xl, 1rem);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface-2) 55%, transparent));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--surface) 80%, transparent) inset;
+  transition:
+    border-color 0.2s var(--ease-out),
+    box-shadow 0.3s var(--ease-out),
+    background-color 0.2s var(--ease-out);
+  overflow: hidden;
+}
+
+/* Filete de luz superior: se enciende con el color de la prioridad */
+.imp-service-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 1rem;
+  right: 1rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--imp-accent, var(--color-brand-500)), transparent);
+  opacity: 0;
+  transition: opacity 0.35s var(--ease-out);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-service-card:hover:not(.imp-service-card--disabled) {
+    transform: none;
+    border-color: color-mix(in srgb, var(--color-brand-400) 45%, var(--border));
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, transparent), color-mix(in srgb, var(--surface-2) 70%, transparent));
+    box-shadow:
+      0 1px 0 color-mix(in srgb, var(--surface) 80%, transparent) inset,
+      0 10px 30px -14px color-mix(in srgb, var(--color-brand-500) 28%, transparent);
+  }
+
+  .imp-service-card:active:not(.imp-service-card--disabled) {
+    transform: none;
+  }
+}
+
+.imp-service-card--scored {
+  border-color: color-mix(in srgb, var(--imp-accent) 38%, var(--border));
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--surface) 80%, transparent) inset,
+    0 12px 32px -18px color-mix(in srgb, var(--imp-accent) 55%, transparent);
+}
+
+.imp-service-card--scored::before {
+  opacity: 0.9;
+}
+
+.imp-service-card--has-priority:not(.imp-service-card--scored) {
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--surface) 80%, transparent) inset;
+}
+
+.imp-service-card--error {
+  border-color: color-mix(in srgb, var(--color-danger) 70%, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-danger-soft) 55%, var(--surface)), color-mix(in srgb, var(--surface-2) 55%, transparent));
+}
+
+.imp-service-card--other {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--color-brand-400) 55%, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-brand-500) 6%, var(--surface)), color-mix(in srgb, var(--surface-2) 45%, transparent));
+}
+
+.imp-service-card--disabled {
+  opacity: 0.6;
+  filter: saturate(0.6);
+}
+
+/* ── Cabecera de fila: índice · etiqueta · controles ── */
+.imp-option-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.imp-option-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex: 1 1 11rem;
+  min-width: 0;
+}
+
+.imp-service-index {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--fg-muted);
+  background: color-mix(in srgb, var(--fg-muted) 10%, transparent);
+  transition:
+    color 0.25s var(--ease-out),
+    background-color 0.25s var(--ease-out);
+}
+
+.imp-service-card--scored .imp-service-index {
+  color: var(--imp-accent);
+  background: color-mix(in srgb, var(--imp-accent) 14%, transparent);
+}
+
+.imp-option-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--fg);
+  word-break: break-word;
+  text-align: left;
+}
+
+.imp-other-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  height: auto;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 35%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  color: var(--color-brand-700);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* ── Controles (riel + limpiar) ── */
+.imp-score-select-controls {
+  display: flex;
+  align-items: center;
+  flex: 0 1 19rem;
+  min-width: 0;
+  gap: 0.375rem;
+}
+
+/* ── Riel de nodos ── */
+.imp-rail {
+  --imp-pad: 0.25rem;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--imp-n, 5), minmax(0, 1fr));
+  align-items: center;
+  padding: var(--imp-pad);
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  background: color-mix(in srgb, var(--fg-muted) 7%, var(--surface));
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--fg) 8%, transparent) inset;
+  transition: border-color 0.25s var(--ease-out);
+}
+
+.imp-rail--active {
+  border-color: color-mix(in srgb, var(--imp-accent) 45%, var(--border));
+}
+
+/* Carril y haz: de centro del primer nodo a centro del último / elegido */
+.imp-rail::before,
+.imp-rail::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: calc(var(--imp-pad) + (100% - 2 * var(--imp-pad)) / (2 * var(--imp-n)));
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.imp-rail::before {
+  width: calc((100% - 2 * var(--imp-pad)) / var(--imp-n) * (var(--imp-n) - 1));
+  background: color-mix(in srgb, var(--fg-muted) 22%, transparent);
+}
+
+.imp-rail::after {
+  width: calc((100% - 2 * var(--imp-pad)) / var(--imp-n) * (var(--imp-n) - 1) * var(--imp-fill, 0));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--imp-accent) 35%, transparent), var(--imp-accent));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--imp-accent) 70%, transparent);
+  transition:
+    width 0.45s var(--ease-out),
+    background 0.3s var(--ease-out);
+}
+
+.imp-node {
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: min(2.25rem, 100%);
+  aspect-ratio: 1;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--fg-muted) 30%, var(--border));
+  background: var(--surface);
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.2s var(--ease-spring),
+    border-color 0.2s var(--ease-out),
+    background-color 0.2s var(--ease-out),
+    color 0.2s var(--ease-out),
+    box-shadow 0.25s var(--ease-out);
+}
+
+.imp-node-value {
+  line-height: 1;
+}
+
+/* Nodos ya recorridos por el haz */
+.imp-node--lit {
+  border-color: color-mix(in srgb, var(--imp-accent) 55%, var(--border));
+  color: color-mix(in srgb, var(--imp-accent) 70%, var(--fg-muted));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-node:hover:not(:disabled):not(.imp-node--selected) {
+    transform: scale(1.12);
+    border-color: var(--node-accent);
+    background: color-mix(in srgb, var(--node-accent) 14%, var(--surface));
+    color: var(--node-ink);
+    box-shadow: 0 0 14px -2px color-mix(in srgb, var(--node-accent) 60%, transparent);
+  }
+}
+
+.imp-node:active:not(:disabled) {
+  transform: scale(0.93);
+}
+
+.imp-node--selected {
+  transform: scale(1.1);
+  border-color: var(--node-accent);
+  background: color-mix(in srgb, var(--node-accent) 24%, var(--surface));
+  color: var(--node-ink);
+  font-weight: 700;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--node-accent) 22%, transparent),
+    0 0 18px color-mix(in srgb, var(--node-accent) 55%, transparent);
+}
+
+/* Onda de confirmación al elegir (se reinicia al aplicar la clase) */
+.imp-node--selected::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid var(--node-accent);
+  opacity: 0;
+  animation: imp-ping 0.55s var(--ease-out);
+  pointer-events: none;
+}
+
+.imp-node:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 3px;
+}
+
+.imp-node:disabled {
+  cursor: not-allowed;
+}
+
+.imp-rail[aria-disabled="true"] {
+  opacity: 0.7;
+}
+
+@keyframes imp-ping {
+  0% { opacity: 0.9; transform: scale(0.85); }
+  100% { opacity: 0; transform: scale(1.7); }
+}
+
+@keyframes imp-pop {
+  0% { transform: scale(0.4); }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* ── Botones auxiliares ── */
+.imp-score-clear {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface-2) 65%, transparent);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out),
+    color 0.15s var(--ease-out),
+    transform 0.2s var(--ease-spring);
+}
+
+.imp-score-clear:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-danger) 55%, var(--border));
+  background: var(--color-danger-soft);
+  color: var(--color-danger-ink, var(--color-danger));
+  transform: rotate(90deg);
+}
+
+.imp-score-clear:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+.imp-score-clear:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.imp-other-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in srgb, var(--color-brand-500) 45%, var(--border));
+  background: color-mix(in srgb, var(--color-brand-500) 8%, transparent);
+  color: var(--color-brand-700);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--ease-out),
+    background-color 0.15s var(--ease-out),
+    transform 0.15s var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-other-toggle:hover:not(:disabled) {
+    border-style: solid;
+    border-color: var(--color-brand-500);
+    background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+  }
+}
+
+.imp-other-toggle:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.imp-other-toggle:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+.imp-other-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.imp-other-toggle--active {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--fg-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-other-toggle--active:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--color-danger) 55%, var(--border));
+    background: var(--color-danger-soft);
+    color: var(--color-danger-ink, var(--color-danger));
+  }
+}
+
+.imp-add-dynamic-other {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 40%, var(--border));
+  background: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  color: var(--color-brand-700);
+  cursor: pointer;
+  transition:
+    transform 0.2s var(--ease-spring),
+    background-color 0.15s var(--ease-out),
+    box-shadow 0.2s var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .imp-add-dynamic-other:hover:not(:disabled) {
+    transform: rotate(90deg) scale(1.06);
+    background: color-mix(in srgb, var(--color-brand-500) 18%, transparent);
+    box-shadow: 0 0 14px -2px color-mix(in srgb, var(--color-brand-500) 55%, transparent);
+  }
+}
+
+.imp-add-dynamic-other:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+.imp-add-dynamic-other:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.imp-add-dynamic-other svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Opción «Otros» dinámica: solo controles y campo de texto */
+.imp-service-card--dynamic-other {
+  border-style: dashed;
+}
+
+.imp-service-card--dynamic-other .imp-option-label-wrap {
+  display: none;
+}
+
+.imp-service-card--dynamic-other .imp-option-main {
+  justify-content: flex-end;
+}
+
+/* ── Campo de texto de «Otros» ── */
+.imp-other-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label label"
+    "input remove";
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+  min-width: 0;
+  animation: imp-slide-down 0.28s var(--ease-out);
+}
+
+.imp-other-field .imp-conditional-label {
+  grid-area: label;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+
+.imp-other-field .imp-conditional-input {
+  grid-area: input;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0 0.875rem;
+  border-radius: var(--radius-lg, 0.75rem);
+  border: 1px solid color-mix(in srgb, var(--fg-muted) 40%, var(--border));
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 0.875rem;
+  transition:
+    border-color 0.15s var(--ease-out),
+    box-shadow 0.2s var(--ease-out);
+}
+
+.imp-other-field .imp-conditional-input::placeholder {
+  color: var(--fg-muted);
+  opacity: 0.8;
+}
+
+.imp-other-field .imp-conditional-input:focus-visible {
+  outline: none;
+  border-color: var(--color-brand-500);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-500) 22%, transparent);
+}
+
+.imp-other-field .imp-conditional-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.imp-other-field .imp-other-toggle {
+  grid-area: remove;
+  min-height: 2.5rem;
+}
+
+@keyframes imp-slide-down {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Escalas largas: desplegable ChronoSelect (compatibilidad) ── */
+.imp-score-select-controls > .w-full {
+  flex: 0 0 4.5rem;
+  width: 4.5rem;
+  min-width: 4.5rem;
+}
+
+.imp-score-select-controls .chrono-select-trigger {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-lg, 0.75rem);
+  font-size: 0.875rem;
+}
+
+.imp-score-select-trigger > div > span,
+.imp-score-select-option > span {
+  color: var(--fg) !important;
+}
+
+.imp-score-select-controls .chrono-select-trigger:hover:not(:disabled) {
+  transform: none;
+}
+
+/* ── Movimiento reducido ── */
+@media (prefers-reduced-motion: reduce) {
+  .imp-rail::after,
+  .imp-node,
+  .imp-service-card,
+  .imp-service-card::before,
+  .imp-progress-seg,
+  .imp-progress-bar,
+  .imp-score-clear,
+  .imp-add-dynamic-other,
+  .imp-other-toggle {
+    transition: none !important;
+  }
+
+  .imp-node--selected::after,
+  .imp-progress-check,
+  .imp-other-field {
+    animation: none !important;
+  }
+
+  .imp-node--selected,
+  .imp-node:hover:not(:disabled),
+  .imp-score-clear:hover:not(:disabled),
+  .imp-add-dynamic-other:hover:not(:disabled) {
+    transform: none !important;
+  }
+}
+
+/* ── Responsive ── */
+@media (max-width: 520px) {
+  .imp-hud {
+    padding: 0.625rem 0.75rem;
+  }
+
+  .imp-service-card {
+    padding: 0.75rem;
+  }
+
+  .imp-option-main {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.625rem;
+  }
+
+  .imp-option-label-wrap {
+    flex: 0 0 auto;
+    align-items: flex-start;
+  }
+
+  .imp-score-select-controls {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .imp-node {
+    width: min(2.5rem, 100%);
+  }
+
+  .imp-other-toggle {
+    flex: 1;
+  }
+
+  .imp-service-card--dynamic-other .imp-option-main {
+    align-items: stretch;
+  }
+
+  .imp-other-field {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "label"
+      "input"
+      "remove";
+  }
+
+  .imp-other-field .imp-other-toggle {
+    width: 100%;
+  }
+}
+
+/* Fila duplicada (estado heredado) */
+.imp-service-card--duplicate {
+  border-color: var(--color-danger) !important;
+  background: color-mix(in srgb, var(--color-danger-soft) 50%, transparent) !important;
+  animation: imp-shake 0.35s var(--ease-spring);
+}
+
+@keyframes imp-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  60% { transform: translateX(3px); }
 }

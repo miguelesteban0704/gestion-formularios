@@ -619,6 +619,12 @@ function ConditionEditor({ field, set, allQuestions, fieldIndex, t, activeLang, 
     .slice(0, Math.max(0, fieldIndex))
     .filter((q) => q && !isStatic(q.type) && q.id !== field.id);
   const cond = field.visibleIf || {};
+  // Pregunta de la que depende la condición (la seleccionada en `questionId`).
+  // `depOptions`/`yesNoOptions` derivan de aquí; sin esta línea el editor lanzaba
+  // `ReferenceError: dep is not defined` y dejaba la pantalla del constructor en
+  // blanco al abrir la configuración de un campo con condición (p. ej. la
+  // Clasificación por escala).
+  const dep = prev.find((q) => q.id === cond.questionId) || null;
 
   const defaultValueFor = (q) => {
     if (!q) return "";

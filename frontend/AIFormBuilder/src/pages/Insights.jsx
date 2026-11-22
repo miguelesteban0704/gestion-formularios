@@ -10,6 +10,7 @@ import {
   Sparkles,
   CalendarClock,
   MonitorSmartphone,
+  LayoutTemplate,
 } from "lucide-react";
 import { insightsApi } from "../services/index.js";
 import { ChartCard } from "../components/analytics/ChartCard.jsx";
