@@ -5,6 +5,7 @@ import { isGuest, homePathForRole } from "../lib/roles.js";
 import { useRoleT } from "../lib/roleI18n.js";
 import { FormsBrowser } from "../components/forms/FormsBrowser.jsx";
 import { PageLoader } from "../components/ui/Feedback.jsx";
+import { HomeHeroSection } from "../components/public/HomeHeroSection.jsx";
 
 /**
  * Portada pública: SOLO encuestas publicadas (de todas las entidades), con
@@ -26,14 +27,9 @@ export default function PublishedForms() {
 
   return (
     <div className="animate-page-enter mx-auto max-w-7xl px-4 py-8 lg:px-8">
-      <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
-        {rt("guestTitle")}
-      </h1>
-      <p className="mt-2 max-w-2xl text-sm font-medium text-muted">
-        {rt("guestSubtitle")}
-      </p>
-      <div className="mt-8">
-        <FormsBrowser title="" guestMode hideFilters publishedOnly />
+      <HomeHeroSection />
+      <div className="mt-10">
+        <FormsBrowser title="" guestMode publishedOnly />
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { ArrowLeft, Pencil, Inbox, BarChart3, ExternalLink } from "lucide-react";
+import { ArrowLeft, Pencil, ClipboardCheck, BarChart3, ExternalLink } from "lucide-react";
 import { Button } from "../ui/Button.jsx";
 import { Badge } from "../ui/Feedback.jsx";
 import { cn } from "../../lib/utils.js";
@@ -61,7 +61,7 @@ export function FormPageHeader({ form, right }) {
           )}
           {!soloLectura && (
             <NavLink to={responsesPath(language, form?._id, user?.entity?.code)} className={tabClass}>
-              <Inbox className="h-4 w-4" /> {t("responses")}
+              <ClipboardCheck className="h-4 w-4" /> {t("responses")}
             </NavLink>
           )}
           <NavLink to={analyticsPath(language, form?._id, user?.entity?.code)} className={tabClass}>

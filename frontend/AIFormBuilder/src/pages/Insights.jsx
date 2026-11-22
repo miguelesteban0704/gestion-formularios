@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import {
-  Inbox as InboxIcon,
+  ClipboardCheck,
   Eye,
   TrendingUp,
   Clock,
@@ -112,7 +112,7 @@ export default function Insights() {
 
   const kpis = [
     {
-      icon: InboxIcon,
+      icon: ClipboardCheck,
       label: t("responses"),
       value: stats.totalResponses ?? 0,
       delta: responsesDelta,
@@ -204,7 +204,7 @@ export default function Insights() {
               transition={{ delay: 0.42, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
               className="lg:col-span-4"
             >
-              <ChartCard title={t("sessionsDevice")} subtitle={t("whereResponsesCome")} icon={MonitorSmartphone}>
+              <ChartCard title={t("browserDistribution")} subtitle={t("whereResponsesCome")} icon={LayoutTemplate}>
                 <PrismDonut data={devices} />
               </ChartCard>
             </motion.div>

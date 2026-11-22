@@ -7,7 +7,7 @@ import {
   Pencil,
   Copy,
   BarChart3,
-  Inbox,
+  ClipboardCheck,
   Eye,
   Link2,
   Archive,
@@ -221,7 +221,7 @@ export function FormCard({ form, index = 0, publicOnly = false, guestMode = fals
                   <MenuItem icon={BarChart3} onClick={() => navigate(analyticsPath(language, form._id, entityCode))}>
                     {t("insights")}
                   </MenuItem>
-                  <MenuItem icon={Inbox} onClick={() => navigate(responsesPath(language, form._id, entityCode))}>
+                  <MenuItem icon={ClipboardCheck} onClick={() => navigate(responsesPath(language, form._id, entityCode))}>
                     {t("responses")}
                   </MenuItem>
                 </>
@@ -264,7 +264,7 @@ export function FormCard({ form, index = 0, publicOnly = false, guestMode = fals
             className="inline-flex items-center gap-1.5 rounded-lg bg-surface-2 px-2 py-1 font-medium transition-colors group-hover:bg-surface dark:bg-slate-800/70"
             title={t("responses")}
           >
-            <Inbox className="h-3.5 w-3.5 text-brand-500 dark:text-brand-300" aria-hidden="true" />
+            <ClipboardCheck className="h-3.5 w-3.5 text-brand-500 dark:text-brand-300" aria-hidden="true" />
             <span aria-label={`${form.responseCount || 0} ${t("responses")}`}>{form.responseCount || 0}</span>
           </span>
           <span

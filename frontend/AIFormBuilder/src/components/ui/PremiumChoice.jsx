@@ -193,17 +193,25 @@ function ChoiceOption({
             </span>
           )}
 
-          {/* Medallón de icono de acento */}
-          <div className={cn(REFINED_MEDALLION)}>
-            <Icon
-              className={cn(
-                "h-5 w-5 shrink-0 transition-colors duration-200 ease-out",
-                isSelected && "text-white"
-              )}
-            />
+          {/* Indicador de selección (check o punto de marca) — ahora a la izquierda */}
+          <div
+            className={cn(
+              "shrink-0 flex items-center justify-center",
+              isSelected
+                ? variant === "checkbox"
+                  ? "w-5 h-5 rounded-md refined-selection-mark refined-selection-mark--checkbox refined-selection-mark--checked"
+                  : "w-4 h-4 rounded-full refined-selection-mark refined-selection-mark--checked"
+                : variant === "checkbox"
+                  ? "w-5 h-5 rounded-md refined-selection-mark refined-selection-mark--checkbox refined-selection-mark--unchecked"
+                  : "w-4 h-4 rounded-full refined-selection-mark refined-selection-mark--unchecked"
+            )}
+          >
+            {isSelected && variant === "checkbox" && (
+              <Check className="h-3.5 w-3.5 text-white" />
+            )}
           </div>
 
-          <div className="flex-1 min-w-0 pl-4">
+          <div className="flex-1 min-w-0 pl-2">
             <span
               className={cn(
                 "block truncate",
@@ -220,22 +228,14 @@ function ChoiceOption({
             )}
           </div>
 
-          {/* Indicador de selección (check o punto de marca) */}
-          <div
-            className={cn(
-              "shrink-0 flex items-center justify-center",
-              isSelected
-                ? variant === "checkbox"
-                  ? "w-5 h-5 rounded-md refined-selection-mark refined-selection-mark--checkbox refined-selection-mark--checked"
-                  : "w-4 h-4 rounded-full refined-selection-mark refined-selection-mark--checked"
-                : variant === "checkbox"
-                  ? "w-5 h-5 rounded-md refined-selection-mark refined-selection-mark--checkbox refined-selection-mark--unchecked"
-                  : "w-4 h-4 rounded-full refined-selection-mark refined-selection-mark--unchecked"
-            )}
-          >
-            {isSelected && variant === "checkbox" && (
-              <Check className="h-3.5 w-3.5 text-white" />
-            )}
+          {/* Medallón de icono de acento — ahora a la derecha */}
+          <div className={cn(REFINED_MEDALLION)}>
+            <Icon
+              className={cn(
+                "h-5 w-5 shrink-0 transition-colors duration-200 ease-out",
+                isSelected && "text-white"
+              )}
+            />
           </div>
 
           {/* Chevron de orden (solo ranking) */}

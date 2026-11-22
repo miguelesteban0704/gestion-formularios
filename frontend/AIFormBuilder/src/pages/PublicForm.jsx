@@ -7,7 +7,6 @@ import { FormView } from "../components/public/FormView.jsx";
 import { FormArtPanel } from "../components/public/FormArtPanel.jsx";
 import { getTheme } from "../lib/themes.js";
 import { PageLoader } from "../components/ui/Feedback.jsx";
-import { LanguageSwitcher } from "../components/ui/LanguageSwitcher.jsx";
 import { Button } from "../components/ui/Button.jsx";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
 import { useAuth } from "../hooks/useAuth.js";
@@ -100,7 +99,6 @@ export default function PublicForm() {
   if (status === "notfound") {
     return (
       <div className="animate-page-enter relative flex min-h-screen flex-col items-center justify-center gap-4 bg-app px-6 text-center">
-        <LanguageSwitcher className="absolute right-6 top-6" />
         <div className="grid h-16 w-16 place-items-center rounded-2xl bg-surface-2 text-muted">
           <FileX2 className="h-7 w-7" />
         </div>
@@ -118,7 +116,6 @@ export default function PublicForm() {
   if (status === "gated") {
     return (
       <div className="animate-page-enter relative flex min-h-screen flex-col items-center justify-center gap-4 bg-app px-6 text-center">
-        <LanguageSwitcher className="absolute right-6 top-6" />
         <div className="grid h-16 w-16 place-items-center rounded-2xl bg-surface-2 text-muted">
           <ShieldCheck className="h-7 w-7" strokeWidth={1.5} />
         </div>
@@ -134,7 +131,6 @@ export default function PublicForm() {
 
   return (
     <div className="animate-page-enter relative min-h-screen">
-      <LanguageSwitcher className="absolute right-6 top-6 z-20" />
       {/* Identidad verificada: visible pero discreta, nunca editable. */}
       {respondent && (
         <div className="pointer-events-none fixed left-1/2 top-4 z-30 -translate-x-1/2">

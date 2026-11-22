@@ -5,7 +5,7 @@ import { useRealtimeResponses } from "../hooks/useRealtimeResponses.js";
 import {
   Search,
   Trash2,
-  Inbox,
+  ClipboardCheck,
   Eye,
   TrendingUp,
   Clock,
@@ -192,7 +192,7 @@ export default function Responses() {
 
       <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
-          <KpiCard icon={Inbox} label={t("responses")} value={stats.totalResponses ?? 0} accent="brand" />
+          <KpiCard icon={ClipboardCheck} label={t("responses")} value={stats.totalResponses ?? 0} accent="brand" />
           <KpiCard icon={Eye} label={t("totalViews")} value={stats.views ?? 0} accent="amber" />
           <KpiCard icon={TrendingUp} label={t("conversion")} value={`${stats.conversionRate ?? 0}%`} accent="pink" progress={stats.conversionRate} />
           <KpiCard icon={CheckCircle2} label={t("completion")} value={`${stats.completionRate ?? 0}%`} accent="green" progress={stats.completionRate} />
@@ -224,7 +224,7 @@ export default function Responses() {
 
           {responses.length === 0 ? (
             <EmptyState
-              icon={Inbox}
+              icon={ClipboardCheck}
               title={searchInput ? t("noMatchingResponses") : t("noResponsesYet")}
               description={
                 searchInput

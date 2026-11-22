@@ -6,7 +6,7 @@ import {
   FolderOpen,
   Globe,
   FileEdit,
-  Inbox,
+  ClipboardCheck,
   Eye,
   TrendingUp,
   CheckCircle2,
@@ -105,7 +105,7 @@ export default function Dashboard() {
       {/* Stats */}
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
         <StatCard
-          icon={Inbox}
+          icon={ClipboardCheck}
           label={t("responses")}
           value={counts.responses}
           accent="green"

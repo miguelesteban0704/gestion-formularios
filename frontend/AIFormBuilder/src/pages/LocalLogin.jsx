@@ -143,8 +143,8 @@ export default function LocalLogin() {
     if (doorError) {
       toast.error(
         {
-          title: isSpanish ? "Acceso restringido" : "Restricted access",
-          badge: isSpanish ? "RESTRINGIDO" : "RESTRICTED",
+          title: isSpanish ? "Requiere autenticación" : "Requires authentication",
+          badge: isSpanish ? "REQUIERE AUTENTICACIÓN" : "REQUIRES AUTHENTICATION",
         },
         {
           description: isSpanish

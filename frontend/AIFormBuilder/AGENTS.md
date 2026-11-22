@@ -1,5 +1,144 @@
 # AGENTS.md — Gestor de Formularios
 
+### 2026-11-22 — Icono de «Respuestas»: `Inbox` sustituido por `ClipboardCheck` en todo el sitio
+
+**Objetivo (petición del usuario):** unificar el icono de los cards/entradas de
+«Respuestas» de los formularios. Donde aparecía `Inbox` (bandeja), debía pasar a
+`ClipboardCheck` (portapapeles con check), igual que los KPI de estadísticas ya
+usaban.
+
+**Cambio (solo frontend, 3 archivos):**
+- `frontend/AIFormBuilder/src/components/forms/FormCard.jsx` — import de lucide
+  `Inbox` → `ClipboardCheck`; la métrica del contador de respuestas de la tarjeta
+  (junto al número) y la opción «Respuestas» del menú de la tarjeta usan ahora
+  `ClipboardCheck`.
+- `frontend/AIFormBuilder/src/components/forms/FormPageHeader.jsx` — import de
+  lucide `Inbox` → `ClipboardCheck`; la pestaña «Respuestas» del encabezado del
+  formulario usa `ClipboardCheck`.
+- `frontend/AIFormBuilder/src/pages/Builder.jsx` — import de lucide `Inbox` →
+  `ClipboardCheck`; el botón-atajo «Respuestas» de la barra del constructor usa
+  `ClipboardCheck`.
+
+**Nota de alcance:** los `Inbox` que quedan en `DashboardLayout.jsx`,
+`CommandPalette.jsx`, `App.jsx` y `Inbox.jsx` **no** se tocan: representan la
+página «Bandeja de entrada» (Inbox), no un card de «Respuestas», y ahí el icono
+es semánticamente correcto. Los KPI de Dashboard/Insights/Analytics/Responses y
+las StatTile de estadísticas ya usaban `ClipboardCheck`.
+
+**Contrato de datos intacto:** solo cambia el componente de icono renderizado; sin
+cambios de rutas, props, handlers, estados, APIs ni persistencia.
+
+**Archivos modificados (3):**
+- `frontend/AIFormBuilder/src/components/forms/FormCard.jsx`
+- `frontend/AIFormBuilder/src/components/forms/FormPageHeader.jsx`
+- `frontend/AIFormBuilder/src/pages/Builder.jsx`
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los
+  archivos tocados).
+- `npm run build` → exit 0 (`✓ built in 1.74s`; avisos `@utility` de `admin.css`
+  preexistentes, ver §9).
+
+### 2026-11-22 — Radio: punto blanco central más pequeño
+
+**Objetivo (petición del usuario):** el punto blanco del radio seleccionado se
+veía demasiado ancho; debía ser un poco más chico.
+
+**Cambio:**
+- `frontend/AIFormBuilder/src/components/ui/PremiumChoice.css` — el pseudo-elemento
+  `.refined-selection-mark.refined-selection-mark--checked::after` (punto blanco
+  centrado del radio) reduce su tamaño del **50 %** al **38 %** del diámetro del
+  círculo, y el mínimo de `0.375rem` (6 px) a `0.25rem` (4 px). Sigue centrado
+  (`top/left 50%` + `translate(-50%, -50%)`), con `border-radius: 50%` y
+  `background: #ffffff`. El checkbox no se ve afectado (su `::after` sigue
+  oculto y conserva el check blanco de lucide).
+
+**Contrato de datos intacto:** solo CSS; sin cambios de props, handlers, estados
+ni persistencia.
+
+**Archivos modificados (1):**
+- `frontend/AIFormBuilder/src/components/ui/PremiumChoice.css`
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npm run build` → exit 0 (`✓ built in 1.47s`; avisos `@utility` de `admin.css`
+  preexistentes, ver §9).
+
+### 2026-11-22 — Formulario publicado: eliminado el selector de idioma (LanguageSwitcher)
+
+**Objetivo (petición del usuario):** eliminar el *toggleswitch* de cambio de
+idioma de la vista de formularios publicados (`/f/:slug`).
+
+**Cambio:**
+- `frontend/AIFormBuilder/src/pages/PublicForm.jsx` — se retira el import de
+  `LanguageSwitcher` y sus **tres** instancias, que aparecían en los tres estados
+  de la página: formulario no encontrado (`notfound`), portón del IDP
+  (`gated`, formulario privado sin identidad) y formulario listo para responder.
+  El resto de la página (identidad verificada, `FormView`, `SuccessScreen`) no
+  cambia.
+
+**Contrato de datos intacto:** no se tocan props, handlers, estados, envío de
+respuestas ni persistencia. Solo se quita un control de UI. El selector de idioma
+sigue disponible en el resto del sitio (`DashboardLayout`, `AuthCard`,
+`SuperAdminStage`), que no se tocan.
+
+**Archivos modificados (1):**
+- `frontend/AIFormBuilder/src/pages/PublicForm.jsx`
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; los de `PublicForm.jsx`
+  en las líneas 34/42 son previos y ajenos a este cambio; sin aviso de import sin
+  uso, así que la retirada del import quedó limpia).
+- `npm run build` → exit 0 (`✓ built in 1.52s`; avisos `@utility` de `admin.css`
+  preexistentes, ver §9).
+
+### 2026-11-22 — Campos de elección: iconos intercambiados + radio con punto blanco
+
+**Objetivo (petición del usuario):** en los campos **Casillas (checkbox)** y
+**Opción múltiple (radio)**, intercambiar la posición de los dos elementos de cada
+tarjeta: el **indicador de selección** (círculo/check) pasa a la **izquierda** y el
+**medallón de icono** (`refined-medallion`) pasa a la **derecha**. Además, el
+**radio seleccionado** debe verse como un **punto blanco en el centro** (círculo con
+borde de marca y punto blanco), no como un círculo relleno. El cambio aplica a
+**todas las vistas** (builder, vista previa y formulario publicado), porque los
+campos de elección se renderizan con el componente compartido `PremiumChoice.jsx`.
+
+**Componente afectado (compartido):** `PremiumRadio` y `PremiumCheckbox` usan el
+mismo `ChoiceOption` en `src/components/ui/PremiumChoice.jsx`, del que cuelgan tanto
+el formulario publicado (`FieldRenderer.jsx`) como la vista previa del builder y el
+lienzo. Un único cambio cubre las tres superficies.
+
+**Cambios:**
+- `frontend/AIFormBuilder/src/components/ui/PremiumChoice.jsx` — en `ChoiceOption`
+  se reordenan los bloques dentro del `<motion.button>`: primero el **indicador de
+  selección** (`.refined-selection-mark`), luego el **texto** (`flex-1 min-w-0`,
+  con `pl-2` en vez de `pl-4` para compensar el menor ancho del indicador a la
+  izquierda) y por último el **medallón de icono** (`.refined-medallion`). El
+  chevron de ranking y el número de posición absolutos no cambian.
+- `frontend/AIFormBuilder/src/components/ui/PremiumChoice.css` — el radio
+  seleccionado (`.refined-selection-mark.refined-selection-mark--checked`) pasa de
+  relleno completo a **círculo transparente con borde de marca y punto blanco
+  centrado** mediante un pseudo-elemento `::after` (50 % del tamaño, mínimo
+  0.375rem, `border-radius: 50%`, `background: #ffffff`). El **checkbox**
+  conserva su comportamiento (relleno de marca + check blanco de lucide) ocultando
+  el pseudo-elemento (`.refined-selection-mark--checkbox.refined-selection-mark--checked::after { display: none }`).
+
+**Contrato de datos intacto:** no se tocan props, handlers, estados, `value`/
+`onChange`, validación, accesibilidad (roles ARIA, roving tabindex) ni persistencia.
+Solo cambia el orden de los nodos visuales y el estilo del indicador de radio.
+
+**Archivos modificados (2):**
+- `frontend/AIFormBuilder/src/components/ui/PremiumChoice.jsx`
+- `frontend/AIFormBuilder/src/components/ui/PremiumChoice.css`
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los
+  archivos tocados).
+- `npm run build` → exit 0 (avisos `@utility` de `admin.css` y chunks >500 kB
+  preexistentes, ver §9).
+
 ### 2026-11-16 — Selects del builder: el buscador de ChronoSelect no se puede borrar cuando no hay coincidencias
 
 **Objetivo (petición del usuario):** en los campos de selección del builder (`ChronoSelect` con buscador interno), escribir una búsqueda que no coincida con ninguna opción dejaba el desplegable sin forma de borrar lo escrito: había que cerrar el select y volverlo a abrir. Debía poder corregirse la búsqueda sin cerrar el menú.

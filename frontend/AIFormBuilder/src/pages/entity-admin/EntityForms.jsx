@@ -10,7 +10,7 @@ import {
   LayoutGrid,
   Link2,
   Lock,
-  Inbox,
+  ClipboardCheck,
   PenLine,
   Type,
   UserRound,
@@ -174,7 +174,7 @@ export default function EntityForms() {
         <StatTile icon={DoorOpenIcon} label={rt("visibilityPublic")} value={formatNumber(counts.publics)} tone="success" />
         <StatTile icon={Link2} label={rt("linkOnlyOne")} value={formatNumber(counts.unlisted)} tone="info" />
         <StatTile icon={Lock} label={rt("visibilityPrivate")} value={formatNumber(counts.privates)} tone="warning" />
-        <StatTile icon={Inbox} label={rt("totalResponses")} value={formatNumber(counts.responses)} tone="info" />
+        <StatTile icon={ClipboardCheck} label={rt("totalResponses")} value={formatNumber(counts.responses)} tone="info" />
       </section>
 
       {/* z-30: eleva el stacking context del panel para que sus controles
@@ -353,7 +353,7 @@ function EntityFormRow({ form, index, density, router, entitySlug, language, rt,
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <MetricTile icon={Inbox} label={rt("totalResponses")} value={formatNumber(Number(form.responseCount || 0))} tint="var(--color-brand-600)" />
+          <MetricTile icon={ClipboardCheck} label={rt("totalResponses")} value={formatNumber(Number(form.responseCount || 0))} tint="var(--color-brand-600)" />
           <MetricTile icon={Eye} label={rt("totalViews")} value={formatNumber(Number(form.views || 0))} tint="var(--color-warning)" />
         </div>
 

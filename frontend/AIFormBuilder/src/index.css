@@ -74,6 +74,36 @@
   --color-accent-blue: #6f86c9;
   --color-accent-orange: #f87217;
 
+  /* Custom palette for Home Hero — Deep Navy & Crimson */
+  --color-navy-50: #eef2fb;
+  --color-navy-100: #dce4f7;
+  --color-navy-200: #b9c9ef;
+  --color-navy-300: #8aa0e4;
+  --color-navy-400: #5a77d8;
+  --color-navy-500: #3a51cc;
+  --color-navy-600: #1f35b5;
+  --color-navy-700: #0a1f9e;
+  --color-navy-800: #001087;
+  --color-navy-900: #000860;
+  --color-navy-950: #00043a;
+
+  --color-crimson-50: #fdf0f1;
+  --color-crimson-100: #f9e1e3;
+  --color-crimson-200: #f1c3c7;
+  --color-crimson-300: #e6999f;
+  --color-crimson-400: #d86b72;
+  --color-crimson-500: #cc3d47;
+  --color-crimson-600: #b00828;
+  --color-crimson-700: #940722;
+  --color-crimson-800: #78061c;
+  --color-crimson-900: #5c0516;
+  --color-crimson-950: #3a030b;
+
+  --color-navy-gradient-start: #003087;
+  --color-navy-gradient-end: #001f5c;
+  --color-crimson-gradient-start: #cc0000;
+  --color-crimson-gradient-end: #990000;
+
   /* Acentos decorativos de tarjeta (bento): paleta fija que NO sigue al
      acento del sitio. Se usan como `var(--accent-*)` desde tokens.ts. */
   --accent-gold: #bfa23a;
@@ -1891,7 +1921,7 @@ a.button:not([class*="scale"]):focus-visible {
 }
 
 /* ── Etiqueta de categoría (CategoryBadge) ──────────────────────────────
-   Píldora glassmorphism para Público / Privado / Restringido.
+   Píldora glassmorphism para Público / Privado / Requiere autenticación.
    Los colores viven en variables para que el administrador los ajuste
    globalmente. */
 :root {

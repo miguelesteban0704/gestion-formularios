@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Building2, Inbox, Eye, UserRound } from "lucide-react";
+import { BarChart3, Building2, ClipboardCheck, Eye, UserRound } from "lucide-react";
 import { Card } from "../ui/Card.jsx";
 import { Button } from "../ui/Button.jsx";
 import { CategoryBadge } from "../ui/CategoryBadge.jsx";
@@ -175,7 +175,7 @@ export function PublicFormCard({
 
       {/* Columna 5: rendimiento (respuestas y vistas) */}
       <div className="flex flex-wrap items-center gap-2.5">
-        <MetricTile icon={Inbox} label={t("responses")} value={responses} tint="var(--color-brand-600)" />
+        <MetricTile icon={ClipboardCheck} label={t("responses")} value={responses} tint="var(--color-brand-600)" />
         <MetricTile icon={Eye} label={t("views")} value={views} tint="var(--color-warning)" />
       </div>
 

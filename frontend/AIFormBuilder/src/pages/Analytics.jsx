@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useRealtimeResponses } from "../hooks/useRealtimeResponses.js";
 import { useRealtimeStats } from "../hooks/useRealtimeStats.js";
 import {
-  Inbox,
+  ClipboardCheck,
   Eye,
   TrendingUp,
   CheckCircle2,
@@ -12,7 +12,7 @@ import {
   BarChart3,
   Activity,
   Gauge as GaugeIcon,
-  MonitorSmartphone,
+  LayoutTemplate,
   CalendarDays,
   ShieldCheck,
 } from "lucide-react";
@@ -184,7 +184,7 @@ export default function Analytics() {
         </div>
         {/* KPIs */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
-          <KpiCard icon={Inbox} label={t("responses")} value={stats.totalResponses ?? 0} accent="brand" spark={timeline} tooltip={{
+          <KpiCard icon={ClipboardCheck} label={t("responses")} value={stats.totalResponses ?? 0} accent="brand" spark={timeline} tooltip={{
             title: t("responsesTooltipTitle"), description: t("responsesTooltipDescription"),
             items: [{ label: t("responseConversionResponses"), value: stats.totalResponses ?? 0 }],
           }} />
@@ -258,7 +258,7 @@ export default function Analytics() {
             <div className="mt-5 grid gap-5 lg:grid-cols-3">
               <Funnel views={stats.views} responses={stats.totalResponses} completionRate={stats.completionRate} />
 
-              <ChartCard title={t("devices")} subtitle={t("browserUsed")} icon={MonitorSmartphone}>
+              <ChartCard title={t("browserDistribution")} subtitle={t("browserUsed")} icon={LayoutTemplate}>
                 {devices.length ? (
                   <PrismDonut data={devices} />
                 ) : (
@@ -293,9 +293,14 @@ export default function Analytics() {
             )}
 
             {/* Per-question */}
-            <div className="mb-3 mt-9 flex items-center gap-2">
+            <div className="mb-3 mt-9 flex items-center gap-3">
               <h2 className="text-lg font-semibold text-fg">{t("questionBreakdown")}</h2>
-              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">{questions.length}</span>
+              <div className="relative flex items-center gap-2">
+                <span className="relative flex items-center justify-center min-w-[2.5rem] h-7 rounded-xl border border-brand-500/20 bg-gradient-to-br from-brand-500/10 to-brand-500/5 px-3 text-sm font-bold tabular-nums text-brand-600 dark:text-brand-400 shadow-[0_0_12px_rgba(6,182,212,0.15)] backdrop-blur-sm transition-all duration-300 hover:border-brand-500/40 hover:shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:bg-gradient-to-br from-brand-500/15 to-brand-500/10">
+                  {questions.length}
+                </span>
+                <span className="hidden sm:block text-[10px] font-semibold uppercase tracking-widest text-muted">{t("questions")}</span>
+              </div>
             </div>
             {questions.length === 0 ? (
               <p className="text-sm text-muted">{t("noAnswerableQuestions")}</p>

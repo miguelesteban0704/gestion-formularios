@@ -3,7 +3,7 @@ import { cn } from "../../lib/utils.js";
 
 /**
  * Etiqueta de categoría del formulario: puerta abierta (Público), eslabón
- * (Privado, unlisted) o candado (Restringido, exige IDP), en outline
+ * (Privado, unlisted) o candado (Requiere autenticación, exige IDP), en outline
  * minimalista con iconos SVG propios. Píldora glassmorphism, tooltip accesible
  * y solo icono en móvil.
  */

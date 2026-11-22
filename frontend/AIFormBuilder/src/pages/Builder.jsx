@@ -23,7 +23,7 @@ import {
   Settings2,
   Check,
   Loader2,
-  Inbox,
+  ClipboardCheck,
   BarChart3,
   FileQuestion,
 } from "lucide-react";
@@ -409,7 +409,7 @@ export default function Builder() {
           {puedeStats && (
             <>
               <Button variant="ghost" size="icon" onClick={() => navigate(responsesPath(language, form._id, entityCode))} aria-label={t("responses")} title={t("responses")}>
-                <Inbox className="h-4.5 w-4.5" />
+                <ClipboardCheck className="h-4.5 w-4.5" />
               </Button>
               <Button variant="ghost" size="icon" onClick={() => navigate(analyticsPath(language, form._id, entityCode))} aria-label={t("insights")} title={t("insights")}>
                 <BarChart3 className="h-4.5 w-4.5" />

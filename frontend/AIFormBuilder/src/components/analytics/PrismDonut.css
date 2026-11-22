@@ -31,6 +31,7 @@
 }
 .pd-ring .recharts-wrapper {
   position: relative;
+  z-index: 10; /* por encima del centro (.pd-center: z-index 0) para que el tooltip gane */
 }
 
 /* Centro retroiluminado — debajo del tooltip */
@@ -43,6 +44,7 @@
   justify-content: center;
   gap: 2px;
   pointer-events: none;
+  z-index: 0; /* explícito: por debajo del wrapper de Recharts (z-index 10) */
   animation: pd-breathe 3.6s ease-in-out infinite;
 }
 @keyframes pd-breathe {

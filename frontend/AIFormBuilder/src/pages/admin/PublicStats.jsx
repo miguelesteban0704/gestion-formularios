@@ -35,7 +35,6 @@ import {
   SummaryBar,
   useSpotlightHotkey,
 } from "../../components/admin/ListChrome.jsx";
-import { PremiumSearchBar } from "../../components/admin/PremiumSearchBar.jsx";
 import { formatNumber } from "@/shared/skills";
 
 /**
@@ -371,7 +370,7 @@ export default function PublicStats() {
           { icon: UserRound, label: t("user") },
           { icon: Building2, label: t("entity") },
           /* Icono de Estado dinámico: candado cuando el filtro activo es
-             "Restringido", eslabón para "Privado" y puerta abierta para
+             "Requiere autenticación", eslabón para "Privado" y puerta abierta para
              "Público" y "Todos". */
           { icon: visibility === "private" ? Lock : visibility === "unlisted" ? Link2 : DoorOpenIcon, label: t("status") },
           { icon: BarChart3, label: t("performance") },

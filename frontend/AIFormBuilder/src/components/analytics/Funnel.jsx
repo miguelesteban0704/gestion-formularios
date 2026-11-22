@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef } from "react";
-import { Eye, MousePointerClick, CheckCircle2, ClipboardCheck, TrendingDown, TrendingUp } from "lucide-react";
+import { Eye, MousePointerClick, CheckCircle2, Filter, TrendingDown, TrendingUp } from "lucide-react";
 import { motion, useReducedMotion, useSpring, useTransform } from "framer-motion";
 import { ChartCard } from "./ChartCard.jsx";
 import { cn } from "../../lib/utils.js";
@@ -148,7 +148,7 @@ export function Funnel({ views = 0, responses = 0, completionRate = 0 }) {
   ];
 
   return (
-    <ChartCard title={t("conversionFunnel")} subtitle={t("funnelDescription")} icon={ClipboardCheck}>
+    <ChartCard title={t("conversionFunnel")} subtitle={t("funnelDescription")} icon={Filter}>
       <div className={cn("pb-list fn-list", isDark ? "pb-dark fn-dark" : "pb-light fn-light")}>
         {stages.map((s, i) => {
           const pct = Math.round((s.value / max) * 100);

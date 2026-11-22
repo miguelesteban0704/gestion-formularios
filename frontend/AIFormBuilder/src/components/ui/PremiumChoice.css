@@ -107,10 +107,23 @@
 }
 
 .refined-selection-mark--checked {
-  background: var(--color-brand-500);
+  /* Radio: círculo con borde de marca y punto blanco en el centro */
+  background: transparent;
   border-color: var(--color-brand-500);
   box-shadow: 0 0 10px color-mix(in srgb, var(--color-brand-500) 40%, transparent);
   transform: scale(1.05);
+}
+
+/* Radio seleccionado: punto blanco centrado (no relleno completo) */
+.refined-selection-mark.refined-selection-mark--checked {
+  position: relative;
+  background: #ffffff;
+  border-color: var(--color-brand-500);
+}
+
+/* Para checkbox: se mantiene el relleno de marca con check blanco (sin punto) */
+.refined-selection-mark--checkbox.refined-selection-mark--checked::after {
+  display: none;
 }
 
 .refined-selection-mark--unchecked {
