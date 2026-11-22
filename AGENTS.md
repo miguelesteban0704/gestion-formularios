@@ -2,6 +2,46 @@
 
 Ver `frontend/AIFormBuilder/AGENTS.md` para las reglas del proyecto frontend.
 
+## Registro de cambios — 2026-11-22
+
+Resumen de las modificaciones de producto realizadas hoy. El detalle operativo
+del frontend permanece en `frontend/AIFormBuilder/AGENTS.md` (§10).
+
+### Estadísticas: «Desglose de preguntas» traduce Provincia/Municipio y muestra el número de la escala (`importancia`)
+
+**Objetivo:** en «Desglose de preguntas» de las estadísticas, (1) las tarjetas de
+**Provincia** y **Municipio** se rotulaban en inglés (p. ej. «Province»,
+«Municipality»); (2) la pregunta de **Clasificación por Escala** (`importancia`)
+no mostraba el **número de la escala** elegido por cada persona (solo contaba
+cuántas la puntuaron).
+
+**Causa raíz:**
+1. `QuestionChart.jsx` usaba `question.label` crudo como título; los formularios
+   creados por IA/plantillas guardan la etiqueta por defecto en inglés (coincide
+   con `FIELD_DEFS[type].label`), así que la tarjeta salía en inglés aunque el
+   subtítulo ya pasaba por `t("field_"+type)`.
+2. El backend ya calculaba `averageScore` por opción, pero el frontend lo
+   descartaba y la escala (`min`/`max`) no viajaba al cliente: sin contexto para
+   mostrar «2.8 / 8».
+
+**Cambios:**
+- `backend/services/analytics.service.js` — la rama `importancia` añade `scale`
+  (`{ min, max, minLabel, maxLabel }`) al payload de la pregunta (campo de
+  lectura nuevo; `averageScore` ya se calculaba).
+- `frontend/AIFormBuilder/src/components/analytics/QuestionChart.jsx` — el título
+  usa el nombre de tipo traducido por `LanguageContext` cuando la etiqueta sigue
+  siendo el valor por defecto en inglés; nuevo `ImportanciaBreakdown` que muestra
+  por opción el promedio de la escala («2.8 / 8») y cuántas la puntuaron, con la
+  paleta Prism y respeto a `prefers-reduced-motion`.
+
+**Contrato de datos intacto:** sin migración ni cambios de endpoints; solo se añade
+un campo de lectura (`scale`) y se usa el `averageScore` existente.
+
+**Verificación:** backend 10/10 · sonda real (13 respuestas) `scale={1,8}` +
+`averageScore` por opción · frontend QA 25/25 · `tsc` 0 · `lint` exit 0 ·
+`build` exit 0 · `qa:brand` 0 conflictos (1 congelamiento preexistente en
+`PrismGauge.css`, ajeno) · `qa:routes` 124/2 (baseline).
+
 ## Registro de cambios — 2026-11-16
 
 Resumen de las modificaciones de producto realizadas hoy. El detalle operativo

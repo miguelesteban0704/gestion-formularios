@@ -292,6 +292,17 @@ export function buildQuestionAnalytics(form, responses, language = "es") {
         }
         return {
           ...base,
+          // La escala (mín/máx y extremos) viaja al frontend para que el
+          // desglose pueda mostrar el número de la escala que eligió cada
+          // persona junto a cada opción, con su contexto (p. ej. «2.8 / 8»).
+          scale: q.scale
+            ? {
+                min: Number(q.scale.min) || 1,
+                max: Number(q.scale.max) || 5,
+                minLabel: q.scale.minLabel || "",
+                maxLabel: q.scale.maxLabel || "",
+              }
+            : null,
           breakdown: [...porEtiqueta.entries()].map(
             ([label, { count, suma, puntuadas }]) => ({
               label,

@@ -44,12 +44,18 @@ export function QuestionChart({ question }) {
   const Icon = def?.icon || MessageSquareText;
   const typeKey = `field_${question.type}`;
   const typeLabel = t(typeKey) !== typeKey ? t(typeKey) : def?.label || question.type;
+  /* Si la etiqueta de la pregunta sigue siendo el valor por defecto en inglés
+     (p. ej. «Province», «Municipality» creados por IA/plantillas), se muestra
+     el nombre de tipo ya traducido por LanguageContext en su lugar. Así el
+     desglose no presenta en inglés campos que el resto de la UI ve en español. */
+  const isDefaultLabel = !question.label || question.label === def?.label;
+  const title = isDefaultLabel ? typeLabel : question.label;
   const surveyTotal = Number(question.responses ?? question.total) || 0;
 
   return (
     <ChartCard
       icon={Icon}
-      title={question.label}
+      title={title}
       subtitle={`${surveyTotal} ${(surveyTotal === 1 ? t("response") : t("responses")).toLowerCase()} · ${typeLabel}`}
       right={
         question.average != null ? (
@@ -113,6 +119,12 @@ function QuestionBody({ question }) {
 
   if (!data.length) return <Empty skipped={skipped} />;
 
+  /* ── Clasificación por escala: cada opción muestra el número de la escala
+     que eligieron las personas (promedio) junto a cuántas la puntuaron. ── */
+  if (question.type === "importancia") {
+    return <ImportanciaBreakdown question={question} skipped={skipped} />;
+  }
+
   /* ── Donut Prism para yes_no y conjuntos pequeños (≤ 4 opciones) ── */
   if (
     question.type === "yes_no" ||
@@ -126,6 +138,98 @@ function QuestionBody({ question }) {
     <div>
       <PrismBars data={data.map((d) => ({ label: d.label, value: d.count }))} />
       {skipped > 0 && !countsSkippedAsSegment(question) && <SkippedNote skipped={skipped} />}
+    </div>
+  );
+}
+
+/* ── Clasificación por escala ──────────────────────────────────────────────
+   Cada opción es una fila de vidrio con: el nombre de la opción, el número
+   medio de la escala que le asignaron las personas (p. ej. «2.8 / 8») y
+   cuántas la puntuaron. La barra crece con el promedio sobre el recorrido de
+   la escala (mín→máx), de modo que "más alto" = prioridad media mayor. */
+function ImportanciaBreakdown({ question, skipped = 0 }) {
+  const { t } = useLanguage();
+  const rows = (question.breakdown || []).filter((d) => Number(d.count) > 0);
+  const scale = question.scale || null;
+  const min = Number(scale?.min) || 1;
+  const max = Number(scale?.max) || 5;
+  const span = Math.max(1, max - min);
+
+  if (!rows.length) return <Empty skipped={skipped} />;
+
+  return (
+    <div>
+      <div className="space-y-1.5">
+        {rows.map((d, i) => {
+          const pal = PRISM_PALS[i % PRISM_PALS.length] || PRISM_PALS[0];
+          const score = d.averageScore != null ? Number(d.averageScore) : null;
+          const pct =
+            score != null ? Math.max(0, Math.min(100, ((score - min) / span) * 100)) : 0;
+          return (
+            <motion.div
+              key={d.label}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.06, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50/80 px-3.5 py-2.5 shadow-sm backdrop-blur-sm dark:border-slate-800 dark:bg-slate-800/40"
+            >
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{
+                    background: `linear-gradient(135deg, ${pal.light}, ${pal.base})`,
+                    boxShadow: `0 0 10px ${pal.base}66`,
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span
+                      className="truncate text-sm font-medium text-slate-700 dark:text-slate-200"
+                      title={d.label}
+                    >
+                      {d.label}
+                    </span>
+                    {score != null && (
+                      <span
+                        className="shrink-0 text-sm font-bold tabular-nums"
+                        style={{ color: pal.base, textShadow: `0 0 8px ${pal.base}55` }}
+                      >
+                        {score}
+                        <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                          {" "}
+                          / {max}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-700/60">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{
+                        duration: 0.8,
+                        ease: [0.16, 1, 0.3, 1],
+                        delay: 0.25 + i * 0.05,
+                      }}
+                      className="h-full rounded-full"
+                      style={{
+                        background: `linear-gradient(90deg, ${pal.deep}, ${pal.base} 55%, ${pal.light})`,
+                      }}
+                    />
+                  </div>
+                </div>
+                <span
+                  className="shrink-0 rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500 dark:bg-slate-700/50 dark:text-slate-300"
+                  title={t("responses")}
+                >
+                  {d.count}
+                </span>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+      {skipped > 0 && <SkippedNote skipped={skipped} />}
     </div>
   );
 }

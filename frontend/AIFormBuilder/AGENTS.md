@@ -2562,8 +2562,69 @@ const estilo = flex({ direction: "column", gap: 12 }); // objeto de estilo
 
 ## 10. Registro de cambios
 
-> Orden: **mÃ¡s reciente primero**. Cada entrada lleva fecha, archivos, quÃ© cambiÃ³
-> y las puertas ejecutadas (ver Â§5).
+> Orden: **más reciente primero**. Cada entrada lleva fecha, archivos, qué cambió
+> y las puertas ejecutadas (ver §5).
+
+### 2026-11-22 — Estadísticas: «Desglose de preguntas» traduce Provincia/Municipio y muestra el número de la escala (`importancia`)
+
+**Objetivo (petición del usuario):** en «Desglose de preguntas» de las
+estadísticas, (1) las tarjetas de **Provincia** y **Municipio** mostraban su
+título en inglés (p. ej. «Province», «Municipality») y (2) la pregunta de
+**Clasificación por Escala** (`importancia`) no dejaba ver el **número de la
+escala** que eligió cada persona (solo contaba cuántas la puntuaron).
+
+**Causa raíz (dos):**
+1. `QuestionChart.jsx` usaba `question.label` crudo como título. Los formularios
+   creados por IA/plantillas guardan la etiqueta por defecto en inglés
+   (`"Province"`, `"Municipality"`, que coinciden con `FIELD_DEFS[type].label`),
+   así que la tarjeta se rotulaba en inglés aunque el resto de la UI viera
+   «Provincia»/«Municipio» (el subtítulo ya pasaba por `t("field_"+type)`, pero
+   el título no).
+2. El backend `buildQuestionAnalytics` ya calculaba `averageScore` por opción,
+   pero `QuestionChart` descartaba ese dato y solo dibujaba el conteo; además la
+   escala (`min`/`max`) no viajaba al frontend, así que no había contexto para
+   mostrar «2.8 / 8».
+
+**Cambios:**
+- `backend/services/analytics.service.js` — la rama `importancia` de
+  `buildQuestionAnalytics` añade `scale` (`{ min, max, minLabel, maxLabel }`) a
+  la respuesta de la pregunta, para que el desglose pueda mostrar el número de la
+  escala junto a cada opción. El `averageScore` por opción ya se calculaba; no
+  cambia el contrato de datos (solo se añade un campo de lectura `scale`).
+- `frontend/AIFormBuilder/src/components/analytics/QuestionChart.jsx` —
+  (a) el título de la tarjeta usa el nombre de tipo ya traducido por
+  `LanguageContext` cuando la etiqueta sigue siendo el valor por defecto en
+  inglés (`isDefaultLabel = !question.label || question.label === def?.label`);
+  así «Province»/«Municipality» se ven como «Provincia»/«Municipio».
+  (b) nuevo componente `ImportanciaBreakdown`: cada opción es una fila de vidrio
+  con su nombre, el **promedio de la escala** (p. ej. «2.8 / 8», usando
+  `question.scale.max`) y cuántas la puntuaron; la barra crece con el promedio
+  sobre el recorrido `min→max`. Respeta `prefers-reduced-motion` (framer-motion)
+  y el lenguaje Prism (misma paleta `PRISM_PALS` que el resto de charts).
+
+**Contrato de datos intacto:** no cambia lo almacenado ni los endpoints; solo se
+añade un campo de lectura (`scale`) al payload de analítica y se lee el
+`averageScore` que ya llegaba. `total`/`skipped`/`responses` no cambian.
+
+**Archivos modificados (2):**
+- `backend/services/analytics.service.js`
+- `frontend/AIFormBuilder/src/components/analytics/QuestionChart.jsx`
+
+**Verificación (ejecutada):**
+- Backend: `node --test qa/analytics-question-totals.test.js
+  qa/analytics-other-text.test.js` → **10/10**; `node --check` OK.
+- Sonda real sobre la encuesta de 13 respuestas (`importancia`): `scale =
+  {min:1, max:8}`, cada opción con `averageScore` (2.8, 3.4, 3, 3.56…) y
+  `responses=13 / total=10 / skipped=3`. El frontend renderiza «2.8 / 8».
+- `node --test qa/classification-scale.test.js qa/conditional-fields.test.js
+  qa/chrono-select-search.test.js` → **25/25**.
+- `npx tsc --noEmit` → 0 · `npm run lint` → exit 0 (0 errores; solo warnings
+  preexistentes, ninguno en los archivos tocados) · `npm run build` → exit 0
+  (avisos `@utility` de `admin.css` y chunks >500 kB preexistentes, ver §9) ·
+  `npm run qa:brand` → 1 congelamiento preexistente en `PrismGauge.css:12`
+  (verificado en HEAD, ajeno a este cambio) · 28 excepciones · 0 conflictos
+  semánticos; `npm run qa:routes` → 124 comprobaciones · 2 fallos preexistentes
+  de la baseline (sin regresión).
 
 ### 2026-11-16 — Estadísticas: el total de cada pregunta coincide con el de la encuesta
 
