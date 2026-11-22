@@ -1,6 +1,6 @@
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { cn } from "../../lib/utils.js";
-import { StatTooltip } from "../ui/Card.jsx";
+import { Tooltip } from "../ui/Tooltip.jsx";
 import { motion } from "framer-motion";
 import PrismBar from "./PrismBar.jsx";
 
@@ -35,11 +35,10 @@ export function KpiCard({ icon: Icon, label, value, sub, accent = "brand", spark
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      // `overflow-visible` y NO `overflow-hidden`: el tooltip de `StatTooltip`
-      // sale por arriba de la tarjeta, y con `hidden` la tarjeta lo recortaba
-      // entero — en Analytics los cinco KPIs tenían un tooltip que no se veía.
-      // El recorte de las capas decorativas al radio de la tarjeta lo hace
-      // ahora la capa `absolute inset-0` de abajo, que está justo para eso.
+      // `overflow-visible` y NO `overflow-hidden`: el tooltip sale por arriba de la
+      // tarjeta (portal del `Tooltip` del sistema), y con `hidden` la tarjeta lo
+      // recortaría. El recorte de las capas decorativas al radio de la tarjeta lo
+      // hace la capa `absolute inset-0` de abajo, que está justo para eso.
       className={cn(
         "group relative overflow-visible rounded-[22px] border border-slate-200/70 bg-white p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_18px_42px_-20px_rgba(16,24,40,0.14)] backdrop-blur-xl transition-all duration-300",
         "hover:-translate-y-0.5 hover:shadow-[0_8px_28px_-14px_rgba(16,24,40,0.16),0_22px_48px_-20px_rgba(16,24,40,0.16)] hover:border-slate-200",
@@ -55,8 +54,49 @@ export function KpiCard({ icon: Icon, label, value, sub, accent = "brand", spark
       </div>
 
       <div className="relative z-10 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{label}</p>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{label}</p>
+            {tooltip && (
+              <Tooltip
+                side="top"
+                align="start"
+                maxWidth={240}
+                className="shrink-0"
+                content={
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider opacity-60">
+                      {tooltip.title}
+                    </p>
+                    {tooltip.description && (
+                      <p className="text-xs leading-snug opacity-90">{tooltip.description}</p>
+                    )}
+                    {tooltip.items?.length > 0 && (
+                      <div className="space-y-1 border-t border-slate-200/70 pt-1.5 text-xs leading-snug dark:border-slate-600/50">
+                        {tooltip.items.map((item) => (
+                          <div key={item.label} className="flex gap-2">
+                            <span className="min-w-0 break-words opacity-90">{item.label}</span>
+                            <strong className="shrink-0 font-bold tabular-nums">{item.value}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                }
+              >
+                <span
+                  className="grid h-5 w-5 cursor-help place-items-center rounded-full text-slate-400 transition-colors hover:text-brand-600 focus-visible:text-brand-600 dark:text-slate-500 dark:hover:text-brand-400"
+                  aria-label={`${label}: ${tooltip.title}`}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4" />
+                    <path d="M12 8h.01" />
+                  </svg>
+                </span>
+              </Tooltip>
+            )}
+          </div>
           <p className="mt-2 text-[28px] font-black leading-none tracking-tight text-slate-900 dark:text-white [font-family:'Space_Grotesk',ui-monospace,monospace] dark:[text-shadow:0_0_24px_rgba(103,232,249,0.28)]">
             {value}
           </p>
@@ -105,8 +145,6 @@ export function KpiCard({ icon: Icon, label, value, sub, accent = "brand", spark
           </ResponsiveContainer>
         </div>
       )}
-
-      <StatTooltip tooltip={tooltip} />
     </motion.div>
   );
 }

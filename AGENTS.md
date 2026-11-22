@@ -4,6 +4,28 @@ Ver `frontend/AIFormBuilder/AGENTS.md` para las reglas del proyecto frontend.
 
 ## Registro de cambios — 2026-11-22
 
+### Estadísticas: mismo tooltip moderno de «Clasificación por Escala» en los KPI cards (Respuestas, Vistas Totales, Tasa de conversión, Finalización, Tiempo)
+
+**Objetivo:** aplicar el mismo diseño de tooltip moderno (el `Tooltip` de cristal
+del sistema) a los 5 KPI cards de estadísticas: Respuestas, Vistas Totales, Tasa
+de conversión de respuestas, Finalización y Tiempo.
+
+**Cambios (solo frontend, 1 archivo):**
+- `frontend/AIFormBuilder/src/components/analytics/KpiCard.jsx` — el tooltip del
+  card pasa de `StatTooltip` (group-hover + contenedor absoluto) al `Tooltip` del
+  sistema (portal, variante cristal que sigue al acento vivo), el mismo del
+  desglose de «Clasificación por Escala». El icono ℹ del label es el disparador
+  (`cursor-help`, `shrink-0`); el contenido rotula título, descripción y lista
+  de definición `label` + `value`. Colores neutros, sin hex de marca; respeta
+  `prefers-reduced-motion`.
+
+**Contrato de datos intacto:** sin cambios de backend ni persistencia; solo
+presentación. `StatTooltip` se conserva en `Card.jsx` (lo usa `StatCard`).
+
+**Verificación:** `tsc` 0 · `lint` 0 errores · `build` exit 0 · `qa:brand` 0
+conflictos (1 congelamiento preexistente en `PrismGauge.css`, ajeno) · `qa:routes`
+124/2 (baseline) · QA 25/25.
+
 ### Estadísticas: tooltip moderno que explica los números de «Clasificación por Escala»
 
 **Objetivo:** en «Desglose de preguntas», los números de la pregunta de

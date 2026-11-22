@@ -2565,6 +2565,42 @@ const estilo = flex({ direction: "column", gap: 12 }); // objeto de estilo
 > Orden: **más reciente primero**. Cada entrada lleva fecha, archivos, qué cambió
 > y las puertas ejecutadas (ver §5).
 
+### 2026-11-22 — Estadísticas: mismo tooltip moderno de «Clasificación por Escala» en los KPI cards (Respuestas, Vistas Totales, Tasa de conversión, Finalización, Tiempo)
+
+**Objetivo (petición del usuario):** aplicar exactamente el mismo diseño de
+tooltip moderno (el `Tooltip` de cristal del sistema) a los 5 KPI cards de
+estadísticas: **Respuestas**, **Vistas Totales**, **Tasa de conversión de
+respuestas**, **Finalización** y **Tiempo**.
+
+**Cambio (solo frontend, 1 archivo):**
+- `frontend/AIFormBuilder/src/components/analytics/KpiCard.jsx` — el tooltip del
+  card deja de usar `StatTooltip` (que dependía de `group-hover` sobre la tarjeta
+  y un contenedor absolutamente posicionado) y pasa a usar el `Tooltip` del
+  sistema (`components/ui/Tooltip.jsx`, variante de cristal que sigue al acento
+  vivo), el mismo que ya usa el desglose de «Clasificación por Escala»:
+  - El icono ℹ del label envuelve el disparador con `cursor-help` y
+    `shrink-0` (para no deformar el flex).
+  - El contenido del tooltip rotula cada cifra: título en mayúsculas, descripción
+    y una lista de definición con `label` + `value` (numérico, tabular-nums).
+  - Colores neutros (`slate-*`, `var(--fg)` del cristal), sin hex de marca.
+  - Respeta `prefers-reduced-motion` (framer-motion del Tooltip).
+
+**Contrato de datos intacto:** sin cambios de backend, endpoints, esquema ni
+persistencia; solo presentación. `StatTooltip` se conserva en `Card.jsx` porque
+`StatCard` lo sigue usando.
+
+**Archivos modificados (1):**
+- `frontend/AIFormBuilder/src/components/analytics/KpiCard.jsx`
+
+**Verificación (ejecutada):**
+- `npx tsc --noEmit` → 0 · `npm run lint` → exit 0 (0 errores; solo warnings
+  preexistentes, ninguno en el archivo tocado) · `npm run build` → exit 0 ·
+  `npm run qa:brand` → 1 congelamiento preexistente en `PrismGauge.css:12` (ajeno)
+  · 28 excepciones · 0 conflictos semánticos; `npm run qa:routes` → 124 · 2 fallos
+  preexistentes de la baseline (sin regresión).
+- `node --test qa/classification-scale.test.js qa/conditional-fields.test.js
+  qa/chrono-select-search.test.js` → 25/25.
+
 ### 2026-11-22 — Estadísticas: tooltip moderno que explica los números de «Clasificación por Escala» (`importancia`)
 
 **Objetivo (petición del usuario):** en «Desglose de preguntas», los números de la
