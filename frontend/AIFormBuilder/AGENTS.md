@@ -1,5 +1,52 @@
 # AGENTS.md — Gestor de Formularios
 
+### 2026-11-22 — Clasificación por escala (`importancia`): el riel «Signal Rail» se usa para cualquier escala (≤7 y >7)
+
+**Objetivo (petición del usuario):** mantener el mismo diseño de la escala
+tanto si tiene **menos o igual que 7 valores** como si tiene **más de 7**; el
+diseño debía ser **exactamente igual** en ambos casos.
+
+**Cambio (solo frontend, 2 archivos + test):**
+- `frontend/AIFormBuilder/src/components/ui/PremiumImportancia.jsx` — se elimina
+  el desplegable `ChronoSelect` y la bifurcación `useRail` (que usaba el riel
+  solo para escalas ≤7 nodos). Ahora **`ScoreRail` se renderiza siempre**, sea
+  cual sea el número de valores de la escala. Se retira el import de
+  `ChronoSelect`, la constante `MAX_RAIL_NODES`, el `scoreOptions` derivado y la
+  rama `ChronoSelect` del render. El contrato de datos no cambia: sigue emitiendo
+  el mismo mapa `{ [opciónId]: score | { value, otherText } }`.
+- `frontend/AIFormBuilder/src/components/ui/PremiumImportancia.css` — el riel pasa
+  a `grid-template-columns: repeat(var(--imp-n, 5), minmax(0, 1fr))` con
+  `min-width: 0`, de modo que las columnas se reparten el ancho disponible y los
+  nodos se encogen cuando hay muchos valores (el diseño es idéntico en escalas
+  de 1-3 y de 1-10). Se retira el bloque CSS muerto del desplegable
+  (`.imp-score-select-controls > .w-full`, `.chrono-select-trigger`, etc.).
+- `frontend/AIFormBuilder/qa/classification-scale.test.js` — el test que
+  comprobaba el desplegable para la escala configurada (2-4) pasa a verificar el
+  riel para cualquier escala: 0 `chrono-select-trigger`, 2 `role="radiogroup"`
+  (riel por fila puntuada), 6 `role="radio"` (3 nodos × 2 filas), sin
+  `aria-haspopup="listbox"` y sin el placeholder `#`. Se renombra a
+  `classificationScale_usesRailForAnyScaleSize`.
+
+**Contrato de datos intacto:** misma API de props y mismos helpers de
+`classificationScale.js`; la respuesta sigue siendo
+`{ [opciónId]: score | { value, otherText } }`. Sin cambios de backend ni
+persistencia.
+
+**Archivos modificados (3):**
+- `frontend/AIFormBuilder/src/components/ui/PremiumImportancia.jsx`
+- `frontend/AIFormBuilder/src/components/ui/PremiumImportancia.css`
+- `frontend/AIFormBuilder/qa/classification-scale.test.js`
+
+**Puertas (ejecutadas desde `frontend/AIFormBuilder/`):**
+- `node --test qa/classification-scale.test.js qa/conditional-fields.test.js
+  qa/chrono-select-search.test.js` → **25/25** (incluye el nuevo
+  `classificationScale_usesRailForAnyScaleSize`).
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en los
+  archivos tocados).
+- `npm run build` → exit 0 (`✓ built in 1.76s`; avisos `@utility` de `admin.css`
+  y chunks >500 kB preexistentes, ver §9).
+
 ### 2026-11-22 — Fix: el constructor ya no se queda en blanco al abrir la configuración de un campo con condición (`dep is not defined`)
 
 **Síntoma (petición del usuario):** al abrir la configuración del campo

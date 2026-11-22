@@ -237,7 +237,7 @@ test("chronoSelect_keepsDropdownWideWhenTriggerIsCompact", async () => {
   }
 });
 
-test("classificationScale_usesChronoSelectWithConfiguredScale", async () => {
+test("classificationScale_usesRailForAnyScaleSize", async () => {
   const vite = await createServer({
     root: fileURLToPath(new URL("..", import.meta.url)),
     configFile: fileURLToPath(new URL("../vite.config.js", import.meta.url)),
@@ -284,14 +284,22 @@ test("classificationScale_usesChronoSelectWithConfiguredScale", async () => {
       }),
     );
 
-    assert.equal((html.match(/chrono-select-trigger/g) || []).length, 2);
-    assert.match(html, /aria-haspopup="listbox"/);
-    assert.match(html, /style="color:var\(--fg\)"/);
+    // El riel se usa para cualquier escala: ya no hay desplegable ChronoSelect.
+    assert.equal((html.match(/chrono-select-trigger/g) || []).length, 0);
+    assert.equal((html.match(/aria-haspopup="listbox"/g) || []).length, 0);
+    // Cada fila puntuada renderiza un radiogroup (el riel) con sus nodos.
+    assert.equal((html.match(/role="radiogroup"/g) || []).length, 2);
+    assert.match(html, /imp-rail/);
+    // Escala 2-4 → 3 nodos por riel, y hay 2 filas puntuadas = 6 radios.
+    assert.equal((html.match(/role="radio"/g) || []).length, 6);
     assert.doesNotMatch(html, /aria-label="Servicio de citas: 1"/);
     assert.match(html, /Atención presencial/);
     assert.doesNotMatch(html, /Trámite adicional/);
     assert.doesNotMatch(builderPreviewHtml, /Trámite adicional/);
-    assert.match(idleHtml, /#<\/span>/);
+    // Estado vacío: el riel sigue presente (sin ChronoSelect ni placeholder "#").
+    assert.match(idleHtml, /imp-rail/);
+    assert.equal((idleHtml.match(/chrono-select-trigger/g) || []).length, 0);
+    assert.doesNotMatch(idleHtml, /#<\/span>/);
     assert.match(idleHtml, /addOther/);
     assert.doesNotMatch(idleHtml, /aria-pressed=/);
   } finally {

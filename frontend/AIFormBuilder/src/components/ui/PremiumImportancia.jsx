@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { X, Plus, Check } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 import { scaleOf } from "../../lib/fieldTypes.js";
-import { ChronoSelect } from "./ChronoSelect.jsx";
 import {
   activateClassificationScaleOther,
   getClassificationScaleItems,
@@ -16,11 +15,10 @@ import "./PremiumImportancia.css";
  * de energía se enciende hasta el valor elegido y toma el color de su prioridad.
  * Contrato de datos intacto: sigue emitiendo el mismo mapa
  * { [opciónId]: score | { value, otherText } } mediante classificationScale.js.
+ *
+ * El riel se usa SIEMPRE, sea cual sea el número de valores de la escala, para
+ * que el diseño sea idéntico en escalas cortas (≤7) y largas (>7).
  */
-
-// Por encima de este número de nodos el riel deja de caber en móvil y se usa
-// el desplegable (ChronoSelect) como antes.
-const MAX_RAIL_NODES = 7;
 
 // Textos propios del campo: evitan tocar LanguageContext para microcopy local.
 const COPY = {
@@ -173,8 +171,6 @@ export function PremiumImportancia({
     () => Array.from({ length: scale.max - scale.min + 1 }, (_, index) => scale.min + index),
     [scale.min, scale.max],
   );
-  const scoreOptions = scores.map((score) => ({ value: String(score), label: String(score) }));
-  const useRail = scores.length <= MAX_RAIL_NODES;
   const items = getClassificationScaleItems(field, value, { includeConditional: false, t });
   const answers = answerObject(value);
   const fieldLabel = label || (t ? t("importancia") : "Clasificación por escala");
@@ -379,34 +375,18 @@ export function PremiumImportancia({
                     role="group"
                     aria-label={itemLabel}
                   >
-                    {useRail ? (
-                      <ScoreRail
-                        scores={scores}
-                        value={hasScore ? item.value : null}
-                        disabled={disabled}
-                        ariaLabel={itemLabel}
-                        minLabel={minLabel}
-                        maxLabel={maxLabel}
-                        scoreLabel={copy.scoreOf}
-                        onSelect={(score) => setScore(item, score)}
-                      />
-                    ) : (
-                      <ChronoSelect
-                        label=""
-                        options={scoreOptions}
-                        value={hasScore ? String(item.value) : ""}
-                        onChange={(nextValue) => setScore(item, nextValue === "" ? null : Number(nextValue))}
-                        disabled={disabled}
-                        placeholder="#"
-                        error={error}
-                        required={required}
-                        language={language}
-                        t={t}
-                        className="imp-score-select-trigger"
-                        optionClassName="imp-score-select-option"
-                        dropdownMinWidth={96}
-                        textColor="var(--fg)"
-                      />
+                    <ScoreRail
+                      scores={scores}
+                      value={hasScore ? item.value : null}
+                      disabled={disabled}
+                      ariaLabel={itemLabel}
+                      minLabel={minLabel}
+                      maxLabel={maxLabel}
+                      scoreLabel={copy.scoreOf}
+                      onSelect={(score) => setScore(item, score)}
+                    />
+                    {!(isStored && (!item.isOther || hasScore)) && (
+                      <span className="imp-score-clear-slot" aria-hidden="true" />
                     )}
                     {isStored && (!item.isOther || hasScore) && (
                       <button
