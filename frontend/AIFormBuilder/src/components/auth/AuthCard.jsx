@@ -3,20 +3,29 @@ import { cn } from "../../lib/utils.js";
 import { Logo } from "../Logo.jsx";
 import { PasswordToggle } from "../ui/PasswordToggle.jsx";
 import { LanguageSwitcher } from "../ui/LanguageSwitcher.jsx";
+import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { Building2, UserRound } from "lucide-react";
 
 /**
  * Tarjeta de autenticación premium con fondo de imagen por rol.
  * La tarjeta de cristal se sitúa a la derecha; el fondo y el rol quedan
  * visibles a la izquierda porque la imagen ya los incluye.
+ * El fondo cambia entre versión español/inglés según el idioma global.
  */
 export function AuthCard({ eyebrow, title, subtitle, role, entity, children, footer }) {
-  // Mapeo de rol -> clase de fondo
-  const roleBackgroundMap = {
-    entity_admin: "auth-photo--gestor-entidad",
-    form_creator: "auth-photo--gestor-formularios",
-    super_admin: "auth-photo--super-admin",
+  const { language } = useLanguage();
+
+  // Mapeo de rol -> nombre base del archivo (sin extensión)
+  const roleImageBaseMap = {
+    entity_admin: "gestor_entidad",
+    form_creator: "gestor_formularios",
+    super_admin: "super_administrador",
   };
+
+  // Construir la URL de la imagen según el idioma
+  const imageBase = roleImageBaseMap[role] || "gestor_entidad";
+  const imageFileName = language === "en" ? `${imageBase}(English).png` : `${imageBase}.png`;
+  const authPhotoUrl = `url("/${imageFileName}")`;
 
   // El círculo del logo usa el color de marca (--color-brand-500) para coincidir con el botón primario
   // El botón "Entrar" usa btn-primary que tiene degradado brand-300 → brand-500 → brand-700
@@ -24,8 +33,8 @@ export function AuthCard({ eyebrow, title, subtitle, role, entity, children, foo
 
   return (
     <div className="auth-stage bg-app" style={{ "--auth-accent": logoAccentColor }} as any>
-      {/* Fondo de imagen por rol */}
-      <div className={cn("auth-photo", roleBackgroundMap[role])} aria-hidden="true" />
+      {/* Fondo de imagen por rol e idioma */}
+      <div className="auth-photo" style={{ "--auth-photo": authPhotoUrl }} aria-hidden="true" />
       <div className="auth-vignette" aria-hidden="true" />
       
       {/* Halo de acento sutil en el fondo */}
