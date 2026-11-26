@@ -317,8 +317,8 @@ export function DashboardLayout({ children }) {
   return (
     <div className="flex min-h-screen bg-app">
       {/* Desktop rail (hover to expand) */}
-      <div className="hidden w-20 shrink-0 lg:block" aria-hidden />
-      <aside className="group fixed left-0 top-0 z-40 hidden h-screen w-20 flex-col overflow-hidden border-r border-transparent glass py-5 transition-[width] duration-200 ease-out hover:w-64 hover:shadow-pop lg:flex">
+      <div className="hidden w-24 shrink-0 lg:block" aria-hidden />
+      <aside className="group fixed left-0 top-0 z-40 hidden h-screen w-24 flex-col overflow-hidden border-r border-transparent glass py-5 transition-[width] duration-200 ease-out hover:w-72 hover:shadow-pop lg:flex">
         <button
           onClick={goHome}
           className="mx-3 flex h-10 items-center gap-3 rounded-lg px-2"

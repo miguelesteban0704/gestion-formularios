@@ -30,11 +30,20 @@ export function ThemeToggle({
   const Icon = MODE_ICONS[theme] ?? Monitor;
   const label = t(MODE_LABEL_KEYS[theme] ?? "systemMode");
 
+  const defaultBtnClass = cn(
+    "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium transition-all duration-200",
+    "bg-surface-2/80 dark:bg-slate-800/80 backdrop-blur-sm",
+    "border border-default dark:border-slate-700",
+    "text-fg dark:text-slate-100",
+    "hover:bg-surface-3 dark:hover:bg-slate-700/50",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface dark:focus-visible:ring-offset-slate-900"
+  );
+
   return (
     <button
       type="button"
       onClick={toggle}
-      className={className}
+      className={cn(defaultBtnClass, className)}
       aria-label={t("toggleTheme")}
       title={t("toggleTheme")}
     >

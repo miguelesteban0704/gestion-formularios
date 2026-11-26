@@ -8,25 +8,6 @@ import { Tooltip } from "../ui/Tooltip.jsx";
 import { FIELD_DEFS, RATING_TYPES } from "../../lib/fieldTypes.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 
-/* Tipos en los que cada persona aporta EXACTAMENTE un valor al desglose. Son
-   los únicos donde "Sin responder" puede sumarse a las opciones sin falsear la
-   cuenta. En `checkbox` una persona puede marcar varias; en `rank` e
-   `importancia` cada opción se cuenta por separado. */
-const SINGLE_VALUE_TYPES = new Set([
-  "dropdown",
-  "radio",
-  "yes_no",
-  "province",
-  "municipality",
-  "gender",
-  "education_level",
-]);
-
-const countsSkippedAsSegment = (question) =>
-  SINGLE_VALUE_TYPES.has(question.type) ||
-  RATING_TYPES.includes(question.type) ||
-  question.type === "number";
-
 /**
  * Renders the right visualization for one question's analytics.
  * Mismo lenguaje Prism que el resto de /analytics:
@@ -34,10 +15,10 @@ const countsSkippedAsSegment = (question) =>
  *  · barras → PrismBars (filas glass con barra degradada)
  *  · texto libre → tarjetas de vidrio con comilla
  *
- * El total que encabeza cada tarjeta es el de la encuesta (`responses`), igual
- * que el KPI general. `total` sigue siendo la cuenta de quienes contestaron y
- * `skipped` los que la dejaron en blanco: el desglose nunca cambia de
- * denominador sin decirlo.
+ * El total que encabeza cada tarjeta es el de respuestas reales de esa pregunta
+ * (`total`: cuántas la contestaron), no el total de la encuesta (`responses`),
+ * de modo que el subtítulo refleje cuántas personas respondieron realmente y
+ * excluya a las que la dejaron en blanco (`skipped`).
  */
 export function QuestionChart({ question }) {
   const { t } = useLanguage();
@@ -51,7 +32,10 @@ export function QuestionChart({ question }) {
      desglose no presenta en inglés campos que el resto de la UI ve en español. */
   const isDefaultLabel = !question.label || question.label === def?.label;
   const title = isDefaultLabel ? typeLabel : question.label;
-  const surveyTotal = Number(question.responses ?? question.total) || 0;
+  /* Total de respuestas REALES de esta pregunta (quienes la contestaron), no el
+     total de la encuesta. El subtítulo debe reflejar cuántas personas respondieron
+     realmente esta pregunta, excluyendo a las que la dejaron en blanco. */
+  const surveyTotal = Number(question.total) || 0;
 
   return (
     <ChartCard
@@ -76,15 +60,13 @@ function QuestionBody({ question }) {
   const { t } = useLanguage();
   const skipped = Math.max(0, Number(question.skipped) || 0);
 
-  /* ── Free-text samples (máx. 4 por tarjeta — el backend devuelve todas) ── */
+  /* ── Free-text samples (el backend devuelve todas; aquí mostramos todas) ── */
   if (question.samples) {
-    if (!question.samples.length) return <Empty skipped={skipped} />;
-    const MAX_SAMPLES = 4;
-    const shown = question.samples.slice(0, MAX_SAMPLES);
-    const showingAll = question.samples.length <= MAX_SAMPLES;
+    const hasSamples = question.samples.length > 0;
+    if (!hasSamples && skipped === 0) return <Empty />;
     return (
       <div className="space-y-2">
-        {shown.map((s, i) => (
+        {question.samples.map((s, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, y: 6 }}
@@ -97,28 +79,50 @@ function QuestionBody({ question }) {
             <span className="relative">{s}</span>
           </motion.div>
         ))}
-        {!showingAll && (
-          <p className="pt-1 text-center text-[11px] font-medium text-slate-400 dark:text-slate-500">
-            {t("showing")} {shown.length} / {question.samples.length}
-          </p>
+        {/* «Sin responder» como una entrada más del mismo desglose (tarjeta de
+           vidrio igual que el resto de respuestas), nunca como texto aparte. */}
+        {skipped > 0 && (
+          <motion.div
+            key="__skipped__"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-2.5 text-sm shadow-sm backdrop-blur-sm dark:border-slate-800 dark:bg-slate-800/40"
+          >
+            <div className="flex items-center gap-2.5">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{
+                  background: "linear-gradient(135deg, #cbd5e1, #94a3b8)",
+                  boxShadow: "0 0 10px #94a3b866",
+                }}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="truncate text-sm font-medium text-slate-500 dark:text-slate-400">
+                    {t("notAnswered")}
+                  </span>
+                  <span className="text-sm font-bold tabular-nums text-slate-500 dark:text-slate-400">
+                    {skipped}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         )}
-        {skipped > 0 && <SkippedNote skipped={skipped} />}
       </div>
     );
   }
 
   const data = (question.breakdown || []).filter((d) => Number(d.count) > 0);
 
-  /* En las preguntas de valor único el desglose suma exactamente quienes
-     contestaron; se añade «Sin responder» para que el gráfico sume el mismo
-     total que la encuesta. En selección múltiple / ranking / escala esto no
-     aplica: cada persona puede aportar varias marcas, así que solo se anota
-     aparte. */
-  if (countsSkippedAsSegment(question) && skipped > 0) {
+  /* Se añade «Sin responder» al desglose siempre que haya saltado contestado,
+     de modo que aparezca como una más en el chart y no como texto aparte. */
+  if (skipped > 0) {
     data.push({ label: t("notAnswered"), count: skipped });
   }
 
-  if (!data.length) return <Empty skipped={skipped} />;
+  if (!data.length) return <Empty />;
 
   /* ── Clasificación por escala: cada opción muestra el número de la escala
      que eligieron las personas (promedio) junto a cuántas la puntuaron. ── */
@@ -138,7 +142,6 @@ function QuestionBody({ question }) {
   return (
     <div>
       <PrismBars data={data.map((d) => ({ label: d.label, value: d.count }))} />
-      {skipped > 0 && !countsSkippedAsSegment(question) && <SkippedNote skipped={skipped} />}
     </div>
   );
 }
@@ -159,41 +162,56 @@ function ImportanciaBreakdown({ question, skipped = 0 }) {
   const max = Number(scale?.max) || 5;
   const span = Math.max(1, max - min);
 
-  if (!rows.length) return <Empty skipped={skipped} />;
+  /* «Sin responder» entra como una fila más del desglose (personas que no
+     puntuaron ninguna opción), sin puntuación media ni barra de progreso,
+     para que aparezca dentro del mismo diseño que el resto de opciones. */
+  const items = [...rows];
+  if (skipped > 0) {
+    items.push({ label: t("notAnswered"), count: skipped, isSkipped: true });
+  }
+
+  if (!items.length) return <Empty />;
 
   return (
     <div>
       <div className="space-y-1.5">
-        {rows.map((d, i) => {
+        {items.map((d, i) => {
+          const isSkipped = d.isSkipped;
           const pal = PRISM_PALS[i % PRISM_PALS.length] || PRISM_PALS[0];
-          const score = d.averageScore != null ? Number(d.averageScore) : null;
+          const score = isSkipped
+            ? null
+            : d.averageScore != null
+            ? Number(d.averageScore)
+            : null;
           const pct =
             score != null ? Math.max(0, Math.min(100, ((score - min) / span) * 100)) : 0;
           return (
             <motion.div
-              key={d.label}
+              key={isSkipped ? "__skipped__" : d.label}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + i * 0.06, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-              className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50/80 px-3.5 py-2.5 shadow-sm backdrop-blur-sm dark:border-slate-800 dark:bg-slate-800/40"
+              className="relative overflow-hidden border border-slate-200/80 bg-slate-50/80 px-3.5 py-2.5 shadow-sm backdrop-blur-sm dark:border-slate-800 dark:bg-slate-800/40 rounded-xl"
             >
               <div className="flex items-center gap-2.5">
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{
-                    background: `linear-gradient(135deg, ${pal.light}, ${pal.base})`,
-                    boxShadow: `0 0 10px ${pal.base}66`,
+                    background: isSkipped
+                      ? "linear-gradient(135deg, #cbd5e1, #94a3b8)"
+                      : `linear-gradient(135deg, ${pal.light}, ${pal.base})`,
+                    boxShadow: isSkipped ? "0 0 10px #94a3b866" : `0 0 10px ${pal.base}66`,
                   }}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-3">
                     <span
-                      className="truncate text-sm font-medium text-slate-700 dark:text-slate-200"
+                      className={isSkipped ? "truncate text-sm font-medium text-slate-500 dark:text-slate-400" : "truncate text-sm font-medium text-slate-700 dark:text-slate-200"}
                       title={d.label}
                     >
                       {d.label}
                     </span>
-                    {score != null && (
+                    {!isSkipped && score != null && (
                       <Tooltip
                         side="top"
                         align="end"
@@ -243,21 +261,23 @@ function ImportanciaBreakdown({ question, skipped = 0 }) {
                       </Tooltip>
                     )}
                   </div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-700/60">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{
-                        duration: 0.8,
-                        ease: [0.16, 1, 0.3, 1],
-                        delay: 0.25 + i * 0.05,
-                      }}
-                      className="h-full rounded-full"
-                      style={{
-                        background: `linear-gradient(90deg, ${pal.deep}, ${pal.base} 55%, ${pal.light})`,
-                      }}
-                    />
-                  </div>
+                  {!isSkipped && (
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-700/60">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{
+                          duration: 0.8,
+                          ease: [0.16, 1, 0.3, 1],
+                          delay: 0.25 + i * 0.05,
+                        }}
+                        className="h-full rounded-full"
+                        style={{
+                          background: `linear-gradient(90deg, ${pal.deep}, ${pal.base} 55%, ${pal.light})`,
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
                 <Tooltip
                   side="top"
@@ -280,30 +300,15 @@ function ImportanciaBreakdown({ question, skipped = 0 }) {
           );
         })}
       </div>
-      {skipped > 0 && <SkippedNote skipped={skipped} />}
-    </div>
+      </div>
   );
 }
 
-function SkippedNote({ skipped }) {
-  const { t } = useLanguage();
-  return (
-    <p className="pt-3 text-center text-[11px] font-medium text-slate-400 dark:text-slate-500">
-      {skipped} {t("notAnswered").toLowerCase()}
-    </p>
-  );
-}
-
-function Empty({ skipped = 0 }) {
+function Empty() {
   const { t } = useLanguage();
   return (
     <div className="py-8 text-center">
       <p className="text-sm font-medium text-slate-400 dark:text-slate-500">{t("noDataYet")}</p>
-      {skipped > 0 && (
-        <p className="mt-1 text-[11px] font-medium text-slate-400 dark:text-slate-500">
-          {skipped} {t("notAnswered").toLowerCase()}
-        </p>
-      )}
     </div>
   );
 }

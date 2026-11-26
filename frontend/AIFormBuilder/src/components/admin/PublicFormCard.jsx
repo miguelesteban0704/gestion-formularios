@@ -182,9 +182,10 @@ export function PublicFormCard({
       {/* Columna 6: acceso a las estadísticas del formulario. Solo lo público:
           el backend le veta las de un privado al super_admin (`canSeeStats`),
           así que la celda de un privado se queda vacía en vez de prometer un
-          rebote. */}
+          rebote. También se oculta para "Privado" (unlisted) porque no tiene
+          página de estadísticas pública. */}
       <div className="flex items-center">
-        {form.visibility !== "private" && (
+        {form.visibility === "public" && (
           <Button
             variant="outline"
             size="sm"

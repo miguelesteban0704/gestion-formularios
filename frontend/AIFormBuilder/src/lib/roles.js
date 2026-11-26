@@ -20,6 +20,14 @@ export const isLegacy = (user) => !!user && !user.role;
 /** Invitado con sesión anónima: dueño propio, stats solo de lo público. */
 export const isGuest = (user) => user?.isGuest === true;
 
+/** Clave de traducción (LanguageContext) para el nombre visible de cada rol. */
+export const ROLE_I18N_KEY = {
+  super_admin: "roleSuper",
+  entity_admin: "roleEntity",
+  form_creator: "roleCreator",
+  form_creator_short: "roleCreatorShort",
+};
+
 /** El creador no ve estadísticas (respuestas, analíticas, insights, inbox). */
 export const STATS_PAGES = ["responses", "analytics", "insights", "inbox"];
 export function canSeeStatsPage(user, key) {

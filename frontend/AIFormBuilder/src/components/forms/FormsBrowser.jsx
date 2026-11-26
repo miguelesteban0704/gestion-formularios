@@ -1,5 +1,6 @@
 import { forwardRef, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Plus, Search, FolderOpen } from "lucide-react";
 import { useForms } from "../../hooks/useForms.js";
 import { useDebounce } from "../../hooks/useDebounce.js";
@@ -16,6 +17,32 @@ import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { useRoleT } from "../../lib/roleI18n.js";
 import { builderPath } from "../../lib/routes.js";
 
+const FILTER_EASE_OUT = [0.23, 1, 0.32, 1];
+
+function getFilterMotion(reduceMotion, delay = 0) {
+  const duration = reduceMotion ? 0.12 : 0.18;
+  const enterTransform = reduceMotion ? "translateY(0px)" : "translateY(4px)";
+  const exitTransform = reduceMotion ? "translateY(0px)" : "translateY(-4px)";
+
+  return {
+    initial: { opacity: 0, transform: enterTransform },
+    animate: {
+      opacity: 1,
+      transform: "translateY(0px)",
+      transition: {
+        duration,
+        ease: FILTER_EASE_OUT,
+        delay: reduceMotion ? 0 : delay,
+      },
+    },
+    exit: {
+      opacity: 0,
+      transform: exitTransform,
+      transition: { duration, ease: FILTER_EASE_OUT },
+    },
+  };
+}
+
 /**
  * Self-contained forms list: filter tabs, search, responsive card grid and a
  * delete confirmation. `filter`/`onFilterChange` make the filter optionally
@@ -29,6 +56,7 @@ export const FormsBrowser = forwardRef(function FormsBrowser(
   ref
 ) {
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
   const { t, language } = useLanguage();
   const rt = useRoleT();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
@@ -90,6 +118,29 @@ export const FormsBrowser = forwardRef(function FormsBrowser(
     onMutate?.();
   };
 
+  const emptyState = (
+    <EmptyState
+      icon={searchInput ? Search : FolderOpen}
+      title={searchInput ? t("noFormsMatch") : t("noFormsYet")}
+      description={
+        searchInput ? t("searchFormsHint") : guestMode ? rt("emptyPublicForms") : t("createFirstForm")
+      }
+      action={
+        !searchInput && canManage && (
+          <div className="flex gap-2">
+            <Button onClick={() => navigate(builderPath(language, "new", {}, user?.entity?.code))}>
+              <Plus className="h-4 w-4" /> {t("blankForm")}
+            </Button>
+            {/* AI feature hidden - retained in code: the "Use AI" button used to
+                live here (Sparkles → builderPath(..., { ai: true })). The
+                AIGenerateModal is still mounted in Builder, but nothing in the UI can
+                open it anymore. */}
+          </div>
+        )
+      }
+    />
+  );
+
   return (
     <div ref={ref} className="scroll-mt-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -130,42 +181,50 @@ export const FormsBrowser = forwardRef(function FormsBrowser(
               <Skeleton key={i} className="h-56 rounded-2xl" />
             ))}
           </div>
-        ) : visibleForms.length === 0 ? (
-          <EmptyState
-            icon={searchInput ? Search : FolderOpen}
-            title={searchInput ? t("noFormsMatch") : t("noFormsYet")}
-            description={
-              searchInput ? t("searchFormsHint") : guestMode ? rt("emptyPublicForms") : t("createFirstForm")
-            }
-            action={
-              !searchInput && canManage && (
-                <div className="flex gap-2">
-                  <Button onClick={() => navigate(builderPath(language, "new", {}, user?.entity?.code))}>
-                    <Plus className="h-4 w-4" /> {t("blankForm")}
-                  </Button>
-                  {/* AI feature hidden - retained in code: the "Use AI" button used to
-                      live here (Sparkles → builderPath(..., { ai: true })). The
-                      AIGenerateModal is still mounted in Builder, but nothing in the UI can
-                      open it anymore. */}
-                </div>
-              )
-            }
-          />
         ) : guestMode ? (
-          <FilteredFormsList
-            forms={visibleForms}
-            activeTab={safeFilter}
-            searchValue={searchInput}
-            onDuplicate={handleDuplicate}
-            onDelete={setToDelete}
-            onPatch={handlePatch}
-          />
+          visibleForms.length === 0 ? emptyState : (
+            <FilteredFormsList
+              forms={visibleForms}
+              activeTab={safeFilter}
+              searchValue={searchInput}
+              onDuplicate={handleDuplicate}
+              onDelete={setToDelete}
+              onPatch={handlePatch}
+            />
+          )
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleForms.map((form, i) => (
-              <FormCard key={form._id} form={form} index={i} publicOnly={publicOnly || guestMode} guestMode={guestMode} onDuplicate={handleDuplicate} onDelete={setToDelete} onPatch={handlePatch} />
-            ))}
-          </div>
+          <AnimatePresence initial={false} mode="popLayout">
+            {visibleForms.length === 0 ? (
+              <motion.div key="forms-empty" {...getFilterMotion(reduceMotion)}>
+                {emptyState}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="forms-grid"
+                className="relative grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+                {...getFilterMotion(reduceMotion)}
+              >
+                <AnimatePresence initial={false} mode="popLayout">
+                  {visibleForms.map((form, index) => (
+                    <motion.div
+                      key={form._id}
+                      {...getFilterMotion(reduceMotion, Math.min(index * 0.03, 0.12))}
+                    >
+                      <FormCard
+                        form={form}
+                        index={index}
+                        publicOnly={publicOnly}
+                        guestMode={guestMode}
+                        onDuplicate={handleDuplicate}
+                        onDelete={setToDelete}
+                        onPatch={handlePatch}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
         )}
       </div>
 

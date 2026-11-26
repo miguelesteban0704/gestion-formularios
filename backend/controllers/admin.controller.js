@@ -13,10 +13,12 @@ import * as responseRepo from "../repositories/response.repo.js";
 import { getFormAnalytics } from "../services/analytics.service.js";
 import { computeInsights } from "../services/insights.service.js";
 import { responsesToCsv } from "../utils/csv.js";
+import { countFormVisibility } from "../utils/formVisibilityCounts.js";
 import { randomAccessSlug, sealAccessContext } from "../utils/urlCrypto.js";
 import { getAccessUrlContext, assertAccessUrlFor } from "../services/accessUrl.service.js";
 import { isMailConfigured } from "../services/mail.service.js";
 import { resendWelcomeEmail } from "../services/welcome.service.js";
+import { sumPublicResponseCounts } from "../services/realtimeStats.js";
 import { ROLES, MANAGEABLE_ROLES, auditNow } from "../middleware/rbac.js";
 
 /**
@@ -376,19 +378,14 @@ export const listPublicAdmin = asyncHandler(async (req, res) => {
 
 export const publicAggregate = asyncHandler(async (req, res) => {
   const { entityId = "", visibility = "" } = req.query;
-  // Una sola consulta SIN filtro de visibilidad: los contadores de
-  // públicos/privados se calculan sobre el conjunto completo (de la
-  // entidad) y el segmento de la cabecera solo afecta a respuestas,
-  // vistas y totales de la tabla.
+  // El filtro de visibilidad afecta a las filas, no a los totales por categoría.
   const all = await formRepo.listPublicFormsScoped({ entityId });
-  const publicForms = all.filter((f) => f.visibility !== "private").length;
-  const privateForms = all.length - publicForms;
+  const visibilityCounts = countFormVisibility(all);
   const forms =
     visibility === "public" || visibility === "unlisted" || visibility === "private"
       ? all.filter((f) => f.visibility === visibility)
       : all;
-  const ids = forms.map((f) => f._id);
-  const counts = await responseRepo.countsByForms(ids);
+  const counts = await responseRepo.countsByForms(all.map((f) => f._id));
   const byId = new Map(counts.map((r) => [String(r.form), r.count]));
   const perForm = forms.map((f) => ({
     _id: f._id,
@@ -408,11 +405,13 @@ export const publicAggregate = asyncHandler(async (req, res) => {
     byEntity.set(key, row);
   }
   const totals = {
-    forms: perForm.length,
+    forms: all.length,
     responses: perForm.reduce((s, f) => s + f.responses, 0),
+    publicResponses: sumPublicResponseCounts(all, counts),
     views: perForm.reduce((s, f) => s + f.views, 0),
-    publicForms,
-    privateForms,
+    publicForms: visibilityCounts.public,
+    unlistedForms: visibilityCounts.unlisted,
+    privateForms: visibilityCounts.private,
   };
   sendSuccess(res, { data: { totals, byEntity: [...byEntity.values()], perForm } });
 });

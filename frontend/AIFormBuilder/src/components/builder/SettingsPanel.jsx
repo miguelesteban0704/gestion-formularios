@@ -12,6 +12,7 @@ import { cn } from "../../lib/utils.js";
 import { checkOnAccent } from "../../lib/accent.js";
 import { aiApi, formApi } from "../../services/index.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
+import { resolveFormTitle } from "../../lib/formTitle.js";
 
 // La misma paleta del sitio (lib/accent.js): el color del formulario se elige
 // del mismo sitio que el color de la cuenta.
@@ -49,9 +50,10 @@ export function SettingsPanel({ form, onChange, canManageVisibility = false, onV
   // audience, completion time and suggestions. The handler and its state are
   // gone; the component is kept intact for the backend contract.
   const [logoBusy, setLogoBusy] = useState(false);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const setSettings = (patch) => onChange({ settings: { ...form.settings, ...patch } });
+  const titlePlaceholder = resolveFormTitle(form, language, t("untitledForm"));
 
   // Los tres estados de visibilidad y su ayuda. Mismo tratamiento visual para
   // la opción activa (decisión del diseño, como el `Segmented` del panel).
@@ -295,7 +297,7 @@ export function SettingsPanel({ form, onChange, canManageVisibility = false, onV
       {/* SEO */}
       <Section title={t("seo")}>
         <Label>{t("seoTitle")}</Label>
-        <Input value={form.settings.seoTitle} placeholder={form.title} onChange={(e) => setSettings({ seoTitle: e.target.value })} />
+        <Input value={form.settings.seoTitle} placeholder={titlePlaceholder} onChange={(e) => setSettings({ seoTitle: e.target.value })} />
         <div className="mt-3">
           <Label>{t("seoDescription")}</Label>
           <Textarea rows={2} value={form.settings.seoDescription} onChange={(e) => setSettings({ seoDescription: e.target.value })} />

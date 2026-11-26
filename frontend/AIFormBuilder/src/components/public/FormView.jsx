@@ -16,6 +16,7 @@ import { checkOnAccent } from "../../lib/accent.js";
 import { assetUrl } from "../../lib/api.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { getSpecialFieldType } from "../../lib/fieldTypes.js";
+import { resolveFormTitle } from "../../lib/formTitle.js";
 
 function pickLocalized(value, lng, fallback = "") {
   if (value == null) return fallback;
@@ -97,6 +98,7 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
   const [logoFailedFor, setLogoFailedFor] = useState("");
   const logoUrl = form.settings?.logo || "";
   const logoFailed = logoUrl !== "" && logoFailedFor === logoUrl;
+  const formTitle = resolveFormTitle(form, language, t("untitledForm"));
 
   const answerable = useMemo(
     () => form.questions.filter((q) => !isStatic(q.type) && isQuestionVisible(q, answers)),
@@ -336,7 +338,7 @@ export function FormView({ form, preview = false, onSubmit, submitting = false }
                     style={{ background: accent }}
                   />
                 )}
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{pickLocalized(form.title_i18n, language, form.title)}</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{formTitle}</h1>
                 {pickLocalized(form.description_i18n, language, form.description) && (
                   <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{pickLocalized(form.description_i18n, language, form.description)}</p>
                 )}

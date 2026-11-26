@@ -24,12 +24,14 @@ export const getPublicForm = asyncHandler(async (req, res) => {
 // ── Escaparate de invitados (SIN sesión) ────────────────────────────────────
 // Públicos y privados visibles en el listado; el detalle de un privado no
 // entrega preguntas (requiresAuth: true) hasta validar identidad en el IDP.
-// `listedOnly: true`: el escaparate nunca muestra los "privados"
-// (unlisted). Los consumidores internos de metrics/insights no pasan el flag
-// y siguen contándolos.
+// `listedOnly: true`: el escaparate nunca muestra los "unlisted" (solo por enlace).
+// Cuando se filtra explícitamente por "private" (Requiere autenticación), se permite
+// ver esos formularios pasando `listedOnly: false`, ya que el query filtra por
+// `visibility = 'private'` y los "unlisted" siguen excluidos.
 export const guestListForms = asyncHandler(async (req, res) => {
   const { search, entityId, visibility } = req.query;
-  const forms = await formService.listGuestForms({ search, entityId, visibility, listedOnly: true });
+  const listedOnly = visibility !== "private";
+  const forms = await formService.listGuestForms({ search, entityId, visibility, listedOnly });
   sendSuccess(res, { data: { forms, count: forms.length } });
 });
 

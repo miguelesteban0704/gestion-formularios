@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { adminApi, localAuthApi } from "../../services/index.js";
 import { useRoleT } from "../../lib/roleI18n.js";
-import { ROLE_LABEL } from "../../lib/roles.js";
+import { ROLE_LABEL, ROLE_I18N_KEY } from "../../lib/roles.js";
 import { Pill } from "../../components/admin/AdminTable.jsx";
 import { Button } from "../../components/ui/Button.jsx";
 import { FormModal, SuccessModal, InfoModal, ErrorModal } from "../../components/ui/Modal.tsx";
@@ -116,7 +116,7 @@ const TRIGGER_ID = "adm-users-spotlight-trigger";
 /** Gestión de usuarios: alta, edición de rol/entidad y baja protegida. */
 export default function Users() {
   const rt = useRoleT();
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
   const { confirm } = useConfirm();
   const { guard } = useOfflineGuard();
   const [users, setUsers] = useState([]);
@@ -352,7 +352,7 @@ export default function Users() {
     icon: u.role === "super_admin" ? <ShieldCheck /> : u.role === "entity_admin" ? <UserShield /> : <ClipboardList />,
     label: u.name || "-",
     description:
-      [u.email, ROLE_LABEL[u.role] || "Legacy", u.entityName || entityName(u.entityId)]
+      [u.email, (ROLE_I18N_KEY[u.role] ? t(ROLE_I18N_KEY[u.role]) : "Legacy"), u.entityName || entityName(u.entityId)]
         .filter((v) => v && v !== "-")
         .join(" · ") || "-",
     link: `#usr-${u._id}`,
@@ -361,7 +361,7 @@ export default function Users() {
       u.email,
       u.username,
       u.role,
-      ROLE_LABEL[u.role],
+      ROLE_I18N_KEY[u.role] ? t(ROLE_I18N_KEY[u.role]) : u.role,
       u.entityName,
       entityName(u.entityId),
       u.accessUrlSlug,
@@ -377,10 +377,10 @@ export default function Users() {
 
   // Acciones rápidas del overlay: fijan el filtro de rol y cierran.
   const spotlightShortcuts = [
-    { label: "Todos los roles", icon: <LayoutGrid />, onClick: () => { setRole(""); closeSpotlight(); } },
-    { label: ROLE_LABEL.super_admin, icon: <ShieldCheck />, onClick: () => { setRole("super_admin"); closeSpotlight(); } },
-    { label: ROLE_LABEL.entity_admin, icon: <UserShield />, onClick: () => { setRole("entity_admin"); closeSpotlight(); } },
-    { label: ROLE_LABEL.form_creator, icon: <ClipboardList />, onClick: () => { setRole("form_creator"); closeSpotlight(); } },
+    { label: rt("visibilityAll"), icon: <LayoutGrid />, onClick: () => { setRole(""); closeSpotlight(); } },
+    { label: rt("roleSuper"), icon: <ShieldCheck />, onClick: () => { setRole("super_admin"); closeSpotlight(); } },
+    { label: rt("roleEntity"), icon: <UserShield />, onClick: () => { setRole("entity_admin"); closeSpotlight(); } },
+    { label: rt("roleCreator"), icon: <ClipboardList />, onClick: () => { setRole("form_creator"); closeSpotlight(); } },
   ];
 
   const STATUS_OPTIONS = [
@@ -393,7 +393,7 @@ export default function Users() {
   // que pinta el Segmented para que no haya dos fuentes de verdad.
   const statusLabelOf = (s) => STATUS_OPTIONS.find((o) => o.id === s)?.label || "";
   const filterLabels = [
-    ...(role ? [ROLE_LABEL[role] || role] : []),
+    ...(role ? [(ROLE_I18N_KEY[role] ? t(ROLE_I18N_KEY[role]) : role)] : []),
     ...(status ? [statusLabelOf(status)] : []),
   ];
 
@@ -442,10 +442,10 @@ export default function Users() {
                   value={role}
                   onChange={setRole}
                   options={[
-                    { id: "", label: "Todos los roles" },
-                    { id: "super_admin", label: ROLE_LABEL.super_admin, icon: <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> },
-                    { id: "entity_admin", label: ROLE_LABEL.entity_admin, icon: <UserShield className="h-3.5 w-3.5" aria-hidden="true" /> },
-                    { id: "form_creator", label: ROLE_LABEL.form_creator, icon: <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" /> },
+                    { id: "", label: rt("all") },
+                    { id: "super_admin", label: t("roleSuper"), icon: <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> },
+                    { id: "entity_admin", label: t("roleEntity"), icon: <UserShield className="h-3.5 w-3.5" aria-hidden="true" /> },
+                    { id: "form_creator", label: t("roleCreator"), icon: <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" /> },
                   ]}
                 />
               </div>
@@ -480,7 +480,7 @@ export default function Users() {
           onDensity={setDensity}
           chips={[
             ...(activeQuery ? [{ key: "search", label: `Búsqueda: «${activeQuery}»`, onClear: () => setQuery("") }] : []),
-            ...(role ? [{ key: "role", label: ROLE_LABEL[role] || role, onClear: () => setRole("") }] : []),
+            ...(role ? [{ key: "role", label: ROLE_I18N_KEY[role] ? t(ROLE_I18N_KEY[role]) : role, onClear: () => setRole("") }] : []),
             ...(status ? [{ key: "status", label: statusLabelOf(status), onClear: () => setStatus("") }] : []),
           ]}
           columns={[
@@ -627,8 +627,8 @@ export default function Users() {
                 required
                 error={errors.role?.message}
                 options={[
-                  { value: "form_creator", label: ROLE_LABEL.form_creator, icon: ClipboardList, description: "Crea y publica formularios" },
-                  { value: "entity_admin", label: ROLE_LABEL.entity_admin, icon: UserShield, description: "Gestiona el alcance de su entidad" },
+                  { value: "form_creator", label: t("roleCreator"), icon: ClipboardList, description: "Crea y publica formularios" },
+                  { value: "entity_admin", label: t("roleEntity"), icon: UserShield, description: "Gestiona el alcance de su entidad" },
                 ]}
               />
               <EntitySelectField
@@ -728,7 +728,7 @@ function UserRow({ user, index, density, entityName, onEdit, onDelete, onToggleA
 
         <div className="min-w-0">
           <Pill tone={user.role === "super_admin" ? "gold" : "brand"} dot>
-            {ROLE_LABEL[user.role] || "Legacy"}
+            {ROLE_I18N_KEY[user.role] ? t(ROLE_I18N_KEY[user.role]) : (ROLE_LABEL[user.role] || "Legacy")}
           </Pill>
         </div>
 

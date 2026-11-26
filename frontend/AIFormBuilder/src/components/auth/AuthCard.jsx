@@ -1,120 +1,216 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "../../lib/utils.js";
 import { Logo } from "../Logo.jsx";
 import { PasswordToggle } from "../ui/PasswordToggle.jsx";
 import { LanguageSwitcher } from "../ui/LanguageSwitcher.jsx";
+import { ThemeToggle } from "../ui/ThemeToggle.jsx";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
-import { Building2, UserRound } from "lucide-react";
+import { Building2 } from "lucide-react";
+import { useRoleT } from "../../lib/roleI18n.js";
+import { AuthEntityScene } from "./AuthEntityScene.jsx";
+import { AuthCreatorScene } from "./AuthCreatorScene.jsx";
 
 /**
- * Tarjeta de autenticación premium con fondo de imagen por rol.
- * La tarjeta de cristal se sitúa a la derecha; el fondo y el rol quedan
- * visibles a la izquierda porque la imagen ya los incluye.
- * El fondo cambia entre versión español/inglés según el idioma global.
+ * Tarjeta de autenticación premium con escena animada por rol.
+ * - entity_admin → AuthEntityScene ("Hub de gobierno")
+ * - form_creator → AuthCreatorScene ("Lienzo de construcción")
+ * - otros/sin rol → fallback con foto institucional
+ * La API de props se mantiene igual para no alterar AccessLogin.
  */
 export function AuthCard({ eyebrow, title, subtitle, role, entity, children, footer }) {
   const { language } = useLanguage();
+  const rt = useRoleT();
+  const [focused, setFocused] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const prefersReduced = useReducedMotion();
 
-  // Mapeo de rol -> nombre base del archivo (sin extensión)
   const roleImageBaseMap = {
     entity_admin: "gestor_entidad",
     form_creator: "gestor_formularios",
     super_admin: "super_administrador",
   };
-
-  // Construir la URL de la imagen según el idioma
   const imageBase = roleImageBaseMap[role] || "gestor_entidad";
   const imageFileName = language === "en" ? `${imageBase}(English).png` : `${imageBase}.png`;
   const authPhotoUrl = `url("/${imageFileName}")`;
+  const roleAccent = role === "entity_admin"
+    ? "var(--accent-teal)"
+    : role === "form_creator"
+      ? "var(--accent-coral)"
+      : "var(--color-brand-500)";
+  const sceneTitle = role === "entity_admin"
+    ? rt("entitySceneTitle")
+    : role === "form_creator"
+      ? rt("creatorSceneTitle")
+      : rt("accessPortal");
+  const sceneDescription = role === "entity_admin"
+    ? rt("entitySceneDesc")
+    : role === "form_creator"
+      ? rt("creatorSceneDesc")
+      : rt("accessPortalDesc");
+  const entranceDuration = prefersReduced ? 0.12 : 0.32;
 
-  // El círculo del logo usa el color de marca (--color-brand-500) para coincidir con el botón primario
-  // El botón "Entrar" usa btn-primary que tiene degradado brand-300 → brand-500 → brand-700
-  const logoAccentColor = "var(--color-brand-500)";
+  const handleFocusCapture = (event) => {
+    if (event.target?.type === "email" || event.target?.dataset?.authEmail === "true") {
+      setFocused(true);
+    }
+    if (role === "form_creator" && ["email", "password"].includes(event.target?.type)) {
+      setEditing(true);
+    }
+  };
+  const handleBlurCapture = (event) => {
+    if (event.target?.type === "email" || event.target?.dataset?.authEmail === "true") {
+      setFocused(false);
+    }
+    if (
+      role === "form_creator"
+      && !["email", "password"].includes(event.relatedTarget?.type)
+    ) {
+      setEditing(false);
+    }
+  };
+  const handleInputCapture = () => {
+    if (role === "form_creator") setEditing(true);
+  };
+
+  useEffect(() => {
+    const handleSubmitStart = () => setSubmitting(true);
+    const handleSubmitEnd = () => setSubmitting(false);
+    window.addEventListener('auth:submit-start', handleSubmitStart);
+    window.addEventListener('auth:submit-end', handleSubmitEnd);
+
+    return () => {
+      window.removeEventListener('auth:submit-start', handleSubmitStart);
+      window.removeEventListener('auth:submit-end', handleSubmitEnd);
+    };
+  }, []);
 
   return (
-    <div className="auth-stage bg-app" style={{ "--auth-accent": logoAccentColor }} as any>
-      {/* Fondo de imagen por rol e idioma */}
+    <div
+      className="auth-stage bg-app"
+      style={{ "--auth-accent": roleAccent, "--auth-role-accent": roleAccent }}
+    >
       <div className="auth-photo" style={{ "--auth-photo": authPhotoUrl }} aria-hidden="true" />
       <div className="auth-vignette" aria-hidden="true" />
-      
-      {/* Halo de acento sutil en el fondo */}
       <div className="auth-aura" aria-hidden="true" />
-      
-      <LanguageSwitcher className="absolute right-5 top-5 z-20" />
 
-      {/* Contenedor principal: tarjeta a la derecha */}
-      <div className="flex h-full w-full items-center justify-end px-6 sm:px-60 py-6">
-        <div className={cn(
-          "auth-card w-full max-w-[420px] sm:p-8 relative",
-          "overflow-hidden" // Para el borde animado
-        )}>
-          {/* Borde superior animado con el color de acento del rol */}
-          <div className="auth-card-glow" aria-hidden="true" />
-          
-          <div className="relative z-10">
-            <div className="flex items-center gap-3">
-              <span className="cr-orb cr-orb-lg text-white" aria-hidden="true" style={{ "--cr-orb": logoAccentColor }}>
-                <Logo showText={false} size={26} />
-              </span>
-              <div className="min-w-0">
-                {eyebrow && (
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700 dark:text-brand-300">
-                    {eyebrow}
-                  </p>
-                )}
-                <h1
-                  className="text-xl font-bold tracking-tight text-fg"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {title}
-                </h1>
-                {/* Rol y entidad debajo del título - diseño premium */}
-                <div className="mt-2 flex flex-col gap-1.5 px-2 py-2 rounded-xl bg-brand-500/5 dark:bg-brand-500/5 border border-brand-100/50 dark:border-brand-900/20 hover:border-brand-500/25 transition-colors">
-                  {entity && entity.name && (
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-3 w-3 shrink-0 text-brand-500 dark:text-brand-400" aria-hidden="true" />
-                      <span className="text-xs font-medium text-ink dark:text-ink/80">
-                        {entity.name}
-                      </span>
-                    </div>
-                  )}
-                  {role && (
-                    <div className="flex items-center gap-2">
-                      <UserRound className="h-3 w-3 shrink-0 text-brand-500 dark:text-brand-400" aria-hidden="true" />
-                      <span className="text-xs font-medium text-ink dark:text-ink/80 capitalize">
-                        {role === "entity_admin" ? "Gestor de Entidad" : role === "form_creator" ? "Gestor de Formularios" : "Super Admin"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {subtitle && <p className="mt-2 text-sm text-muted">{subtitle}</p>}
-
-            <div className="mt-5">{children}</div>
-            {footer && <div className="mt-4 text-center text-sm text-muted">{footer}</div>}
-          </div>
-        </div>
+      <div className="absolute right-5 top-5 z-20 flex items-center gap-2">
+        <ThemeToggle />
+        <LanguageSwitcher />
       </div>
 
-      <p className="absolute bottom-5 z-10 text-xs text-muted">
-        Acceso protegido · sesiones con expiración
-      </p>
+      <main className="auth-layout">
+        <motion.div
+          className="auth-card"
+          initial={{ opacity: 0, y: prefersReduced ? 0 : 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: entranceDuration, ease: "easeOut" }}
+        >
+          <div className="auth-card-glow" aria-hidden="true" />
+          <div className="auth-card-content">
+            <section className="auth-scene-panel" aria-labelledby="auth-scene-title">
+              <div className="auth-scene-art">
+                {role === "entity_admin" && (
+                  <AuthEntityScene
+                    entityName={entity?.name}
+                    focused={focused}
+                    submitting={submitting}
+                    reducedMotion={Boolean(prefersReduced)}
+                  />
+                )}
+                {role === "form_creator" && (
+                  <AuthCreatorScene
+                    focused={editing}
+                    submitting={submitting}
+                    reducedMotion={Boolean(prefersReduced)}
+                  />
+                )}
+                {role !== "entity_admin" && role !== "form_creator" && (
+                  <div className="auth-scene-fallback" aria-hidden="true">
+                    <Logo showText={false} size={48} />
+                  </div>
+                )}
+              </div>
+              <div className="auth-scene-copy">
+                <h2 id="auth-scene-title">{sceneTitle}</h2>
+                <p>{sceneDescription}</p>
+              </div>
+            </section>
+
+            <section
+              className="auth-form-panel"
+              onFocusCapture={handleFocusCapture}
+              onBlurCapture={handleBlurCapture}
+              onInputCapture={handleInputCapture}
+            >
+              <div className="w-full max-w-md">
+                <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                  <span className="cr-orb cr-orb-lg text-white" aria-hidden="true" style={{ "--cr-orb": "var(--color-brand-500)" }}>
+                    <Logo showText={false} size={26} />
+                  </span>
+                  <div className="min-w-0">
+                    {eyebrow && (
+                      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700 dark:text-brand-300">
+                        {eyebrow}
+                      </p>
+                    )}
+                    <h1
+                      className="text-xl sm:text-2xl font-bold tracking-tight text-fg"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      {title}
+                    </h1>
+                  </div>
+                </div>
+
+                {entity?.name && (
+                  <div className="auth-entity-name">
+                    <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>{entity.name}</span>
+                  </div>
+                )}
+
+                {subtitle && <p className="mb-4 sm:mb-6 text-sm text-muted">{subtitle}</p>}
+
+                <div className="mt-2">{children}</div>
+
+                {footer && <div className="mt-6 text-center text-sm text-muted">{footer}</div>}
+              </div>
+            </section>
+          </div>
+        </motion.div>
+
+        <p className="auth-security-note">
+          Acceso protegido · sesiones con expiración
+        </p>
+      </main>
     </div>
   );
 }
 
-export function AuthField({ label, icon: Icon, type = "text", placeholder, ...props }) {
+export function AuthField({ label, icon: Icon, type = "text", placeholder, ref, ...props }) {
+  const rt = useRoleT();
   const [visible, setVisible] = useState(false);
   const isPassword = type === "password";
+  const inputRef = useRef(null);
   
+  // Usar ref externo si se pasa, sino el interno
+  const forwardedRef = ref || inputRef;
+
   // Placeholders por defecto según el tipo
   const defaultPlaceholder = isPassword 
     ? "••••••••"
     : type === "email"
     ? "correo@ejemplo.com"
     : "Escribe aquí...";
+
+  const handleFocus = (e) => {
+    props.onFocus?.(e);
+  };
+  const handleBlur = (e) => {
+    props.onBlur?.(e);
+  };
 
   return (
     <label className="block text-sm font-medium text-fg">
@@ -128,8 +224,11 @@ export function AuthField({ label, icon: Icon, type = "text", placeholder, ...pr
           />
         )}
         <input
+          ref={forwardedRef}
           type={isPassword && visible ? "text" : type}
           {...props}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           placeholder={placeholder || defaultPlaceholder}
           className={cn(
             "auth-input py-3", 
@@ -139,7 +238,12 @@ export function AuthField({ label, icon: Icon, type = "text", placeholder, ...pr
         />
         {isPassword && (
           <span className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center">
-            <PasswordToggle visible={visible} onToggle={() => setVisible((v) => !v)} />
+            <PasswordToggle
+              visible={visible}
+              onToggle={() => setVisible((value) => !value)}
+              showLabel={rt("showPassword")}
+              hideLabel={rt("hidePassword")}
+            />
           </span>
         )}
       </span>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { guestApi } from "../services/index.js";
+import { subscribeToPublicStatsUpdates } from "./publicStatsUpdates.js";
 
 /**
  * Hook para obtener estadísticas globales públicas (guestApi.insights)
@@ -14,7 +15,6 @@ export function usePublicInsights() {
     let mounted = true;
     let retryCount = 0;
     const maxRetries = 2;
-    let pollId = null;
 
     const load = async (isPoll = false) => {
       try {
@@ -40,14 +40,11 @@ export function usePublicInsights() {
 
     load();
 
-    // La portada pública no tiene token, así que no puede suscribirse al SSE de
-    // estadísticas (`/api/events/stats` exige autenticación). Sondeamos en
-    // segundo plano cada 30 s para que los KPIs evolucionen sin recargar.
-    pollId = setInterval(() => load(true), 30000);
+    const unsubscribe = subscribeToPublicStatsUpdates(() => load(true));
 
     return () => {
       mounted = false;
-      if (pollId) clearInterval(pollId);
+      unsubscribe();
     };
   }, []);
 

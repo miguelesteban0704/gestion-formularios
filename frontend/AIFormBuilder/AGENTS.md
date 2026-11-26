@@ -1,5 +1,352 @@
 # AGENTS.md — Gestor de Formularios
 
+### 2026-11-26 — Corrección final: centro de mando solo para Gestor de Entidad
+
+**Objetivo (corrección del usuario):** conservar para el Gestor de Formularios
+la escena que tenía antes de la propuesta temporal de constructor de encuestas y
+aplicar el rediseño únicamente al panel izquierdo del Gestor de Entidad. Esta
+entrada prevalece sobre la primera versión del registro inferior.
+
+**Cambios (solo frontend):**
+- `src/components/auth/AuthEntityScene.jsx` — centro de mando con la entidad en
+  el núcleo y módulos conectados para gestores y formularios. El foco ilumina
+  las conexiones; el envío activa el núcleo; el pulso ambiental lento se detiene
+  con `prefers-reduced-motion`.
+- `src/index.css` — tarjetas, conectores y distribución compacta móvil con
+  tokens de color y acento teal.
+- `src/lib/roleI18n.js` — nombres y descripciones ES/EN para entidad, gestores
+  y formularios.
+- `qa/auth-role-scenes.test.js` — regresiones de las escenas, localización,
+  foco, alerta de puerta y pulso con movimiento reducido.
+- `AuthCreatorScene` conserva su ilustración original; no se aplicó el concepto
+  de constructor de encuestas.
+
+**Reglas respetadas:** sin cambios de autenticación, llamadas API, backend, RBAC,
+sesiones ni `AccessLogin`; se conserva la API de props y el resto de estados de
+`AuthCard`. La modificación visual queda limitada a la escena de Entidad.
+
+**Verificación (desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → exit 0.
+- `npm run lint` → exit 0, sin errores ni avisos nuevos en los archivos de esta
+  corrección; permanece el aviso conocido de `submitSetPassword` en
+  `AccessLogin.jsx`.
+- `npm run build` → exit 0; permanecen avisos preexistentes de `@utility`,
+  tamaño de chunks e import dinámico ineficaz en `src/services/index.js`.
+- `npm run qa:brand` → `TODO CORRECTO`: 0 congelamientos, 34 excepciones
+  justificadas y 0 conflictos semánticos.
+- `node --test qa/auth-role-scenes.test.js` → 5/5 aprobadas; la regresión del
+  pulso falló antes de implementar el cambio.
+- Inspección visual de `/a/visual-preview-entity`: español e inglés, escritorio
+  claro/oscuro y móvil de 320 px en oscuro con movimiento reducido; sin
+  desbordamiento horizontal. Se verificó el foco del correo; no se envió un
+  inicio de sesión real.
+
+### 2026-11-26 — Rediseño premium del AuthCard por rol (Gestor de Entidad / Gestor de Formularios)
+
+**Objetivo (petición del usuario):** que cada rol tenga una experiencia de autenticación propia, moderna, premium y memorable en la puerta de acceso `/a/:slug`, comunicando visualmente qué hace ese rol:
+- **Gestor de Entidad** → «Centro de mando institucional»: nodo central (entidad) conectado a nodos satélite (gestores y formularios) con pulso de luz. Al enfocar email, nodos se iluminan; al enviar, el hub se energiza.
+- **Gestor de Formularios** → «Estudio de creación»: bloques de campos (input, selección, rating) que se ensamblan en columna. Chispa IA, mini gráfica de respuestas. Al escribir, bloques se componen; al enviar, último bloque «encaja».
+
+**Cambios (solo frontend, 9 archivos):**
+- `src/components/auth/AuthEntityScene.jsx` (nuevo) — ilustración SVG del hub institucional, con nodo central nombrado, satélites de gestores/formularios y conexiones pulsantes. El foco ilumina los nodos y el envío energiza el centro.
+- `src/components/auth/AuthCreatorScene.jsx` (nuevo) — ilustración SVG del lienzo de creación: bloques de campo que se ensamblan, chispa de IA y gráfica de respuestas; al enviar, el último bloque encaja.
+- `src/components/auth/AuthCard.jsx` — escena y texto de identidad por rol junto al formulario; composición apilada y compacta en móvil. Conserva la API de props. El foco se captura en la tarjeta y los eventos de envío se conectan con las escenas.
+- `src/pages/AccessLogin.jsx` — emite el estado de envío desde los mismos handlers; conserva las llamadas existentes y muestra `wrong_door` como alerta accesible persistente.
+- `src/lib/roleI18n.js` — copys de escena, fallback, botones de contraseña y error de puerta traducidos al español e inglés.
+- `src/index.css` — materiales, acentos, paneles, campos, estado de error y breakpoint móvil; el movimiento reducido elimina desplazamientos y loops ambientales.
+- `src/components/analytics/PrismGauge.css` — la paleta teal usa tokens dinámicos (`color-mix`) en vez del color congelado detectado por `qa:brand`; ajuste mínimo necesario para que esa puerta de calidad quede en cero.
+- `qa/auth-role-scenes.test.js` (nuevo) — tres regresiones para la identidad/i18n por rol, el foco y el aviso `wrong_door`.
+- `AGENTS.md` — registro de esta modificación.
+
+**Reglas respetadas:**
+- Sin cambios de backend, RBAC, sesiones, `localAuthApi` ni `rememberAccessDoor`.
+- API de props de `AuthCard` intacta; no se modificaron `SuperAdminStage` ni `LocalLogin`.
+- `PasswordToggle`, `RecoveryModal`, URL inválida y `SetPasswordForm` conservados; los SVG decorativos son `aria-hidden` y `focusable="false"`.
+- Acentos de rol con `--accent-teal` / `--accent-coral`, marca con tokens y `color-mix`; sin hex de marca nuevo.
+- Escenas separadas por rol; títulos, descripciones, controles de contraseña y error disponibles en ES/EN.
+- `wrong_door` se anuncia con `role="alert"` y `aria-live`; inputs mantienen etiquetas, autocomplete y orden nativo de tabulación.
+- Ambos temas, escritorio/móvil y `prefers-reduced-motion` comprobados visualmente.
+
+**Verificación (ejecutada desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores
+- `npm run lint` → exit 0; warnings preexistentes, incluido `submitSetPassword` sin uso en `AccessLogin.jsx`.
+- `npm run build` → exit 0; avisos existentes de `@utility`, tamaño de chunks e import dinámico ineficaz en `src/services/index.js`.
+- `npm run qa:brand` → `TODO CORRECTO`: 0 congelamientos · 34 excepciones justificadas · 0 conflictos semánticos.
+- `node --test qa/auth-role-scenes.test.js` → 3/3 aprobadas; las tres fallaron antes de implementar las correcciones.
+- Inspección visual en navegador con respuestas de contexto simuladas para ambos roles: claro/oscuro, escritorio y 320 px móvil; movimiento reducido sin desbordamiento horizontal. No se envió un login real.
+
+### 2026-11-25 — KPI separados por visibilidad en los paneles
+
+**Objetivo:** mostrar por separado las tres categorías de formularios con un
+icono reconocible: Público, Privado por enlace y Requiere autenticación.
+
+**Cambios:**
+- `backend/utils/formVisibilityCounts.js` cuenta las tres visibilidades y
+  `admin.controller.js` devuelve los totales `publicForms`, `unlistedForms` y
+  `privateForms` para el alcance publicado del superadmin. El total `forms`
+  incluye todas las visibilidades publicadas aunque se filtre la tabla; los
+  KPI por categoría cuentan cada visibilidad por separado.
+- `src/pages/admin/PublicStats.jsx` conserva el total de publicados y añade los
+  tres KPI de categoría.
+- `src/lib/formVisibilityCounts.js` calcula los conteos de las páginas de
+  gestión. `src/pages/Dashboard.jsx` añade las tres categorías sin quitar el
+  KPI «Publicados» del gestor de formularios. `EntityForms.jsx` reutiliza el
+  mismo conteo y mantiene sus tres tarjetas ya existentes.
+- Las categorías en los paneles de entidad y creador cuentan formularios no
+  archivados; el superadmin cuenta publicados. Se mantienen los textos ES/EN
+  existentes en `roleI18n`.
+- Las tarjetas KPI de los tres paneles usan iconos vectoriales; los iconos
+  compactos de filtros, tablas y badges mantienen sus propios componentes.
+- `qa/form-visibility-counts.test.js` y
+  `qa/form-visibility-dashboard.test.js` cubren el conteo y la correspondencia
+  entre iconos, etiquetas y datos.
+
+**Verificación:** frontend QA 68/68; backend QA 41/41; typecheck, build,
+lint y sintaxis backend con código 0. Se conservan avisos de lint/build ya
+existentes. No se pudo hacer una inspección visual de los paneles autenticados
+porque no había una sesión compartida.
+
+### 2026-11-25 — Estado vacío correcto para «Requiere autenticación»
+
+**Síntoma:** al filtrar los formularios publicados por «Requiere
+autenticación», el estado vacío decía «formularios privados».
+
+**Causa raíz:** el estado vacío del escaparate usaba la clave heredada
+`emptyPrivateForms`, cuyas traducciones describían los formularios como
+privados, aunque esta categoría corresponde a formularios que exigen
+autenticación con el proveedor de identidad.
+
+**Cambio:** `src/components/forms/FilteredFormsList.jsx` usa ahora
+`emptyAuthForms`; `src/lib/roleI18n.js` define el texto específico en español e
+inglés. No cambia el filtrado ni la visibilidad de los formularios.
+`qa/role-auth-empty-state-copy.test.js` verifica el uso y ambas traducciones.
+
+**Verificación:** `node --test --test-concurrency=1 qa/*.test.js` → 66/66;
+lint enfocado y `git diff --check` → exit 0.
+
+### 2026-11-25 — Transición fluida al filtrar «Mis formularios»
+
+**Objetivo:** suavizar el cambio de tarjetas al seleccionar otro estado del
+filtro en el dashboard, sin modificar qué formularios aparecen ni sus acciones.
+
+**Cambios:** `src/components/forms/FormsBrowser.jsx` anima la cuadrícula de
+gestión con `AnimatePresence`: las tarjetas entrantes/salientes usan opacidad y
+un desplazamiento de 4 px, duración de 180 ms y una curva ease-out. La entrada
+se escalona hasta 120 ms; los elementos salientes dejan de ocupar espacio para
+que la cuadrícula no espere a la transición. El estado vacío también transiciona,
+la carga inicial no se anima y `prefers-reduced-motion` conserva solo un fade
+más breve. El escaparate de invitados conserva su implementación existente.
+`qa/forms-filter-animation.test.js` verifica el límite de gestión, el montaje
+sin animación inicial y el respeto por movimiento reducido.
+
+**Verificación:** QA 65/65; typecheck, lint y build terminaron con código 0.
+Lint/build muestran advertencias preexistentes y QA avisa que el puerto
+WebSocket 24678 está ocupado. No se pudo hacer una inspección visual del
+dashboard porque el navegador redirigió la ruta a inicio de sesión.
+
+### 2026-11-25 — Evitar borradores duplicados al abrir el Builder en StrictMode
+
+**Síntoma:** al entrar en «Nuevo» quedaba un borrador predeterminado adicional
+en el catálogo, separado del formulario que se estaba editando.
+
+**Causa raíz:** `main.jsx` monta la aplicación con `StrictMode`, que en
+desarrollo repite el ciclo de efectos. `Builder.jsx` llamaba a `formApi.create`
+en cada montaje del efecto: la primera respuesta se ignoraba por la bandera
+`active`, pero la inserción del servidor ya era permanente. El backend crea una
+fila por petición.
+
+**Cambio:** `src/lib/builderFormCreation.js` comparte la promesa de creación
+mientras está en curso y limpia su referencia al resolverse o fallar. El efecto
+del Builder reutiliza esa petición y solo su instancia activa actualiza estado
+y navegación. Así cada sesión nueva obtiene su propio formulario sin crear
+duplicados por el replay de StrictMode.
+`qa/builder-form-creation.test.js` verifica el uso en el Builder, la
+coalescencia de llamadas simultáneas, una creación posterior independiente y
+el reintento tras error.
+
+**Verificación:** `node --test qa/*.test.js` → 63/63; `npm run typecheck`,
+`npm run lint` y `npm run build` → exit 0. Se mantienen advertencias previas de
+lint/build y avisos no bloqueantes de puerto WebSocket 24678 ocupado en QA.
+
+### 2026-11-25 — Cancelar y eliminar borradores recién creados desde el Builder
+
+**Objetivo:** permitir descartar el formulario creado al entrar por «Nuevo»,
+sin exponer una acción destructiva al editar formularios existentes.
+
+**Cambios:**
+- `src/pages/Builder.jsx` muestra «Cancelar» en rojo, con icono de papelera,
+  inmediatamente a la izquierda de «Vista previa» y con separación para no
+  comprimir el área de acciones.
+- La confirmación destructiva elimina el borrador mediante `formApi.remove` y
+  vuelve a la lista de formularios. La solicitud espera los autoguardados en
+  curso y bloquea los nuevos mientras se elimina; ante un error muestra el
+  aviso y deja el formulario disponible.
+- `src/lib/builderCancel.js` limita el botón al ID marcado durante la creación
+  del flujo «Nuevo» y lo oculta si el formulario ya está publicado.
+- `src/components/ui/LanguageSwitcher.jsx` y `src/components/LocaleSync.jsx`
+  preservan el marcador de navegación al cambiar el idioma.
+- `src/contexts/LanguageContext.jsx` incorpora textos ES/EN para el botón, la
+  confirmación y el aviso de éxito.
+- `qa/builder-cancel-new-form.test.js` verifica el alcance del botón, la
+  confirmación, el orden junto a «Vista previa», la persistencia del marcador
+  entre idiomas y las traducciones.
+
+**Verificación:** `node --test qa/*.test.js` → 60/60; `npm run typecheck`,
+`npm run lint`, `npm run build` → exit 0. Lint/build conservan advertencias
+preexistentes; la suite muestra avisos no bloqueantes por el puerto WebSocket
+24678 ocupado.
+
+### 2026-11-25 — Fallback de título del formulario reactivo al idioma
+
+**Síntoma:** el placeholder de «SEO title» y el título de la vista previa
+conservaban «Formulario sin título»/«Untitled form» en el idioma guardado al
+crear el formulario, aunque se cambiara el idioma global.
+
+**Causa:** el formulario nuevo persiste `t("untitledForm")` como `form.title`;
+el placeholder y la vista previa mostraban ese valor literal.
+
+**Cambio:** `src/lib/formTitle.js` centraliza la resolución de presentación:
+traduce títulos vacíos o los dos valores predeterminados con `untitledForm`,
+sin cambiar datos persistidos. `Builder.jsx`, `SettingsPanel.jsx` y
+`FormView.jsx` comparten la resolución para el título de la barra superior y el
+área editable del builder, el placeholder SEO y el encabezado del preview; se
+conservan títulos propios y `title_i18n`.
+`qa/form-title-i18n.test.js` verifica ES/EN, valores predeterminados de ambos
+idiomas y títulos personalizados.
+
+**Verificación:** `node --test qa/*.test.js` → 56/56; `npm run typecheck`,
+`npm run lint` y `npm run build` → exit 0 (lint/build conservan advertencias
+preexistentes).
+
+### 2026-11-25 — Etiquetas predeterminadas de Rating en la vista previa
+
+**Síntoma:** en la vista previa, las etiquetas predeterminadas de los campos
+`quality_rating` y `score_rating` permanecían en inglés al seleccionar español.
+
+**Causa:** `FieldRenderer` comparaba esas etiquetas solo con alias antiguos
+(`Quality`/`Score`), mientras `FIELD_DEFS` genera `Quality Rating` y
+`Number Rating`. Al no reconocerse como predeterminadas, se mostraba el texto
+guardado en vez de `field_quality_rating` / `field_score_rating` del contexto.
+
+**Cambio:** `src/components/public/FieldRenderer.jsx` reconoce también la
+etiqueta canónica definida por `FIELD_DEFS` para tipos de valoración, conserva
+los alias anteriores y respeta etiquetas personalizadas en `label`,
+`label_i18n` y `formI18n`.
+`qa/rating-theme.test.js` verifica ambos campos en español e inglés y una
+etiqueta personalizada.
+
+**Verificación:** `node --test qa/*.test.js` → 54/54; `npm run typecheck`,
+`npm run lint` y `npm run build` → exit 0 (lint/build conservan advertencias
+preexistentes).
+
+### 2026-11-25 — Traducción de Valoración Numérica y Valoración Calidad
+
+**Objetivo:** que `ScoreRating` y `StarRating` usen el idioma global para sus
+categorías, tooltips y nombres accesibles.
+
+**Cambios:**
+- `src/contexts/LanguageContext.jsx` — añade traducciones ES/EN para las cinco
+  categorías de valoración y el separador «de/of».
+- `src/components/ui/Rating.jsx` — consume `useLanguage()` para traducir
+  categorías/tooltips y `aria-label`; reutiliza las claves localizadas de cada
+  tipo de campo para nombrar los `radiogroup`.
+- `src/components/public/FieldRenderer.jsx` — elimina los props de idioma y
+  traductor que ya no necesita pasar a los controles.
+- `qa/rating-theme.test.js` — verifica ambos controles, los cinco rangos y los
+  nombres de grupo en español e inglés, además de conservar la regresión del
+  tema oscuro.
+
+**Verificación:** `node --test qa/*.test.js` → 53/53; `npm run typecheck` y
+`npm run lint` → exit 0 (lint conserva advertencias preexistentes);
+`npm run build` → exit 0 (avisos preexistentes de `@utility` y chunks grandes).
+
+### 2026-11-25 — Selección persistente de Rating en tema oscuro
+
+**Síntoma:** `ScoreRating` y `StarRating` no distinguían bien el valor elegido
+en dark; al mantener el cursor sobre la opción, el hover también podía teñir el
+contenido seleccionado con el mismo color del fondo.
+
+**Causa:** las clases base `dark:bg-slate-800/60`, `dark:border-white/10` y
+`dark:text-*` tienen variante oscura, mientras las clases seleccionadas no la
+tenían. En dark, las variantes de hover y dark prevalecían sobre el estilo
+seleccionado sin variante.
+
+**Cambio:** `src/components/ui/Rating.jsx` define explícitamente fondo, borde y
+texto seleccionados para dark y mantiene esos mismos valores en hover. Los
+tooltips continúan usando sus tokens de contraste por tema.
+
+**Regresión:** `qa/rating-theme.test.js` renderiza los dos componentes y cubre
+los tonos danger/warning/success, incluyendo sus clases seleccionadas oscuras y
+hover.
+
+**Verificación:** pruebas frontend 52/52; lint enfocado y typecheck aprobados;
+`npm run build` exitoso. En navegador se verificaron ambos controles en
+light/dark, al seleccionar y al retirar el puntero; tooltip oscuro con texto
+legible sobre fondo oscuro.
+
+### 2026-11-24 — El KPI de respuestas públicas coincide con HomeHero
+
+**Objetivo:** que el KPI de respuestas del panel superadmin use el mismo alcance
+público que HomeHero, sin incluir respuestas de formularios privados o no listados.
+
+**Cambios:**
+- `backend/services/realtimeStats.js` — suma respuestas solo de formularios
+  publicados y listados, reutilizando el mismo criterio del canal público.
+- `backend/controllers/admin.controller.js` — añade `totals.publicResponses`;
+  el total y las filas de la tabla mantienen el alcance administrativo existente.
+- `frontend/AIFormBuilder/src/pages/admin/PublicStats.jsx` — el KPI muestra
+  `publicResponses` y lo etiqueta como «Respuestas de formularios públicos».
+- `frontend/AIFormBuilder/src/lib/roleI18n.js` — añade la etiqueta en español e
+  inglés.
+- `backend/qa/public-stats-response-scope.test.js` — verifica que respuestas
+  privadas, no listadas y de borradores no se suman al total público.
+
+**Contrato de datos:** `totals.responses` conserva el total filtrado para la
+tabla; `totals.publicResponses` representa solo formularios públicos listados.
+
+**Verificación:** pruebas backend 39/39; prueba de conteo de formularios 1/1;
+typecheck y build exitosos; lint exit 0 con advertencias preexistentes.
+
+### 2026-11-23 — Fondos de acceso reactivos al idioma (Spanish/English swap)
+
+**Objetivo (petición del usuario):** cuando el usuario cambia el idioma global con el
+`LanguageSwitcher`, las imágenes de fondo de las páginas de acceso (`/a/:slug` para
+`super_admin`, `entity_admin`, `form_creator`) deben intercambiarse entre la versión
+española y la versión `(English).png` correspondiente, en ambas direcciones, sin
+recargar la página.
+
+**Cambios (solo frontend, 4 archivos):**
+- `src/components/auth/AuthCard.jsx` — usa `useLanguage()` para leer el idioma
+  activo y construye la URL de la imagen dinámicamente (`gestor_entidad.png` ↔
+  `gestor_entidad(English).png`, etc.). La URL se inyecta vía variable CSS
+  `--auth-photo` en estilo *inline* sobre el elemento `.auth-photo`, de modo que
+  el cambio de idioma dispara un *re-render* y el fondo se actualiza al instante.
+- `src/components/auth/SuperAdminStage.jsx` + `src/index.css` — el portal oculto
+  del superadmin usa también una variable CSS inline (`--sa-backdrop`) para
+  intercambiar `super_administrador.png` y
+  `super_administrador(English).png` al cambiar el idioma global.
+- `public/gestor_entidad(English).png`, `public/gestor_formularios(English).png`,
+  `public/super_administrador(English).png` — tres archivos nuevos (sin historial
+  previo en git) que son las variantes en inglés de los fondos institucionales.
+
+**Contrato de datos intacto:** sin cambios de backend, endpoints ni persistencia;
+solo presentación reactiva al idioma global.
+
+**Archivos modificados (4):**
+- `frontend/AIFormBuilder/src/components/auth/AuthCard.jsx`
+- `frontend/AIFormBuilder/public/gestor_entidad(English).png`
+- `frontend/AIFormBuilder/public/gestor_formularios(English).png`
+- `frontend/AIFormBuilder/public/super_administrador(English).png`
+
+**Verificación (ejecutada):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → 0 errores (solo warnings preexistentes).
+- `npm run build` → exit 0.
+- `npm run qa:brand` → 1 congelamiento preexistente en `PrismGauge.css:12` (ajeno) · 28 excepciones · 0 conflictos semánticos.
+- `npm run qa:routes` → 124 comprobaciones / 2 fallos (baseline preexistente).
+- Imágenes servidas correctamente por Vite (200 OK, `image/png`).
+- Dev server: al alternar `LanguageSwitcher` el fondo cambia sin recargar.
+
 ### 2026-11-22 — Clasificación por escala (`importancia`): el riel «Signal Rail» se usa para cualquier escala (≤7 y >7)
 
 **Objetivo (petición del usuario):** mantener el mismo diseño de la escala
@@ -2564,6 +2911,54 @@ const estilo = flex({ direction: "column", gap: 12 }); // objeto de estilo
 
 > Orden: **más reciente primero**. Cada entrada lleva fecha, archivos, qué cambió
 > y las puertas ejecutadas (ver §5).
+
+### 2026-11-26 — Estadísticas: «Sin responder» como segmento del chart del desglose de preguntas
+
+**Objetivo (petición del usuario):** en la página de estadísticas de un formulario del dashboard del superadmin, el dato de «Sin responder» debe aparecer dentro del mismo diseño del chart de cada pregunta (como si fuera una respuesta más), en lugar de un texto auxiliar debajo (p. ej. «3 o 1 sin responder»). Aplica a multiselección, ranking, escala (`importancia`) y texto libre; se elimina el texto de aviso sobrante.
+
+**Cambios (solo frontend, 1 archivo):**
+- `src/components/analytics/QuestionChart.jsx`:
+  - `surveyTotal` usa `question.total` (cuántas personas contestaron realmente esa pregunta) para que el subtítulo de cada tarjeta muestre el **total de respuestas reales**, excluyendo a las que la dejaron en blanco (`skipped`), en vez del total de la encuesta (`responses`).
+  - El `push` de `{ label: t("notAnswered"), count: skipped }` ya colocaba «Sin responder» como segmento del `PrismDonut`/`PrismBars`; se conserva.
+  - `ImportanciaBreakdown` añade «Sin responder» como una fila más del desglose (sin puntuación media ni barra de progreso, con tono neutro) cuando `skipped > 0`.
+  - **Texto libre / texto largo (`question.samples`)**: «Sin responder» se renderiza ahora como una tarjeta de vidrio más al final del desglose (misma clase y animación que el resto de respuestas), en lugar de quedarse fuera del chart.
+  - Se elimina `SkippedNote` (código muerto) y el bloque de texto auxiliar de «Sin responder» en `Empty`; `Empty` solo muestra `noDataYet`.
+  - Las claves `notAnswered` (es/en) ya existían en `LanguageContext`, sin cambios de i18n nuevos.
+
+**Contrato de datos intacto:** sin cambios de backend, endpoints ni persistencia; solo presentación. Se confía en los campos existentes `responses`/`total`/`skipped`.
+
+**Verificación (desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en `QuestionChart.jsx`).
+- `npm run build` → exit 0 (avisos `@utility` y chunks >500 kB preexistentes).
+- `npm run qa:brand` → `TODO CORRECTO`: 0 congelamientos, 34 excepciones justificadas, 0 conflictos semánticos.
+- `npm run qa:routes` → 124 comprobaciones / 2 fallos (baseline preexistente).
+
+### 2026-11-24 — Rediseño de portada «Pulso cívico»
+
+**Objetivo (petición del usuario):** convertir la portada en una presentación
+futurista y profesional del sitio, retirar de Home la sección negra ajena al
+producto y mantener la información basada en datos reales.
+
+**Cambios (frontend):**
+- `src/components/public/HomeHeroSection.jsx` — nuevo hero editorial
+  «Pregunta. Escucha. Decide.» con visualización orbital SVG de la actividad
+  diaria y selector de formularios destacados; integra indicadores reales,
+  recorrido de capacidades y CTA. Se mantiene la traducción ES/EN, el tema
+  claro/oscuro, el movimiento reducido y el layout responsive. La lista accesible
+  de actividad pluraliza correctamente «respuesta(s)».
+- La antigua `HowItWorksSection` queda fuera del render de Home.
+
+**Contrato de datos intacto:** sin cambios de backend, endpoints ni persistencia.
+La visualización muestra la serie histórica entregada por Insights, sin afirmar
+un rango fijo que el endpoint no garantiza.
+
+**Verificación:** `npm run build` → exit 0 · `npm run typecheck` → 0 ·
+`npx oxlint src/components/public/HomeHeroSection.jsx` → 0 · navegador con datos
+reales: sin desbordamiento ni títulos partidos a 320/390/768/1024/1440 px,
+selector de formularios operativo y etiquetas singulares ES/EN correctas.
+`npm run qa:brand` → 1 congelamiento preexistente en
+`PrismGauge.css:12`, 31 excepciones y 0 conflictos semánticos.
 
 ### 2026-11-22 — Auto-refresco por SSE (sin recargar) de todas las páginas con estadísticas
 

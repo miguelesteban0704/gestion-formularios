@@ -51,6 +51,7 @@ import {
   useSpotlightHotkey,
 } from "../../components/admin/ListChrome.jsx";
 import { formatNumber, timeAgo } from "@/shared/skills";
+import { countFormVisibility } from "../../lib/formVisibilityCounts.js";
 
 /**
  * Formularios de la entidad del `entity_admin`: solo lectura. Cada fila trae un
@@ -112,15 +113,18 @@ export default function EntityForms() {
   });
 
   const counts = useMemo(() => {
-    let publics = 0;
-    let unlisted = 0;
     let responses = 0;
     for (const f of forms) {
-      if (f.visibility === "unlisted") unlisted += 1;
-      else if (f.visibility !== "private") publics += 1;
       responses += Number(f.responseCount || 0);
     }
-    return { total: forms.length, publics, unlisted, privates: forms.length - publics - unlisted, responses };
+    const visibility = countFormVisibility(forms);
+    return {
+      total: forms.length,
+      publics: visibility.public,
+      unlisted: visibility.unlisted,
+      privates: visibility.private,
+      responses,
+    };
   }, [forms]);
 
   // Estado y visibilidad se filtran sobre lo cargado (sin ir al servidor).

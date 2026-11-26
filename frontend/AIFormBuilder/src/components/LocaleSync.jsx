@@ -37,7 +37,7 @@ import { canonicalPanelPath } from "../lib/routes.js";
  */
 export function LocaleSync() {
   const { language } = useLanguage();
-  const { pathname, search } = useLocation();
+  const { pathname, search, state } = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,8 +48,8 @@ export function LocaleSync() {
        verdad, no la que todavía va por detrás. El `pathname` del enrutado
        queda como dependencia, que es lo que marca cuándo hay que revisar. */
     const destino = canonicalPanelPath(window.location.pathname + window.location.search, language);
-    if (destino) navigate(destino, { replace: true });
-  }, [pathname, search, language, navigate]);
+    if (destino) navigate(destino, { replace: true, state });
+  }, [pathname, search, language, navigate, state]);
 
   return null;
 }

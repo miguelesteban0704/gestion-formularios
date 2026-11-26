@@ -200,10 +200,19 @@ export async function updateFormLogo(id, logoUrl, updatedBy = null) {
 }
 
 export async function incrementViews(slug) {
-  await query(
-    `UPDATE forms SET views = views + 1 WHERE slug = $1 AND status IN ('published', 'visible', 'publico')`,
+  const { rows } = await query(
+    `UPDATE forms SET views = views + 1 WHERE slug = $1 AND status IN ('published', 'visible', 'publico')
+     RETURNING status, visibility, is_archived`,
     [slug],
   );
+  const form = rows[0];
+  return form
+    ? {
+        status: form.status,
+        visibility: form.visibility,
+        isArchived: form.is_archived,
+      }
+    : null;
 }
 
 export async function incrementResponseCount(id, delta = 1) {
@@ -252,7 +261,7 @@ LEFT JOIN entities e ON e.id = f.entity_id
 LEFT JOIN users u ON u.id = f.owner
 LEFT JOIN users ub ON ub.id = f.updated_by`;
 
-/* `listedOnly` distingue el escaparate (true: excluye los "privados" —unlisted—) de
+/* `listedOnly` distingue el escaparate (true: excluye "unlisted" y "private") de
    los consumidores internos como insights/analytics (false por defecto), que
    deben seguir contando los unlisted en sus métricas. */
 export async function listPublishedForGuests({ search = "", entityId = "", visibility = "", listedOnly = false } = {}) {
@@ -261,7 +270,7 @@ export async function listPublishedForGuests({ search = "", entityId = "", visib
     "f.is_archived = false",
   ];
   const params = [];
-  if (listedOnly) where.push("f.visibility <> 'unlisted'");
+  if (listedOnly) where.push("f.visibility <> 'unlisted'", "f.visibility <> 'private'");
   if (search.trim()) {
     params.push(`%${search.trim()}%`);
     where.push(`(f.title ILIKE $${params.length} OR f.description ILIKE $${params.length})`);
@@ -334,8 +343,8 @@ export async function listFormsScoped(actor, { search = "", filter = "all", visi
 }
 
 /**
- * Super_admin: públicos y privados publicados. `visibility` opcional
- * ("public" | "private") restringe a un solo estado; vacío = ambos.
+ * Super_admin: formularios publicados de cualquier visibilidad. `visibility`
+ * opcional ("public" | "unlisted" | "private") restringe a una categoría.
  * Con filtro por entidad y búsqueda.
  */
 export async function listPublicFormsScoped({ search = "", entityId = "", visibility = "" } = {}) {

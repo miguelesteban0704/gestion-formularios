@@ -5,7 +5,7 @@ import * as responseRepo from "../repositories/response.repo.js";
 import { OPTION_FIELD_TYPES, STATIC_FIELD_TYPES, CATALOG_FIELD_TYPES, catalogTypeFor } from "../utils/constants.js";
 import { isQuestionVisible, isConsentDeclined } from "../utils/visibility.js";
 import { broadcast } from "../utils/realtime.js";
-import { emitStatsUpdated } from "./realtimeStats.js";
+import { emitStatsUpdated, isPublicStatsForm } from "./realtimeStats.js";
 import { validatePhone, countryFromPattern } from "../utils/phoneRules.js";
 
 export async function submitResponse(
@@ -144,6 +144,7 @@ export async function submitResponse(
       formId: String(form._id),
       entityId: formForStats?.entityId ? String(formForStats.entityId) : undefined,
       timestamp: new Date().toISOString(),
+      isPublic: isPublicStatsForm(form),
     });
   } catch {}
   return response;
@@ -258,6 +259,7 @@ export async function deleteResponse(responseId, actorOrId) {
       formId: String(response.form),
       entityId: formForStats?.entityId ? String(formForStats.entityId) : undefined,
       timestamp: new Date().toISOString(),
+      isPublic: isPublicStatsForm(formForStats),
     });
   } catch {}
 }

@@ -1,6 +1,7 @@
 import { test, describe, before, after, mock } from "node:test";
 import assert from "node:assert";
 import { addStatsClient, removeStatsClient, broadcastStats, emitStatsUpdated, countStatsClients } from "../services/realtimeStats.js";
+import * as realtimeStats from "../services/realtimeStats.js";
 
 describe("realtimeStats - Gestor SSE de estadísticas", () => {
   const testChannel = "test:channel";
@@ -102,6 +103,62 @@ describe("realtimeStats - Gestor SSE de estadísticas", () => {
 
     removeStatsClient("general", generalClient);
     removeStatsClient("form:form999", formClient);
+  });
+
+  test("los cambios de estadísticas públicas emiten un aviso sin datos del formulario", () => {
+    const publicClient = { write: mock.fn() };
+    addStatsClient("public", publicClient);
+
+    const timestamp = new Date().toISOString();
+    emitStatsUpdated({
+      formId: "private-form-id",
+      timestamp,
+      isPublic: true,
+    });
+
+    assert.strictEqual(publicClient.write.mock.callCount(), 1);
+    const event = publicClient.write.mock.calls[0].arguments[0];
+    assert.ok(event.includes("event: stats_updated"));
+    assert.ok(event.includes(`data: ${JSON.stringify({ timestamp })}`));
+    assert.ok(!event.includes("private-form-id"));
+
+    removeStatsClient("public", publicClient);
+  });
+
+  test("los cambios no públicos no notifican al canal público", () => {
+    const publicClient = { write: mock.fn() };
+    addStatsClient("public", publicClient);
+
+    emitStatsUpdated({
+      formId: "private-form-id",
+      timestamp: new Date().toISOString(),
+    });
+
+    assert.strictEqual(publicClient.write.mock.callCount(), 0);
+    removeStatsClient("public", publicClient);
+  });
+
+  test("solo formularios publicados y listados alimentan los eventos públicos", () => {
+    assert.strictEqual(
+      realtimeStats.isPublicStatsForm?.({ status: "published", visibility: "public", isArchived: false }),
+      true,
+    );
+    assert.strictEqual(
+      realtimeStats.isPublicStatsForm?.({ status: "published", visibility: "private", isArchived: false }),
+      false,
+    );
+    assert.strictEqual(
+      realtimeStats.isPublicStatsForm?.({ status: "published", visibility: "unlisted", isArchived: false }),
+      false,
+    );
+    assert.strictEqual(
+      realtimeStats.isPublicStatsForm?.({ status: "draft", visibility: "public", isArchived: false }),
+      false,
+    );
+    assert.strictEqual(
+      realtimeStats.isPublicStatsForm?.({ status: "published", visibility: "public", isArchived: true }),
+      false,
+    );
   });
 
   test("Múltiples clientes en el mismo canal reciben el broadcast", () => {

@@ -69,7 +69,7 @@ export default function PublicStats() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 350);
   const [result, setResult] = useState({ forms: [], count: 0, summary: "", entity: null });
-  const [stats, setStats] = useState({ totals: { forms: 0, publicForms: 0, privateForms: 0, responses: 0, views: 0 }, perForm: [] });
+  const [stats, setStats] = useState({ totals: { forms: 0, publicForms: 0, unlistedForms: 0, privateForms: 0, responses: 0, publicResponses: 0, views: 0 }, perForm: [] });
   const [density, setDensity] = useState("a");
   const [sortBy, setSortBy] = useState("recent");
   const [query, setQuery] = useState("");
@@ -207,7 +207,7 @@ export default function PublicStats() {
     { label: rt("visibilityAll"), icon: <LayoutGrid />, onClick: () => { setVisibility(""); closeSpotlight(); } },
   ];
 
-  const safeTotals = stats.totals || { forms: 0, publicForms: 0, privateForms: 0, responses: 0, views: 0 };
+  const safeTotals = stats.totals || { forms: 0, publicForms: 0, unlistedForms: 0, privateForms: 0, responses: 0, publicResponses: 0, views: 0 };
   const activeEntity = entities.find((e) => e._id === entityId)?.name || null;
 
   const VIS_OPTIONS = [
@@ -246,8 +246,8 @@ export default function PublicStats() {
   if (isLoading) {
     return (
       <div className="animate-page-enter relative mx-auto max-w-7xl px-4 py-8 lg:px-8">
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4" aria-live="polite" aria-label={isSpanish ? "Cargando estadísticas" : "Loading statistics"}>
-          {[1,2,3,4].map((i) => (
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3" aria-live="polite" aria-label={isSpanish ? "Cargando estadísticas" : "Loading statistics"}>
+          {[1,2,3,4,5,6].map((i) => (
             <div key={i} className="skeleton-shimmer animate-shimmer rounded-xl h-24" />
           ))}
         </div>
@@ -264,32 +264,46 @@ export default function PublicStats() {
         description={isSpanish ? "Supervisa formularios publicados, respuestas y alcance por entidad." : "Monitor published forms, responses, and reach by entity."}
       />
 
-      <section className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4" aria-label={isSpanish ? "Resumen de actividad de formularios" : "Forms activity overview"}>
+      <section className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3" aria-label={isSpanish ? "Resumen de actividad de formularios" : "Forms activity overview"}>
+        <StatTile
+          icon={FolderOpen}
+          label={rt("publicForms")}
+          value={formatNumber(safeTotals.forms)}
+          hint={selectedEntity}
+          tone="accent"
+        />
         <StatTile
           icon={DoorOpenIcon}
-          label={rt("publicForms")}
-          value={formatNumber(safeTotals.publicForms ?? safeTotals.forms)}
+          label={rt("visibilityPublic")}
+          value={formatNumber(safeTotals.publicForms ?? 0)}
+          hint={selectedEntity}
+          tone="accent"
+        />
+        <StatTile
+          icon={Link2}
+          label={rt("linkOnlyOne")}
+          value={formatNumber(safeTotals.unlistedForms ?? 0)}
           hint={selectedEntity}
           tone="accent"
         />
         <StatTile
           icon={Lock}
-          label={rt("privateFormsLabel")}
+          label={rt("visibilityPrivate")}
           value={formatNumber(safeTotals.privateForms ?? 0)}
           hint={selectedEntity}
-          tone="warning"
+          tone="accent"
         />
         <StatTile
           icon={MessageCircle}
-          label={rt("totalResponses")}
-          value={formatNumber(safeTotals.responses)}
-          tone="success"
+          label={rt("publicFormResponses")}
+          value={formatNumber(safeTotals.publicResponses ?? 0)}
+          tone="accent"
         />
         <StatTile
           icon={Eye}
           label={rt("totalViews")}
           value={formatNumber(safeTotals.views)}
-          tone="info"
+          tone="accent"
         />
       </section>
 

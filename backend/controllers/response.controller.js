@@ -154,3 +154,27 @@ export const streamStats = asyncHandler(async (req, res) => {
   req.on("close", onClose);
   req.on("error", onClose);
 });
+
+export const streamPublicStats = asyncHandler(async (req, res) => {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  res.write(`: connected\n\n`);
+
+  const ping = setInterval(() => {
+    try { res.write(`: ping\n\n`); } catch {}
+  }, 15000);
+
+  addStatsClient("public", res);
+
+  const onClose = () => {
+    clearInterval(ping);
+    removeStatsClient("public", res);
+    try { res.end(); } catch {}
+  };
+  res.on("close", onClose);
+  req.on("error", onClose);
+});

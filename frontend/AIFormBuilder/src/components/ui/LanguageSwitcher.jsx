@@ -1,10 +1,11 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
 import { canonicalPanelPath } from "../../lib/routes.js";
 
 export function LanguageSwitcher({ className = "" }) {
   const { language, changeLanguage, t } = useLanguage();
+  const { state } = useLocation();
   const navigate = useNavigate();
 
   /**
@@ -40,7 +41,7 @@ export function LanguageSwitcher({ className = "" }) {
     // Se conserva el objeto de estado que el enrutado tiene guardado ahí, que
     // es lo que le permite reconocer después esta misma entrada del historial.
     window.history.replaceState(window.history.state, "", destino);
-    navigate(destino, { replace: true });
+    navigate(destino, { replace: true, state });
   };
 
   return (

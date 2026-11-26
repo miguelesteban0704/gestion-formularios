@@ -7,6 +7,7 @@ import {
   exportResponses,
   streamResponses,
   streamStats,
+  streamPublicStats,
 } from "../controllers/response.controller.js";
 import { getPublicForm, getPublicForms, guestListForms, guestGetForm } from "../controllers/form.controller.js";
 import { protect } from "../middleware/auth.js";
@@ -47,6 +48,7 @@ router.post("/public/forms/:slug/respond", protect, attachRespondent, submitResp
    ownership, y `protect` solo miraría una cabecera que nunca llega. */
 router.get("/forms/:id/responses/stream", streamResponses);
 router.get("/events/stats", streamStats);
+router.get("/events/public-stats", streamPublicStats);
 router.get("/forms/:id/responses", protect, getResponses);
 router.get("/forms/:id/responses/export", protect, exportResponses);
 router.get("/forms/:id/analytics", protect, getAnalytics);

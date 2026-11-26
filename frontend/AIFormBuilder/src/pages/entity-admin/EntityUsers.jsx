@@ -29,7 +29,7 @@ import { entityAdminApi } from "../../services/index.js";
 import { useRoleT } from "../../lib/roleI18n.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useLanguage } from "../../contexts/LanguageContext.jsx";
-import { ROLE_LABEL } from "../../lib/roles.js";
+import { ROLE_LABEL, ROLE_I18N_KEY } from "../../lib/roles.js";
 import { accessLoginPath } from "../../lib/routes.js";
 import { rememberAccessDoor } from "../../lib/accessDoor.js";
 import { copyText } from "../../lib/clipboard.js";
@@ -105,7 +105,7 @@ export default function EntityUsers() {
   const rt = useRoleT();
   const { confirm } = useConfirm();
   const { user } = useAuth();
-  const { language } = useLanguage();
+  const { t, language } = useLanguage();
   const { guard } = useOfflineGuard();
   const isSpanish = language === "es";
   const entityName = user?.entity?.name || "-";
@@ -683,7 +683,7 @@ function EntityUserRow({ user, index, density, onEdit, onDelete, onToggleActive,
         </div>
 
         <div className="min-w-0">
-          <Pill tone="brand" dot>{ROLE_LABEL[user.role] || "-"}</Pill>
+          <Pill tone="brand" dot>{ROLE_I18N_KEY[user.role] ? t(ROLE_I18N_KEY[user.role]) : (ROLE_LABEL[user.role] || "-")}</Pill>
         </div>
 
         <div className="min-w-0">

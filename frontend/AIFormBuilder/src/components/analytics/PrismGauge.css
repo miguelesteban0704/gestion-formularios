@@ -9,7 +9,7 @@
   /* paleta de datos (cian → verde agua → ámbar) */
   --pg-cyan: #22d3ee;
   --pg-cyan-light: #67e8f9;
-  --pg-teal: #2ec4b6;
+  --pg-teal: color-mix(in srgb, var(--accent-teal) 70%, var(--color-brand-300));
   --pg-teal-deep: #0891b2;
   --pg-gold: #ffb84d;
   --pg-gold-deep: #d97706;

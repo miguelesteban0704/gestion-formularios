@@ -315,7 +315,7 @@ export default function LocalLogin() {
       <SuperAdminStage
         eyebrow={language === "es" ? "Acceso" : "Access"}
         title={rt("loginWithAccount")}
-        role="Super Admin"
+        role="super_admin"
         verifying
       />
     );
@@ -484,7 +484,7 @@ export default function LocalLogin() {
     <SuperAdminStage
       eyebrow={language === "es" ? "Acceso" : "Access"}
       title={rt("loginWithAccount")}
-      role="Super Admin"
+      role="super_admin"
       footer={
         <>
           <button type="button" onClick={() => goMode("forgot")} className="transition hover:text-fg">{rt("forgotPassword")}</button>

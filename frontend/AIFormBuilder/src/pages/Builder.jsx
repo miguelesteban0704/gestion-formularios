@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -26,6 +26,7 @@ import {
   ClipboardCheck,
   BarChart3,
   FileQuestion,
+  Trash2,
 } from "lucide-react";
 import { formApi } from "../services/index.js";
 import { useHistoryState } from "../hooks/useHistoryState.js";
@@ -36,7 +37,7 @@ import { useAutoGrow } from "../lib/useAutoGrow.js";
 import { Logo } from "../components/Logo.jsx";
 import { Button } from "../components/ui/Button.jsx";
 import { PageLoader, EmptyState } from "../components/ui/Feedback.jsx";
-import { Modal } from "../components/ui/Modal.tsx";
+import { ConfirmModal, Modal } from "../components/ui/Modal.tsx";
 import { FieldPalette } from "../components/builder/FieldPalette.jsx";
 import { SortableField } from "../components/builder/SortableField.jsx";
 import { SettingsPanel } from "../components/builder/SettingsPanel.jsx";
@@ -47,10 +48,14 @@ import { LanguageSwitcher } from "../components/ui/LanguageSwitcher.jsx";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { canSeeStatsPage, isCreator, isGuest } from "../lib/roles.js";
-import { analyticsPath, builderPath, homePath, responsesPath, siteBuilderPath } from "../lib/routes.js";
+import { analyticsPath, builderPath, formsPath, homePath, responsesPath, siteBuilderPath } from "../lib/routes.js";
+import { resolveFormTitle } from "../lib/formTitle.js";
+import { isCancelableNewBuilderForm } from "../lib/builderCancel.js";
+import { createBuilderFormOnce } from "../lib/builderFormCreation.js";
 
 export default function Builder() {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { t, language } = useLanguage();
@@ -84,11 +89,22 @@ export default function Builder() {
   const [selectedId, setSelectedId] = useState(null);
   const [saveState, setSaveState] = useState("saved"); // saved | saving | dirty
   const [preview, setPreview] = useState(false);
+  const [cancelNewFormOpen, setCancelNewFormOpen] = useState(false);
+  const [cancelingNewForm, setCancelingNewForm] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [activeDrag, setActiveDrag] = useState(null); // drives the DragOverlay
+  const cancelNewFormRef = useRef(false);
+  const pendingSavesRef = useRef(new Set());
+  const [saveRetry, setSaveRetry] = useState(0);
+  const formCreateRequestRef = useRef(null);
 
+  const displayTitle = resolveFormTitle({ title: form?.title }, language, t("untitledForm"));
+  const canCancelNewForm = isCancelableNewBuilderForm(
+    form,
+    location.state?.newlyCreatedFormId,
+  );
   const formIdRef = useRef(null);
   const skipSaveRef = useRef(true);
 
@@ -96,7 +112,7 @@ export default function Builder() {
      necesitan. Sin tope (`maxRows`): el usuario no ha puesto ningún límite a
      su título, y un campo que se autoajusta pero acaba con scroll-bar sería
      el mismo recorte que estamos quitando, solo que más difícil de ver. */
-  const refTitulo = useAutoGrow(form?.title ?? "");
+  const refTitulo = useAutoGrow(displayTitle);
   const refDescripcion = useAutoGrow(form?.description ?? "");
 
   const sensors = useSensors(
@@ -113,11 +129,14 @@ export default function Builder() {
       try {
         if (id === "new") {
           const fromAI = searchParams.get("ai") === "1";
-          const created = await formApi.create({
-            title: t("untitledForm"),
-            creationSource: fromAI ? "ai" : "blank",
-            notify: false,
-          });
+          const created = await createBuilderFormOnce(
+            formCreateRequestRef,
+            () => formApi.create({
+              title: t("untitledForm"),
+              creationSource: fromAI ? "ai" : "blank",
+              notify: false,
+            }),
+          );
           if (!active) return;
           formIdRef.current = created._id;
           reset(created);
@@ -127,7 +146,10 @@ export default function Builder() {
             enElSitio
               ? siteBuilderPath(created._id, { ai: conIA })
               : builderPath(language, created._id, { ai: conIA }, entityCode),
-            { replace: true }
+            {
+              replace: true,
+              state: { ...location.state, newlyCreatedFormId: created._id },
+            }
           );
         } else {
           const loaded = await formApi.get(id);
@@ -139,6 +161,7 @@ export default function Builder() {
         // the AIGenerateModal on load (`setAiOpen(true)`). The modal is still
         // mounted below, but nothing in the UI can open it anymore.
       } catch (err) {
+        if (!active) return;
         toast.error(err.message);
         navigate(enElSitio ? "/" : homePath(language, entityCode));
       } finally {
@@ -155,13 +178,13 @@ export default function Builder() {
   // ----- Autosave (debounced) -----
   const debouncedForm = useDebounce(form, 800);
   useEffect(() => {
-    if (!debouncedForm || !formIdRef.current) return;
+    if (!debouncedForm || !formIdRef.current || cancelNewFormRef.current) return;
     if (skipSaveRef.current) {
       skipSaveRef.current = false;
       return;
     }
     setSaveState("saving");
-    formApi
+    const saveRequest = formApi
       .update(formIdRef.current, {
         title: debouncedForm.title,
         description: debouncedForm.description,
@@ -174,7 +197,9 @@ export default function Builder() {
         setSaveState("dirty");
         toast.error(err.message);
       });
-  }, [debouncedForm]);
+    pendingSavesRef.current.add(saveRequest);
+    saveRequest.then(() => pendingSavesRef.current.delete(saveRequest));
+  }, [debouncedForm, saveRetry]);
 
   const markDirty = useCallback(() => setSaveState("dirty"), []);
 
@@ -361,6 +386,27 @@ export default function Builder() {
     }
   };
 
+  const confirmCancelNewForm = async () => {
+    if (!canCancelNewForm || cancelingNewForm) return;
+    cancelNewFormRef.current = true;
+    setCancelingNewForm(true);
+    try {
+      await Promise.all([...pendingSavesRef.current]);
+      await formApi.remove(form._id);
+      setCancelNewFormOpen(false);
+      toast.success(t("newFormDeleted"));
+      navigate(enElSitio ? "/" : formsPath(language, entityCode), { replace: true });
+    } catch (err) {
+      cancelNewFormRef.current = false;
+      skipSaveRef.current = false;
+      setSaveState("dirty");
+      setSaveRetry((retry) => retry + 1);
+      toast.error(err.message);
+    } finally {
+      setCancelingNewForm(false);
+    }
+  };
+
   if (loading || !form) return <PageLoader label={t("loadingBuilder")} />;
 
   const published = form.status === "published";
@@ -382,19 +428,19 @@ export default function Builder() {
           La edición sin recorte de verdad está en la tarjeta de abajo.
         */}
         <input
-          value={form.title}
+          value={displayTitle}
           onChange={(e) => {
             setForm((prev) => ({ ...prev, title: e.target.value }));
             markDirty();
           }}
-          title={form.title}
+          title={displayTitle}
           aria-label={t("formTitle")}
           className="min-w-0 max-w-xs flex-1 rounded-lg bg-transparent px-2 py-1 text-sm font-semibold text-fg outline-none hover:bg-surface-2 focus:bg-surface-2"
         />
 
         <SaveIndicator state={saveState} t={t} />
 
-        <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto scrollbar-thin">
+        <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2 overflow-x-auto scrollbar-thin sm:gap-3">
           <LanguageSwitcher className="mr-1 hidden sm:flex" />
           <Button variant="ghost" size="icon" onClick={() => { undo(); markDirty(); }} aria-label={t("undo")} title={`${t("undo")} (Ctrl+Z)`}>
             <Undo2 className="h-4.5 w-4.5" />
@@ -416,9 +462,24 @@ export default function Builder() {
               </Button>
             </>
           )}
-          <Button variant="secondary" size="sm" onClick={() => setPreview(true)}>
-            <Eye className="h-4 w-4" /> <span className="hidden sm:inline">{t("preview")}</span>
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            {canCancelNewForm && (
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setCancelNewFormOpen(true)}
+                aria-label={t("cancelNewForm")}
+                title={t("cancelNewForm")}
+                className="shrink-0 shadow-[0_8px_22px_-11px_rgba(225,29,72,0.8)] hover:shadow-[0_10px_26px_-9px_rgba(225,29,72,0.9)]"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                <span>{t("cancelNewForm")}</span>
+              </Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => setPreview(true)} className="shrink-0">
+              <Eye className="h-4 w-4" /> <span className="hidden sm:inline">{t("preview")}</span>
+            </Button>
+          </div>
           <Button variant="secondary" size="sm" onClick={() => setShareOpen(true)} disabled={!published}>
             <Share2 className="h-4 w-4" /> <span className="hidden sm:inline">{t("share")}</span>
           </Button>
@@ -476,7 +537,7 @@ export default function Builder() {
                       */}
                       <textarea
                         ref={refTitulo}
-                        value={form.title}
+                        value={displayTitle}
                         rows={1}
                         onChange={(e) => { setForm((p) => ({ ...p, title: e.target.value })); markDirty(); }}
                         onKeyDown={(e) => {
@@ -580,6 +641,18 @@ export default function Builder() {
           <FormView form={form} preview />
         </div>
       </Modal>
+
+      <ConfirmModal
+        open={cancelNewFormOpen}
+        loading={cancelingNewForm}
+        onClose={() => setCancelNewFormOpen(false)}
+        onConfirm={confirmCancelNewForm}
+        title={t("cancelNewFormTitle")}
+        description={t("cancelNewFormDescription")}
+        confirmText={t("deleteNewForm")}
+        danger
+        icon={Trash2}
+      />
 
       <AIGenerateModal
         open={aiOpen}

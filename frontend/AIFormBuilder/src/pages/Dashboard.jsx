@@ -11,6 +11,8 @@ import {
   Eye,
   TrendingUp,
   CheckCircle2,
+  Link2,
+  Lock,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth.js";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
@@ -21,6 +23,9 @@ import { FormsBrowser } from "../components/forms/FormsBrowser.jsx";
 import { NavCard } from "../components/dashboard/NavCard.jsx";
 import { AuthRequiredModal } from "../components/auth/AuthRequiredModal.jsx";
 import { builderPath, templatesPath } from "../lib/routes.js";
+import { countFormVisibility } from "../lib/formVisibilityCounts.js";
+import { useRoleT } from "../lib/roleI18n.js";
+import { DoorOpenIcon } from "../components/ui/CategoryBadge.jsx";
 import { accents } from "@/shared/styles/tokens";
 
 const ACCENT = accents;
@@ -28,6 +33,7 @@ const ACCENT = accents;
 export default function Dashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { t, language } = useLanguage();
+  const rt = useRoleT();
   const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
   const [allForms, setAllForms] = useState([]);
@@ -75,6 +81,7 @@ export default function Dashboard() {
       total: active.length,
       published: active.filter((f) => f.status === "published").length,
       draft: active.filter((f) => f.status === "draft").length,
+      visibility: countFormVisibility(active),
       responses: allForms.reduce((s, f) => s + (f.responseCount || 0), 0),
       views: allForms.reduce((s, f) => s + (f.views || 0), 0),
     };
@@ -179,6 +186,27 @@ export default function Dashboard() {
           }}
         />
       </div>
+
+      <section className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4" aria-label={t("formVisibility")}>
+        <StatCard
+          icon={DoorOpenIcon}
+          label={rt("visibilityPublic")}
+          value={counts.visibility.public}
+          accent="blue"
+        />
+        <StatCard
+          icon={Link2}
+          label={rt("linkOnlyOne")}
+          value={counts.visibility.unlisted}
+          accent="brand"
+        />
+        <StatCard
+          icon={Lock}
+          label={rt("visibilityPrivate")}
+          value={counts.visibility.private}
+          accent="amber"
+        />
+      </section>
 
       {/* Forms list — solo se cargan formularios si hay sesión; sin autenticación permanece vacío */}
       <div className="mt-10">

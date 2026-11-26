@@ -48,8 +48,9 @@ export function broadcastStats(channel, event, data) {
  * @param {string} params.formId - ID del formulario
  * @param {string} [params.entityId] - ID de la entidad (opcional)
  * @param {string} params.timestamp - ISO timestamp
+ * @param {boolean} [params.isPublic] - Notifica también a clientes públicos
  */
-export function emitStatsUpdated({ formId, entityId, timestamp }) {
+export function emitStatsUpdated({ formId, entityId, timestamp, isPublic = false }) {
   // Canal específico del formulario (para /analytics/:id)
   broadcastStats(`form:${formId}`, "stats_updated", { formId, timestamp });
   // Canal general (para /insights del super_admin)
@@ -58,6 +59,38 @@ export function emitStatsUpdated({ formId, entityId, timestamp }) {
   if (entityId) {
     broadcastStats(`entity:${entityId}`, "stats_updated", { formId, entityId, timestamp });
   }
+  if (isPublic) emitPublicStatsUpdated(timestamp);
+}
+
+/**
+ * Publica únicamente un aviso de invalidación, sin identificar el formulario.
+ * El endpoint público solo transmite este evento sin datos sensibles.
+ * @param {string} timestamp
+ */
+export function emitPublicStatsUpdated(timestamp) {
+  broadcastStats("public", "stats_updated", { timestamp });
+}
+
+/**
+ * Indica si el formulario participa en el catálogo y las estadísticas públicas.
+ * @param {object|null|undefined} form
+ * @returns {boolean}
+ */
+export function isPublicStatsForm(form) {
+  if (!form || form.isArchived) return false;
+  if (!["published", "visible", "publico"].includes(form.status)) return false;
+  const visibility = form.visibility || "public";
+  return visibility !== "private" && visibility !== "unlisted";
+}
+
+export function sumPublicResponseCounts(forms, responseCounts) {
+  const publicFormIds = new Set(
+    forms.filter(isPublicStatsForm).map((form) => String(form._id)),
+  );
+  return responseCounts.reduce(
+    (total, item) => total + (publicFormIds.has(String(item.form)) ? item.count : 0),
+    0,
+  );
 }
 
 /**

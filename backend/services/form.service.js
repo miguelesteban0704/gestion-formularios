@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { ApiError } from "../utils/ApiError.js";
 import * as formRepo from "../repositories/form.repo.js";
 import * as notificationRepo from "../repositories/notification.repo.js";
+import { emitPublicStatsUpdated, isPublicStatsForm } from "./realtimeStats.js";
 
 /**
  * Control de acceso por rol (rediseño RBAC).
@@ -177,7 +178,10 @@ export async function getGuestFormDetail(slug, respondent = null) {
 
 
 export async function registerView(slug) {
-  await formRepo.incrementViews(slug);
+  const form = await formRepo.incrementViews(slug);
+  if (isPublicStatsForm(form)) {
+    emitPublicStatsUpdated(new Date().toISOString());
+  }
 }
 
 function resolveEntityForCreate(actor, payload) {

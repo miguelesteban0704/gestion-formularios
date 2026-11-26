@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { formApi, guestApi } from "../services/index.js";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
 import { useAuth } from "./useAuth.js";
+import { subscribeToPublicStatsUpdates } from "./publicStatsUpdates.js";
 
 /** Loads and mutates the current user's forms with optimistic UI helpers. */
 /** Solo carga cuando el usuario está autenticado: sin sesión todo permanece vacío. */
@@ -20,7 +21,9 @@ export function useForms({ search = "", filter = "all", publicOnly = false, gues
     if (guestMode) {
       if (!silent) setLoading(true);
       try {
-        const data = await guestApi.listForms({});
+        // Pasar el filtro de visibilidad al backend para que filtre en la BD
+        const params = filter && filter !== "all" ? { visibility: filter } : {};
+        const data = await guestApi.listForms(params);
         setForms(data.forms || data);
         setError(null);
       } catch (err) {
@@ -63,14 +66,10 @@ export function useForms({ search = "", filter = "all", publicOnly = false, gues
     load();
   }, [load]);
 
-  // La portada pública (guestMode) muestra el conteo de respuestas/vistas de cada
-  // formulario. Sin token no hay SSE, así que sondeamos en segundo plano (cada
-  // 30 s) para refrescar esos conteos sin recargar la página ni parpadear el
-  // skeleton (silent=true no toca `loading`).
+  // El escaparate refresca en silencio al cambiar las métricas públicas.
   useEffect(() => {
     if (!guestMode) return;
-    const id = setInterval(() => load({ silent: true }), 30000);
-    return () => clearInterval(id);
+    return subscribeToPublicStatsUpdates(() => load({ silent: true }));
   }, [guestMode, load]);
 
   // Limpieza inmediata al cerrar sesión: evita mostrar datos residuales

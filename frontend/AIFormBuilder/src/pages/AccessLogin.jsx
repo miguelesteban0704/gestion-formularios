@@ -13,7 +13,7 @@ import { Button } from "../components/ui/Button.jsx";
 import { notifyAuthAlert } from "../components/admin/AdminKit.jsx";
 import RecoveryModal from "../components/auth/RecoveryModal.jsx";
 import SetPasswordForm from "../components/auth/SetPasswordForm.jsx";
-import { ACCESS_LOGIN_BASE, accessLoginPath } from "../lib/routes.js";
+import { accessLoginPath } from "../lib/routes.js";
 
 /** Loader de respaldo por si falla PageLoader. */
 function FallbackLoader() {
@@ -28,6 +28,10 @@ function FallbackLoader() {
       <p className="text-sm text-muted">Cargando…</p>
     </div>
   );
+}
+
+function notifyAuthSceneSubmit(submitting) {
+  window.dispatchEvent(new Event(submitting ? "auth:submit-start" : "auth:submit-end"));
 }
 
 /**
@@ -53,6 +57,7 @@ export default function AccessLogin() {
   const [doorError, setDoorError] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const isSpanish = language === "es";
+
   const registrationAvailable = ctx?.registrationAvailable;
   // Estado para el email esperado del usuario asociado a esta URL de acceso
   const [expectedRecoveryEmail, setExpectedRecoveryEmail] = useState("");
@@ -99,27 +104,10 @@ export default function AccessLogin() {
     };
   }, [slug, resetToken]);
 
-  useEffect(() => {
-    if (doorError) {
-      toast.error(
-        {
-          title: isSpanish ? "Requiere autenticación" : "Requires authentication",
-          badge: isSpanish ? "REQUIERE AUTENTICACIÓN" : "REQUIRES AUTHENTICATION",
-        },
-        {
-          description: isSpanish
-            ? "La autenticación se ha completado correctamente, pero este enlace de acceso no corresponde a tu entidad ni a tu rol asignado. Utiliza el enlace facilitado por tu administrador para iniciar sesión."
-            : "Authentication was successful, but this access link does not match your entity or assigned role. Use the link provided by your administrator to sign in.",
-          duration: 10000,
-        }
-      );
-      setDoorError(false);
-    }
-  }, [doorError, isSpanish]);
-
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
+    notifyAuthSceneSubmit(true);
     setDoorError(false);
     try {
       const user = await loginLocal(identifier, password, { slug, ctx: ctxParam });
@@ -140,12 +128,14 @@ export default function AccessLogin() {
       }
     } finally {
       setBusy(false);
+      notifyAuthSceneSubmit(false);
     }
   };
 
   const submitRegistration = async (event) => {
     event.preventDefault();
     setBusy(true);
+    notifyAuthSceneSubmit(true);
     try {
       const account = await localAuthApi.registerByAccess(slug, {
         name: registration.name,
@@ -163,12 +153,14 @@ export default function AccessLogin() {
       setRegistration((current) => ({ ...current, password: "" }));
     } finally {
       setBusy(false);
+      notifyAuthSceneSubmit(false);
     }
   };
 
   const submitSetPassword = async (event) => {
     event.preventDefault();
     setBusy(true);
+    notifyAuthSceneSubmit(true);
     try {
       await localAuthApi.reset(resetToken, password);
       toast.success(
@@ -182,6 +174,7 @@ export default function AccessLogin() {
       toast.error(err.message);
     } finally {
       setBusy(false);
+      notifyAuthSceneSubmit(false);
     }
   };
 
@@ -291,10 +284,10 @@ export default function AccessLogin() {
             </span>
             <div className="flex flex-col">
               <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand-500">
-                {isSpanish ? "Rol" : "Role"}
+                {t("roleLabel")}
               </span>
               <span className="text-sm font-semibold text-fg tracking-tight">
-                {isSpanish ? "Super Admin" : "Super Admin"}
+                {t("roleSuper")}
               </span>
             </div>
           </div>
@@ -335,11 +328,21 @@ export default function AccessLogin() {
         role={registrationAvailable ? "tabpanel" : undefined}
         aria-labelledby={registrationAvailable ? (mode === "register" ? "entity-register-tab" : "entity-login-tab") : undefined}
       >
+        {doorError && (
+          <div className="auth-door-err" role="alert" aria-live="polite">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <div>
+              <p className="font-semibold">{rt("wrongDoorTitle")}</p>
+              <p>{rt("wrongDoorDescription")}</p>
+            </div>
+          </div>
+        )}
         {mode === "register" && registrationAvailable ? (
           <form onSubmit={submitRegistration} className="space-y-3">
             <AuthField
               label={isSpanish ? "Nombre completo" : "Full name"}
               icon={UserRound}
+              name="name"
               value={registration.name}
               onChange={(event) => setRegistration({ ...registration, name: event.target.value })}
               required
@@ -352,6 +355,7 @@ export default function AccessLogin() {
               label={isSpanish ? "Correo electrónico" : "Email address"}
               icon={Mail}
               type="email"
+              name="email"
               value={registration.email}
               onChange={(event) => setRegistration({ ...registration, email: event.target.value })}
               required
@@ -362,6 +366,7 @@ export default function AccessLogin() {
             <AuthField
               label={isSpanish ? "Usuario (opcional)" : "Username (optional)"}
               icon={UserPlus}
+              name="username"
               value={registration.username}
               onChange={(event) => setRegistration({ ...registration, username: event.target.value.toLowerCase() })}
               minLength={3}
@@ -374,6 +379,7 @@ export default function AccessLogin() {
               label={rt("password")}
               icon={KeyRound}
               type="password"
+              name="password"
               value={registration.password}
               onChange={(event) => setRegistration({ ...registration, password: event.target.value })}
               required
@@ -389,8 +395,8 @@ export default function AccessLogin() {
           </form>
         ) : (
           <form onSubmit={submit} className="space-y-3">
-            <AuthField label={rt("emailOrUser")} icon={Mail} value={identifier} onChange={(e) => setIdentifier(e.target.value)} required autoComplete="username" placeholder="correo@ejemplo.com" />
-            <AuthField label={rt("password")} icon={KeyRound} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" placeholder="••••••••" />
+            <AuthField label={rt("emailOrUser")} icon={Mail} name="username" data-auth-email="true" value={identifier} onChange={(e) => setIdentifier(e.target.value)} required autoComplete="username" placeholder="correo@ejemplo.com" />
+            <AuthField label={rt("password")} icon={KeyRound} name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" placeholder="••••••••" />
             <Button type="submit" loading={busy} className="w-full justify-center">
               <KeyRound className="h-4 w-4" strokeWidth={1.5} /> {rt("signIn")}
             </Button>
@@ -401,7 +407,7 @@ export default function AccessLogin() {
                   setMode("login");
                   setRecoveryOpen(true);
                 }}
-                className="text-sm text-muted transition hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2"
+                className="auth-forgot-button text-sm text-muted transition hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2"
               >
                 {rt("forgotPassword")}
               </button>

@@ -32,7 +32,7 @@ export async function getInsights(actorOrId) {
  * entra ni en conteos.
  */
 export async function getPublicInsights() {
-  const published = await formRepo.listPublishedForGuests({});
+  const published = await formRepo.listPublishedForGuests({ listedOnly: true });
   const forms = published.filter((f) => (f.visibility || "public") !== "private");
   return computeInsights(forms);
 }

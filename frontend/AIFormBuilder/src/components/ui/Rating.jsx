@@ -2,14 +2,14 @@ import React, { useCallback, useRef, useState } from "react";
 import { Star } from "lucide-react";
 import { Tooltip } from "./Tooltip.jsx";
 import { cn } from "../../lib/utils.js";
+import { useLanguage } from "../../contexts/LanguageContext.jsx";
 
-/* Categorías de valoración del 1 al 5, en los dos idiomas del sitio. */
-const RANGE_LABELS = {
-  1: { es: "Pésimo", en: "Terrible" },
-  2: { es: "Malo", en: "Bad" },
-  3: { es: "Aceptable", en: "Acceptable" },
-  4: { es: "Bueno", en: "Good" },
-  5: { es: "Excelente", en: "Excellent" },
+const RANGE_TRANSLATION_KEYS = {
+  1: "ratingRangeTerrible",
+  2: "ratingRangeBad",
+  3: "ratingRangeAcceptable",
+  4: "ratingRangeGood",
+  5: "ratingRangeExcellent",
 };
 
 /* Color dinámico por rango: 1-2 peligro, 3 aviso, 4-5 éxito. */
@@ -19,52 +19,62 @@ const rangeFor = (n) => {
   return { color: "success" };
 };
 
-/* Clases estáticas por rango. Se escriben literales para que Tailwind
-   las detecte al escanear el fuente (las clases construidas con
-   template literals tipo `text-${color}` no se generan en el CSS). */
+/* Clases estáticas por rango con soporte dark mode completo. */
 const RANGE_CLASSES = {
   danger: {
-    text: "text-danger",
-    bg: "bg-danger",
-    border: "border-danger",
-    hoverBg: "hover:bg-danger/20",
-    hoverText: "hover:text-danger",
-    hoverBorder: "hover:border-danger/80",
-    ring: "focus-visible:ring-[var(--color-danger-ink)]",
-    selected:
-      "bg-danger text-white border-danger shadow-lg ring-1 ring-danger/50 scale-105",
+    text: "text-danger dark:text-danger",
+    bg: "bg-danger/10 dark:bg-danger/20",
+    border: "border-danger/30 dark:border-danger/40",
+    hoverBg: "hover:bg-danger/20 dark:hover:bg-danger/30",
+    hoverText: "hover:text-danger dark:hover:text-danger",
+    hoverBorder: "hover:border-danger/60 dark:hover:border-danger/70",
+    ring: "focus-visible:ring-[var(--color-danger-ink)] dark:focus-visible:ring-[var(--color-danger)]",
+    selected: [
+      "bg-danger dark:bg-danger text-white dark:text-white",
+      "border-danger dark:border-danger",
+      "hover:bg-danger dark:hover:bg-danger hover:text-white dark:hover:text-white",
+      "hover:border-danger dark:hover:border-danger",
+      "shadow-lg ring-1 ring-danger/50 scale-105",
+    ].join(" "),
   },
   warning: {
-    text: "text-warning",
-    bg: "bg-warning",
-    border: "border-warning",
-    hoverBg: "hover:bg-warning/20",
-    hoverText: "hover:text-warning",
-    hoverBorder: "hover:border-warning/80",
-    ring: "focus-visible:ring-[var(--color-warning-ink)]",
-    selected:
-      "bg-warning text-white border-warning shadow-lg ring-1 ring-warning/50 scale-105",
+    text: "text-warning dark:text-warning",
+    bg: "bg-warning/10 dark:bg-warning/20",
+    border: "border-warning/30 dark:border-warning/40",
+    hoverBg: "hover:bg-warning/20 dark:hover:bg-warning/30",
+    hoverText: "hover:text-warning dark:hover:text-warning",
+    hoverBorder: "hover:border-warning/60 dark:hover:border-warning/70",
+    ring: "focus-visible:ring-[var(--color-warning-ink)] dark:focus-visible:ring-[var(--color-warning)]",
+    selected: [
+      "bg-warning dark:bg-warning text-white dark:text-white",
+      "border-warning dark:border-warning",
+      "hover:bg-warning dark:hover:bg-warning hover:text-white dark:hover:text-white",
+      "hover:border-warning dark:hover:border-warning",
+      "shadow-lg ring-1 ring-warning/50 scale-105",
+    ].join(" "),
   },
   success: {
-    text: "text-success",
-    bg: "bg-success",
-    border: "border-success",
-    hoverBg: "hover:bg-success/20",
-    hoverText: "hover:text-success",
-    hoverBorder: "hover:border-success/80",
-    ring: "focus-visible:ring-[var(--color-success-ink)]",
-    selected:
-      "bg-success text-white border-success shadow-lg ring-1 ring-success/50 scale-105",
+    text: "text-success dark:text-success",
+    bg: "bg-success/10 dark:bg-success/20",
+    border: "border-success/30 dark:border-success/40",
+    hoverBg: "hover:bg-success/20 dark:hover:bg-success/30",
+    hoverText: "hover:text-success dark:hover:text-success",
+    hoverBorder: "hover:border-success/60 dark:hover:border-success/70",
+    ring: "focus-visible:ring-[var(--color-success-ink)] dark:focus-visible:ring-[var(--color-success)]",
+    selected: [
+      "bg-success dark:bg-success text-white dark:text-white",
+      "border-success dark:border-success",
+      "hover:bg-success dark:hover:bg-success hover:text-white dark:hover:text-white",
+      "hover:border-success dark:hover:border-success",
+      "shadow-lg ring-1 ring-success/50 scale-105",
+    ].join(" "),
   },
 };
 
 const rangeClasses = (n) => RANGE_CLASSES[rangeFor(n).color];
 
-const rangeLabel = (n, language) => {
-  const entry = RANGE_LABELS[n];
-  if (entry) return entry[language === "es" ? "es" : "en"];
-  return String(n);
-};
+const rangeLabel = (n, t) =>
+  RANGE_TRANSLATION_KEYS[n] ? t(RANGE_TRANSLATION_KEYS[n]) : String(n);
 
 /* Número normalizado de la escala, o null si no hay valor válido. */
 const scaleValue = (value, min, max) => {
@@ -113,6 +123,22 @@ function useRatingKeyboard({ min, max, value, onChange, disabled }) {
   return { focused, buttons, onKeyDown };
 }
 
+/* Clases base compartidas para botones de rating (light + dark) */
+const BASE_BUTTON_CLASSES = [
+  "relative flex items-center justify-center rounded-full border select-none",
+  "text-sm font-semibold transition-all duration-300 ease-ui",
+  /* Base: superficie semitransparente con borde sutil - funciona en ambos temas */
+  "bg-white/50 dark:bg-slate-800/60",
+  "border-white/20 dark:border-white/10",
+  "text-ink dark:text-slate-100",
+  "shadow-sm",
+].join(" ");
+
+const DISABLED_CLASSES =
+  "opacity-50 cursor-not-allowed border-white/10 dark:border-white/5 bg-white/20 dark:bg-slate-800/30 text-ink/40 dark:text-slate-400";
+
+const FOCUS_RING_BASE = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:z-10";
+
 /* Valoración numérica: píldoras flotantes de cristal del 1 al 5. */
 export function ScoreRating({
   label,
@@ -122,8 +148,8 @@ export function ScoreRating({
   error,
   min = 1,
   max = 5,
-  language = "en",
 }) {
+  const { t } = useLanguage();
   const { focused, buttons, onKeyDown } = useRatingKeyboard({ min, max, value, onChange, disabled });
   const selected = scaleValue(value, min, max);
 
@@ -136,7 +162,7 @@ export function ScoreRating({
       )}
       <div
         role="radiogroup"
-        aria-label={label || "Valoración numérica"}
+        aria-label={label || t("field_score_rating")}
         className="inline-flex items-center gap-[var(--rating-gap)]"
       >
         {[...Array(max - min + 1)].map((_, i) => {
@@ -147,35 +173,30 @@ export function ScoreRating({
           return (
             <Tooltip
               key={n}
-              content={rangeLabel(n, language)}
+              content={rangeLabel(n, t)}
               side="top"
               align="center"
               delay={90}
               disabled={disabled}
-              contentClassName="bg-surface-2/90 dark:bg-slate-900/90 border border-line/60 text-ink"
+              contentClassName="bg-surface-2/90 dark:bg-slate-900/90 border border-line/60 text-ink dark:text-slate-100"
             >
               <button
                 ref={(el) => (buttons.current[i] = el)}
                 type="button"
                 role="radio"
                 aria-checked={isSelected}
-                aria-label={`${n} de ${max}: ${rangeLabel(n, language)}`}
+                aria-label={`${n} ${t("ratingScaleOf")} ${max}: ${rangeLabel(n, t)}`}
                 tabIndex={isFocused ? 0 : -1}
                 disabled={disabled}
                 onClick={() => !disabled && onChange(n)}
                 onKeyDown={(e) => onKeyDown(e, n)}
                 className={cn(
-                  "relative flex h-[var(--rating-size)] w-[var(--rating-size)] items-center justify-center rounded-full border select-none",
-                  "text-sm font-semibold transition-all duration-300 ease-ui",
-                  "border-white/20 dark:border-white/10 bg-white/40 dark:bg-slate-800/50 text-ink/70 shadow-sm",
+                  BASE_BUTTON_CLASSES,
+                  `h-[var(--rating-size)] w-[var(--rating-size)]`,
                   rc.text,
-                  disabled
-                    ? "opacity-50 cursor-not-allowed border-white/10 dark:border-white/5 bg-white/20 dark:bg-slate-800/20 text-ink/30"
-                    : `cursor-pointer ${rc.hoverBg} ${rc.hoverText} ${rc.hoverBorder} hover:-translate-y-1 hover:shadow-md`,
+                  disabled ? DISABLED_CLASSES : `cursor-pointer ${rc.hoverBg} ${rc.hoverText} ${rc.hoverBorder} hover:-translate-y-1 hover:shadow-md`,
                   isSelected ? rc.selected : "",
-                  isFocused && !isSelected
-                    ? `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:z-10 ${rc.ring}`
-                    : "focus-visible:outline-none",
+                  isFocused && !isSelected ? `${FOCUS_RING_BASE} ${rc.ring}` : "focus-visible:outline-none",
                   error ? "ring-1 ring-danger-ring/50" : ""
                 )}
               >
@@ -198,8 +219,8 @@ export function StarRating({
   error,
   min = 1,
   max = 5,
-  language = "en",
 }) {
+  const { t } = useLanguage();
   const { focused, buttons, onKeyDown } = useRatingKeyboard({ min, max, value, onChange, disabled });
   const [hovered, setHovered] = useState(null);
   const selected = scaleValue(value, min, max);
@@ -214,7 +235,7 @@ export function StarRating({
       )}
       <div
         role="radiogroup"
-        aria-label={label || "Valoración por estrellas"}
+        aria-label={label || t("field_quality_rating")}
         className="inline-flex items-center gap-[var(--rating-gap)]"
       >
         {[...Array(max - min + 1)].map((_, i) => {
@@ -227,19 +248,19 @@ export function StarRating({
           return (
             <Tooltip
               key={n}
-              content={rangeLabel(n, language)}
+              content={rangeLabel(n, t)}
               side="top"
               align="center"
               delay={90}
               disabled={disabled}
-              contentClassName="bg-surface-2/90 dark:bg-slate-900/90 border border-line/60 text-ink"
+              contentClassName="bg-surface-2/90 dark:bg-slate-900/90 border border-line/60 text-ink dark:text-slate-100"
             >
               <button
                 ref={(el) => (buttons.current[i] = el)}
                 type="button"
                 role="radio"
                 aria-checked={isSelected}
-                aria-label={`${n} de ${max}: ${rangeLabel(n, language)}`}
+                aria-label={`${n} ${t("ratingScaleOf")} ${max}: ${rangeLabel(n, t)}`}
                 tabIndex={isFocused ? 0 : -1}
                 disabled={disabled}
                 onClick={() => !disabled && onChange(n)}
@@ -247,17 +268,12 @@ export function StarRating({
                 onMouseEnter={() => !disabled && setHovered(n)}
                 onMouseLeave={() => setHovered(null)}
                 className={cn(
-                  "relative flex h-10 w-10 items-center justify-center rounded-xl border select-none",
-                  "text-sm transition-all duration-300 ease-ui",
-                  "border-white/20 dark:border-white/10 bg-white/40 dark:bg-slate-800/50 text-ink/70 shadow-sm",
+                  BASE_BUTTON_CLASSES.replace("rounded-full", "rounded-xl"),
+                  "h-10 w-10 text-sm",
                   rc.text,
-                  disabled
-                    ? "opacity-50 cursor-not-allowed border-white/10 dark:border-white/5 bg-white/20 dark:bg-slate-800/20 text-ink/30"
-                    : `cursor-pointer ${rc.hoverBg} ${rc.hoverText} ${rc.hoverBorder} hover:-translate-y-1 hover:shadow-md`,
+                  disabled ? DISABLED_CLASSES : `cursor-pointer ${rc.hoverBg} ${rc.hoverText} ${rc.hoverBorder} hover:-translate-y-1 hover:shadow-md`,
                   active ? rc.selected : "",
-                  isFocused && !active
-                    ? `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:z-10 ${rc.ring}`
-                    : "focus-visible:outline-none",
+                  isFocused && !active ? `${FOCUS_RING_BASE} ${rc.ring}` : "focus-visible:outline-none",
                   error ? "ring-1 ring-danger-ring/50" : ""
                 )}
               >

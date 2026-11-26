@@ -45,7 +45,7 @@ export function FilteredFormsList({
     const message = searching
       ? rt("emptyNoMatch")
       : activeTab === "private"
-        ? rt("emptyPrivateForms")
+        ? rt("emptyAuthForms")
         : activeTab === "public"
           ? rt("emptyPublicForms")
           : rt("emptyNoForms");

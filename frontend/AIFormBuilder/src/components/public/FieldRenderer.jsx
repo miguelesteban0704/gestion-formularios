@@ -54,6 +54,15 @@ function pickI18n(value, lng, fallback) {
   return fallback;
 }
 
+function hasI18nText(value) {
+  if (typeof value === "string") return Boolean(value.trim());
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      Object.values(value).some((text) => typeof text === "string" && text.trim()),
+  );
+}
+
 function resolveQuestionLabel(field, formI18n, language) {
   const lng = language || "es";
   const qI18n = formI18n?.[field.id];
@@ -117,6 +126,12 @@ export function FieldRenderer({
   if (!field) return null;
 
   const lang = language || field.language || "en";
+  const hasExplicitRatingLabel =
+    hasI18nText(field.label_i18n) || hasI18nText(formI18n?.[field.id]?.label);
+  const isDefaultRatingLabel =
+    RATING_TYPES.includes(field.type) &&
+    field.label === FIELD_DEFS[field.type]?.label &&
+    !hasExplicitRatingLabel;
   const isSpecialDefault =
     [
       "province",
@@ -143,7 +158,7 @@ export function FieldRenderer({
       "heading",
       "paragraph",
     ].includes(field.type) &&
-    field.label === DEFAULT_SPECIAL_LABELS[field.type];
+    (field.label === DEFAULT_SPECIAL_LABELS[field.type] || isDefaultRatingLabel);
   const fieldLabel = isSpecialDefault
     ? t(`field_${field.type}`)
     : resolveQuestionLabel(field, formI18n, lang);
@@ -814,8 +829,6 @@ export function FieldRenderer({
             error={!!error}
             required={field.required}
             scale={fieldScale}
-            t={t}
-            language={lang}
           />
         ) : (
           <ScoreRating
@@ -826,8 +839,6 @@ export function FieldRenderer({
             error={!!error}
             required={field.required}
             scale={fieldScale}
-            t={t}
-            language={lang}
           />
         )}
         {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
