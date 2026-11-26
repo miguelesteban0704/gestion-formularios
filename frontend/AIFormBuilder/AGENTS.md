@@ -2912,6 +2912,25 @@ const estilo = flex({ direction: "column", gap: 12 }); // objeto de estilo
 > Orden: **más reciente primero**. Cada entrada lleva fecha, archivos, qué cambió
 > y las puertas ejecutadas (ver §5).
 
+### 2026-11-26 — Sidebar: quitar marco del botón de tema y centrar el icono en el riel izquierdo
+
+**Objetivo (petición del usuario):** el botón de cambiar tema del riel izquierdo (`DashboardLayout.jsx`) se renderizaba sin pasar el mouse como un "marco" con borde gris claro y su icono quedaba pegado al borde izquierdo. Se pide: sin marco y el icono centrado como el resto de ítems del riel. Solo cambia la instancia del menú izquierdo; la del header (`ThemeToggle className={iconButton}`) conserva su aspecto actual. Solo presentación, sin cambios de datos ni funcionalidad.
+
+**Cambios (solo frontend, 1 archivo):**
+- `src/layouts/DashboardLayout.jsx` — en la instancia del riel del `ThemeToggle` (~L355):
+  - `className` añade `border-transparent bg-transparent` para que no se vea fondo ni borde en reposo, y **`justify-start`** para anular el `justify-center` que `defaultBtnClass` de `ThemeToggle.jsx` impone por defecto. Así el ícono se alinea al inicio del flex exactamente como `RailItem` y el botón "Nuevo formulario" (ninguno de los dos usa `justify-center`). Se conserva `hover:bg-*` suave al pasar el mouse.
+  - `labelClassName` pasa de `opacity-0` (que aún ocupa ancho y desplazaba el ícono al centrarse) a `opacity-0 max-w-0 overflow-hidden` con `group-hover:max-w-[14rem]`, de modo que la etiqueta oculta no robe ancho.
+
+**Contrato de datos intacto:** sin cambios de backend, endpoints, persistencia ni props; solo presentación. La instancia del header no se modifica.
+
+**Archivos modificados (1):**
+- `frontend/AIFormBuilder/src/layouts/DashboardLayout.jsx`
+
+**Verificación (desde `frontend/AIFormBuilder/`):**
+- `npx tsc --noEmit` → 0 errores.
+- `npm run lint` → exit 0 (solo warnings preexistentes; ninguno nuevo en `DashboardLayout.jsx`).
+- `npm run build` → exit 0 (avisos `@utility` y chunks >500 kB preexistentes, ver §9).
+
 ### 2026-11-26 — Estadísticas: «Sin responder» como segmento del chart del desglose de preguntas
 
 **Objetivo (petición del usuario):** en la página de estadísticas de un formulario del dashboard del superadmin, el dato de «Sin responder» debe aparecer dentro del mismo diseño del chart de cada pregunta (como si fuera una respuesta más), en lugar de un texto auxiliar debajo (p. ej. «3 o 1 sin responder»). Aplica a multiselección, ranking, escala (`importancia`) y texto libre; se elimina el texto de aviso sobrante.

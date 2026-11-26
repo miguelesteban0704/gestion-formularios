@@ -354,10 +354,10 @@ export function DashboardLayout({ children }) {
 
         <ThemeToggle
           showLabel
-          className="mx-3 mt-auto flex h-11 items-center gap-3 rounded-lg px-2 transition-colors hover:scale-105 active:scale-95 transform-gpu"
+          className="mx-3 mt-auto flex h-11 items-center justify-start gap-3 rounded-lg px-2 border-transparent bg-transparent transition-colors hover:scale-105 active:scale-95 transform-gpu"
           iconWrapClassName="grid h-9 w-9 shrink-0 place-items-center text-ink-muted"
           iconClassName="h-5 w-5"
-          labelClassName="whitespace-nowrap text-sm font-medium text-ink-muted opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+          labelClassName="whitespace-nowrap text-sm font-medium text-ink-muted opacity-0 max-w-0 overflow-hidden transition-all duration-200 group-hover:opacity-100 group-hover:max-w-[14rem]"
         />
       </aside>
 
